@@ -8,6 +8,7 @@ type PactReviewProps = {
   onSubmit: () => void;
   onFund: () => void;
   onTriggerDenial: () => void;
+  onCheckApproval?: () => void;
   isBusy?: boolean;
 };
 
@@ -37,9 +38,12 @@ export function PactReview({
   onSubmit,
   onFund,
   onTriggerDenial,
+  onCheckApproval,
   isBusy = false
 }: PactReviewProps) {
   const pact = task?.pact ?? fallbackPact;
+  const isRealMode = task?.mode === "real";
+  const awaitingApproval = isRealMode && task?.pact?.status === "submitted";
   const canSubmit = !isBusy && task?.status === "Planned";
   const canFund =
     !isBusy && (task?.status === "PactActive" || task?.status === "DeniedByCobo");
@@ -56,6 +60,15 @@ export function PactReview({
           <button onClick={onSubmit} disabled={!canSubmit}>
             Submit Pact
           </button>
+          {awaitingApproval ? (
+            <button
+              className="secondary"
+              onClick={onCheckApproval}
+              disabled={isBusy}
+            >
+              Check Cobo approval
+            </button>
+          ) : null}
           <button className="secondary" onClick={onFund} disabled={!canFund}>
             Fund escrow
           </button>
@@ -64,7 +77,9 @@ export function PactReview({
             onClick={onTriggerDenial}
             disabled={!canTriggerDenial}
           >
-            Trigger Cobo denial
+            {isRealMode
+              ? "Attempt out-of-Pact transfer (real Cobo denial)"
+              : "Trigger Cobo denial"}
           </button>
         </>
       }
@@ -106,6 +121,12 @@ export function PactReview({
           </div>
         </div>
       </div>
+
+      {awaitingApproval ? (
+        <div className="info-strip">
+          Approve the Pact in your Cobo wallet, then check.
+        </div>
+      ) : null}
 
       {wasDenied ? (
         <div className="error-strip">

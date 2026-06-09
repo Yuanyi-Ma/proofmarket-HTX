@@ -2,14 +2,21 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import { AuditLog } from "../components/AuditLog";
 import { ChallengePanel } from "../components/ChallengePanel";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { ExecutionTimeline } from "../components/ExecutionTimeline";
 import { FinalAnswer } from "../components/FinalAnswer";
+import { ModeBadge } from "../components/ModeBadge";
 import { PactReview } from "../components/PactReview";
 import { ProviderMarket } from "../components/ProviderMarket";
 import { TaskEntry } from "../components/TaskEntry";
-import type { ProviderAnswerPackage, Task } from "@proofmarket/shared/src/types";
+import type {
+  AuditEvent,
+  PactSummary,
+  ProviderAnswerPackage,
+  Task
+} from "@proofmarket/shared/src/types";
 
 const providerPackage: ProviderAnswerPackage = {
   taskId: "task_001",
@@ -52,6 +59,39 @@ function task(overrides: Partial<Task> = {}): Task {
     ...overrides
   };
 }
+
+function auditEvent(overrides: Partial<AuditEvent> = {}): AuditEvent {
+  return {
+    id: "audit_001",
+    taskId: "task_001",
+    source: "chain",
+    type: "chain_tx_confirmed",
+    result: "success",
+    message: "approve confirmed on Sepolia.",
+    txHash: null,
+    pactId: null,
+    jobId: null,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    ...overrides
+  };
+}
+
+function realPact(overrides: Partial<PactSummary> = {}): PactSummary {
+  return {
+    intent: "Fund one provider research job.",
+    totalBudget: "5 mUSDC",
+    perJobCap: "5 mUSDC",
+    allowedTargets: ["ProofMarketEscrow", "MockUSDC"],
+    allowedFunctions: ["approve", "createJob", "setBudget", "fund", "complete"],
+    denyRules: ["direct transfers denied by default", "max 7 txs"],
+    expiresInMinutes: 90,
+    pactId: "pact_real_001",
+    status: "submitted",
+    ...overrides
+  };
+}
+
+const sampleTxHash = `0x${"ab12".repeat(16)}`;
 
 function timelineRowClass(html: string, state: string): string {
   const pattern = new RegExp(
@@ -219,5 +259,111 @@ describe("ProofMarket workflow UI content", () => {
     expect(existingTaskHtml).toContain("Create fresh task");
     expect(existingTaskHtml).not.toMatch(/<button disabled[^>]*>Create fresh task/);
     expect(busyHtml).toMatch(/<button disabled[^>]*>Create task/);
+  });
+
+  it("renders a mode badge for fixture and real tasks and none without a task", () => {
+    const fixtureHtml = renderToStaticMarkup(<ModeBadge task={task()} />);
+    const realHtml = renderToStaticMarkup(<ModeBadge task={task({ mode: "real" })} />);
+    const emptyHtml = renderToStaticMarkup(<ModeBadge task={null} />);
+
+    expect(fixtureHtml).toContain("fixture mode");
+    expect(fixtureHtml).not.toContain("Sepolia");
+    expect(realHtml).toContain("real · Sepolia");
+    expect(emptyHtml).toBe("");
+  });
+
+  it("links audit events with a full tx hash to Sepolia Etherscan", () => {
+    const html = renderToStaticMarkup(
+      <AuditLog
+        task={task({
+          audit: [
+            auditEvent({ id: "audit_001", txHash: sampleTxHash }),
+            auditEvent({ id: "audit_002", type: "task_created", txHash: null })
+          ]
+        })}
+      />
+    );
+
+    expect(html).toContain(
+      `href="https://sepolia.etherscan.io/tx/${sampleTxHash}"`
+    );
+    expect((html.match(/sepolia\.etherscan\.io/g) ?? [])).toHaveLength(1);
+  });
+
+  it("replaces challenge actions with a local-demo note in real mode", () => {
+    const html = renderToStaticMarkup(
+      <ChallengePanel
+        task={task({ mode: "real", status: "Verified" })}
+        onWinChallenge={noop}
+        onRefundOrSlash={noop}
+      />
+    );
+
+    expect(html).toContain("Local mechanism demo — not available in real mode");
+    expect(html).not.toContain("Win challenge");
+    expect(html).not.toMatch(/<button[^>]*>Refund or slash<\/button>/);
+  });
+
+  it("offers a Cobo approval check while a real pact is submitted", () => {
+    const html = renderToStaticMarkup(
+      <PactReview
+        task={task({
+          mode: "real",
+          status: "PactSubmitted",
+          pact: realPact({ status: "submitted" })
+        })}
+        onSubmit={noop}
+        onFund={noop}
+        onTriggerDenial={noop}
+        onCheckApproval={noop}
+      />
+    );
+
+    expect(html).toContain("Check Cobo approval");
+    expect(html).toContain("Approve the Pact in your Cobo wallet, then check.");
+  });
+
+  it("renders real Cobo denial details in the audit log", () => {
+    const html = renderToStaticMarkup(
+      <AuditLog
+        task={task({
+          mode: "real",
+          status: "DeniedByCobo",
+          denial: {
+            denied: true,
+            exitCode: 5,
+            attemptedAction: "transfer 0.001 mUSDC to 0x…dEaD",
+            rawOutput: "Error: policy denied transfer (no transfer rule)"
+          }
+        })}
+      />
+    );
+
+    expect(html).toContain("transfer 0.001 mUSDC to 0x…dEaD");
+    expect(html).toContain("exit 5");
+    expect(html).toContain("Error: policy denied transfer (no transfer rule)");
+  });
+
+  it("renders one timeline row per tx record with links for confirmed hashes", () => {
+    const html = renderToStaticMarkup(
+      <ExecutionTimeline
+        task={task({
+          mode: "real",
+          status: "JobFunded",
+          txRecords: [
+            { label: "approve", coboTxId: "cobo_1", txHash: sampleTxHash, status: "confirmed" },
+            { label: "createJob", coboTxId: "cobo_2", txHash: "", status: "pending" }
+          ]
+        })}
+      />
+    );
+
+    expect(html).toContain("approve");
+    expect(html).toContain("createJob");
+    expect(html).toContain("confirmed");
+    expect(html).toContain("pending");
+    expect(html).toContain(
+      `href="https://sepolia.etherscan.io/tx/${sampleTxHash}"`
+    );
   });
 });

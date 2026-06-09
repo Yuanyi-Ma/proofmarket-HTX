@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { defaultQuestion } from "@proofmarket/shared/src/fixtures";
 import type { ProviderId, Task } from "@proofmarket/shared/src/types";
 import { AuditLog } from "../components/AuditLog";
@@ -8,6 +8,7 @@ import { ChallengePanel } from "../components/ChallengePanel";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { ExecutionTimeline } from "../components/ExecutionTimeline";
 import { FinalAnswer } from "../components/FinalAnswer";
+import { ModeBadge } from "../components/ModeBadge";
 import { PactReview } from "../components/PactReview";
 import { ProcurementPlan } from "../components/ProcurementPlan";
 import { ProviderMarket } from "../components/ProviderMarket";
@@ -16,6 +17,7 @@ import { TaskEntry } from "../components/TaskEntry";
 type ActionName =
   | "plan"
   | "pact"
+  | "pact-status"
   | "execute"
   | "provider"
   | "verify"
@@ -23,6 +25,8 @@ type ActionName =
   | "denial-demo"
   | "challenge-win"
   | "refund-or-slash";
+
+const polledActions: ReadonlySet<string> = new Set(["execute", "provider", "settle"]);
 
 async function readTaskResponse(response: Response): Promise<Task> {
   const text = await response.text();
@@ -52,6 +56,31 @@ export default function Page() {
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const isBusy = busyAction !== null;
+  const taskId = task?.id ?? null;
+
+  // While a slow on-chain action runs, poll the task so incrementally saved
+  // txRecords show up. The cleanup runs when busyAction changes (the POST
+  // response stays the final word) and on unmount.
+  useEffect(() => {
+    if (!taskId || !busyAction || !polledActions.has(busyAction)) return;
+
+    let cancelled = false;
+    const interval = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/tasks/${taskId}`);
+        if (!response.ok) return;
+        const polled = (await response.json()) as Task;
+        if (!cancelled) setTask(polled);
+      } catch {
+        // Polling is best-effort; the POST in flight reports real errors.
+      }
+    }, 2000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [busyAction, taskId]);
 
   async function createTask() {
     if (isBusy) return;
@@ -110,6 +139,7 @@ export default function Page() {
       <div className="page-header">
         <h1>ProofMarket task workflow</h1>
         <p>Bounded procurement, Cobo policy, evidence, challenge, and audit.</p>
+        <ModeBadge task={task} />
       </div>
       <div className="workflow-grid">
         <section className="main-stack" aria-label="ProofMarket workflow">
@@ -144,6 +174,7 @@ export default function Page() {
             onSubmit={() => runAction("pact")}
             onFund={() => runAction("execute")}
             onTriggerDenial={() => runAction("denial-demo")}
+            onCheckApproval={() => runAction("pact-status")}
             isBusy={isBusy}
           />
           <EvidencePanel

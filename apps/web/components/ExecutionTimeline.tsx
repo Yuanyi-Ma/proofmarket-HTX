@@ -1,5 +1,7 @@
 import React from "react";
+import type { TxRecord } from "@proofmarket/shared/src/realMode";
 import type { Task, TaskStatus } from "@proofmarket/shared/src/types";
+import { isFullTxHash, sepoliaTxUrl } from "../lib/links";
 import { Section } from "./Section";
 import { StatusBadge } from "./StatusBadge";
 
@@ -150,9 +152,66 @@ function TimelineGroup({
   );
 }
 
+function shortHash(txHash: string): string {
+  return `${txHash.slice(0, 10)}…${txHash.slice(-6)}`;
+}
+
+function TxRecordRow({ record }: { record: TxRecord }) {
+  return (
+    <div className={`timeline-row ${record.status === "confirmed" ? "past" : "current"}`}>
+      <div>
+        <strong>{record.label}</strong>
+        {record.status === "confirmed" && isFullTxHash(record.txHash) ? (
+          <p className="small tight">
+            <a
+              className="hash"
+              href={sepoliaTxUrl(record.txHash)}
+              target="_blank"
+              rel="noreferrer"
+            >
+              {shortHash(record.txHash)}
+            </a>
+          </p>
+        ) : (
+          <p className="small muted tight">
+            {record.coboTxId ? `Cobo tx ${record.coboTxId}` : "waiting for Cobo transaction"}
+          </p>
+        )}
+      </div>
+      <StatusBadge
+        tone={
+          record.status === "confirmed"
+            ? "success"
+            : record.status === "failed"
+              ? "danger"
+              : "warning"
+        }
+      >
+        {record.status}
+      </StatusBadge>
+    </div>
+  );
+}
+
+function TxRecordGroup({ records }: { records: TxRecord[] }) {
+  if (!records.length) return null;
+
+  return (
+    <div className="timeline-group">
+      <h3>Sepolia transactions</h3>
+      <div className="timeline-list">
+        {records.map((record, index) => (
+          <TxRecordRow key={`${record.label}-${index}`} record={record} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function ExecutionTimeline({ task }: { task: Task | null }) {
   return (
     <Section title="Execution timeline" kicker="Actor state">
+      <TxRecordGroup records={task?.txRecords ?? []} />
       <TimelineGroup
         title="Happy path"
         rows={happyRows}

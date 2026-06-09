@@ -36,6 +36,7 @@ export function ChallengePanel({
   onRefundOrSlash,
   isBusy = false
 }: ChallengePanelProps) {
+  const isRealMode = task?.mode === "real";
   const canWinChallenge = !isBusy && task?.status === "Challenged";
   const canRefundOrSlash = !isBusy && task?.status === "ChallengeWon";
   const verifier = verifierEvent(task);
@@ -50,22 +51,28 @@ export function ChallengePanel({
       title="Challenge panel"
       kicker="Accountability path"
       action={
-        <>
-          <button
-            className="secondary"
-            onClick={onWinChallenge}
-            disabled={!canWinChallenge}
-          >
-            Win challenge
-          </button>
-          <button
-            className="danger"
-            onClick={onRefundOrSlash}
-            disabled={!canRefundOrSlash}
-          >
-            Refund or slash
-          </button>
-        </>
+        isRealMode ? (
+          <span className="small muted">
+            Local mechanism demo — not available in real mode
+          </span>
+        ) : (
+          <>
+            <button
+              className="secondary"
+              onClick={onWinChallenge}
+              disabled={!canWinChallenge}
+            >
+              Win challenge
+            </button>
+            <button
+              className="danger"
+              onClick={onRefundOrSlash}
+              disabled={!canRefundOrSlash}
+            >
+              Refund or slash
+            </button>
+          </>
+        )
       }
     >
       <div className="data-grid">
