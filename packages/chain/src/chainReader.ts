@@ -1,9 +1,9 @@
 import {
+  AbiEventSignatureNotFoundError,
   createPublicClient,
   decodeEventLog,
   http,
   type Hash,
-  type PublicClient,
   type TransactionReceipt
 } from "viem";
 import { sepolia } from "viem/chains";
@@ -16,7 +16,8 @@ export type ChainReader = {
 };
 
 export function createChainReader(rpcUrl: string): ChainReader {
-  const client: PublicClient = createPublicClient({ chain: sepolia, transport: http(rpcUrl) });
+  // Let viem infer the typed client — no explicit PublicClient annotation needed
+  const client = createPublicClient({ chain: sepolia, transport: http(rpcUrl) });
 
   return {
     async waitForReceipt(txHash) {
@@ -31,24 +32,33 @@ export function createChainReader(rpcUrl: string): ChainReader {
           if (event.eventName === "JobCreated") {
             return (event.args as { jobId: bigint }).jobId;
           }
-        } catch {
-          /* not a JobCreated log */
+          // Known event from escrow (e.g. JobFunded) but not JobCreated — skip
+        } catch (error) {
+          // Only swallow "topic0 not in ABI" — any other decode failure is unexpected and should surface
+          if (!(error instanceof AbiEventSignatureNotFoundError)) throw error;
         }
       }
       throw new Error(`No JobCreated event found in receipt ${receipt.transactionHash}`);
     },
 
     async readJobState(escrowAddress, jobId) {
-      const job = (await client.readContract({
+      // viem infers a positional readonly tuple matching the jobs() ABI outputs:
+      //   [0] jobId, [1] client, [2] providerAgentId, [3] provider,
+      //   [4] verifierAgentId, [5] evaluator, [6] token,
+      //   [7] budget (uint256), [8] expiredAt,
+      //   [9] state (uint8) — JobState enum: 0 Open, 1 Funded, 2 Submitted,
+      //                        3 Completed, 4 Rejected, 5 Expired, 6 Challenged
+      //  [10] descriptionHash, [11] deliverableHash, [12] coverageHash
+      const job = await client.readContract({
         address: escrowAddress,
         abi: escrowAbi,
         functionName: "jobs",
         args: [jobId]
-      })) as readonly unknown[];
+      });
       return {
-        state: Number(job[9]),
-        budget: job[7] as bigint,
-        deliverableHash: job[11] as `0x${string}`
+        state: Number(job[9]),   // index 9 → state (see Job struct comment above)
+        budget: job[7],          // index 7 → budget
+        deliverableHash: job[11] // index 11 → deliverableHash
       };
     }
   };
