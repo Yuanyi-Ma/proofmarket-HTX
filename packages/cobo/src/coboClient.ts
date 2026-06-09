@@ -46,13 +46,16 @@ function runCaw(args: string[], options: CoboClientOptions): Promise<RunResult> 
       args,
       { env, timeout: options.timeoutMs ?? 120_000 },
       (error, stdout, stderr) => {
-        const exitCode =
-          error && typeof (error as NodeJS.ErrnoException & { code?: number }).code === "number"
-            ? ((error as unknown as { code: number }).code as number)
-            : error
-              ? 1
-              : 0;
-        resolve({ stdout: stdout ?? "", stderr: stderr ?? "", exitCode });
+        const rawCode = (error as NodeJS.ErrnoException | null)?.code;
+        const exitCode = typeof rawCode === "number" ? rawCode : error ? 1 : 0;
+        const timedOut = (error as { killed?: boolean } | null)?.killed === true;
+        let effectiveStderr = stderr ?? "";
+        if (rawCode === "ENOENT") {
+          effectiveStderr = `caw not found on PATH (ENOENT): ${error?.message ?? ""}`;
+        } else if (timedOut) {
+          effectiveStderr = `caw timed out after ${options.timeoutMs ?? 120_000}ms (SIGTERM)`;
+        }
+        resolve({ stdout: stdout ?? "", stderr: effectiveStderr, exitCode });
       }
     );
   });
@@ -178,8 +181,9 @@ export function createCliCoboClient(options: CoboClientOptions = {}): CoboClient
         "--amount",
         input.amount
       ];
+      const POLICY_DENIAL_EXIT = 5;
       const result = await runCaw(args, options);
-      if (result.exitCode !== 0) {
+      if (result.exitCode === POLICY_DENIAL_EXIT) {
         return {
           denied: true,
           exitCode: result.exitCode,
@@ -187,8 +191,13 @@ export function createCliCoboClient(options: CoboClientOptions = {}): CoboClient
           rawOutput: result.stderr || result.stdout
         };
       }
+      if (result.exitCode === 0) {
+        throw new Error(
+          `DENIAL DEMO FAILED OPEN: caw allowed a transfer that must be denied. Output: ${result.stdout}`
+        );
+      }
       throw new Error(
-        `DENIAL DEMO FAILED OPEN: caw allowed a transfer that must be denied. Output: ${result.stdout}`
+        `caw tx transfer failed with unexpected exit ${result.exitCode} (not a policy denial): ${result.stderr || result.stdout}`
       );
     }
   };
