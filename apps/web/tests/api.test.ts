@@ -46,12 +46,12 @@ function jsonRequest(body: unknown): Request {
 }
 
 describe("ProofMarket API routes", () => {
-  it("reuses one task service singleton across calls", () => {
+  it("reuses one task service singleton across calls", async () => {
     const service = getTaskService();
     expect(getTaskService()).toBe(service);
 
-    const first = service.createTask("singleton one", "1 test USDC");
-    const second = service.createTask("singleton two", "1 test USDC");
+    const first = await service.createTask("singleton one", "1 test USDC");
+    const second = await service.createTask("singleton two", "1 test USDC");
 
     expect(taskIdNumber(second.id)).toBe(taskIdNumber(first.id) + 1);
   });

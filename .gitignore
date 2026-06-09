@@ -9,3 +9,5 @@ data/demo-state/*
 !data/demo-state/.gitkeep
 test-results/
 playwright-report/
+*.tsbuildinfo
+.claude/

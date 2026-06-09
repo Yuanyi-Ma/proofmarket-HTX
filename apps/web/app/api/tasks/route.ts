@@ -11,7 +11,7 @@ export async function POST(request: Request) {
   };
   const question = String(body.question || DEFAULT_QUESTION);
   const budget = String(body.budget || DEFAULT_BUDGET);
-  const task = getTaskService().createTask(question, budget);
+  const task = await getTaskService().createTask(question, budget);
 
   return NextResponse.json(task);
 }

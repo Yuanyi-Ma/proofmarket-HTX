@@ -20,19 +20,19 @@ import { appendAudit } from "./auditStore";
 import type { InMemoryStore } from "./demoStore";
 
 export type TaskService = {
-  getTask(id: string): Task;
-  listTasks(): Task[];
-  createTask(question: string, budget: string): Task;
-  plan(id: string): Task;
-  submitPact(id: string): Task;
-  activatePact(id: string): Task;
-  executeEscrow(id: string): Task;
-  triggerDenial(id: string): Task;
-  runProvider(id: string, providerId: ProviderId): Task;
-  verify(id: string): Task;
-  settle(id: string): Task;
-  winChallenge(id: string): Task;
-  refundOrSlash(id: string): Task;
+  getTask(id: string): Promise<Task>;
+  listTasks(): Promise<Task[]>;
+  createTask(question: string, budget: string): Promise<Task>;
+  plan(id: string): Promise<Task>;
+  submitPact(id: string): Promise<Task>;
+  activatePact(id: string): Promise<Task>;
+  executeEscrow(id: string): Promise<Task>;
+  triggerDenial(id: string): Promise<Task>;
+  runProvider(id: string, providerId: ProviderId): Promise<Task>;
+  verify(id: string): Promise<Task>;
+  settle(id: string): Promise<Task>;
+  winChallenge(id: string): Promise<Task>;
+  refundOrSlash(id: string): Promise<Task>;
 };
 
 export function createTaskService(store: InMemoryStore): TaskService {
@@ -112,15 +112,15 @@ export function createTaskService(store: InMemoryStore): TaskService {
   }
 
   return {
-    getTask(id: string): Task {
+    async getTask(id: string): Promise<Task> {
       return store.getTask(id);
     },
 
-    listTasks(): Task[] {
+    async listTasks(): Promise<Task[]> {
       return store.listTasks();
     },
 
-    createTask(question: string, budget: string): Task {
+    async createTask(question: string, budget: string): Promise<Task> {
       const timestamp = now();
       const id = nextTaskId();
       const task: Task = {
@@ -156,7 +156,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    plan(id: string): Task {
+    async plan(id: string): Promise<Task> {
       const task = store.getTask(id);
       const plan = generateProcurementPlan(
         task.id,
@@ -186,7 +186,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    submitPact(id: string): Task {
+    async submitPact(id: string): Promise<Task> {
       const task = store.getTask(id);
       const pact = pactFor(task);
       const submitted = transition(
@@ -212,7 +212,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    activatePact(id: string): Task {
+    async activatePact(id: string): Promise<Task> {
       const task = store.getTask(id);
       if (!task.pact) {
         throw new Error("Cannot activate pact before submission");
@@ -244,7 +244,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    executeEscrow(id: string): Task {
+    async executeEscrow(id: string): Promise<Task> {
       const task = store.getTask(id);
       const funded = transition(
         {
@@ -271,7 +271,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    triggerDenial(id: string): Task {
+    async triggerDenial(id: string): Promise<Task> {
       const task = store.getTask(id);
       const denied = transition(task, "DeniedByCobo");
       const denial = {
@@ -302,7 +302,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    runProvider(id: string, providerId: ProviderId): Task {
+    async runProvider(id: string, providerId: ProviderId): Promise<Task> {
       const task = store.getTask(id);
       const providerPackage = runProviderAgent(task.id, providerId);
       const delivered = transition(
@@ -328,7 +328,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    verify(id: string): Task {
+    async verify(id: string): Promise<Task> {
       const task = store.getTask(id);
       if (!task.providerPackage || task.status !== "Delivered") {
         throw new Error("Cannot verify before provider delivery");
@@ -358,7 +358,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    settle(id: string): Task {
+    async settle(id: string): Promise<Task> {
       const task = store.getTask(id);
       const settled = transition(task, "Settled");
 
@@ -377,7 +377,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    winChallenge(id: string): Task {
+    async winChallenge(id: string): Promise<Task> {
       const task = store.getTask(id);
       const won = transition(task, "ChallengeWon");
 
@@ -396,7 +396,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
-    refundOrSlash(id: string): Task {
+    async refundOrSlash(id: string): Promise<Task> {
       const task = store.getTask(id);
       const refunded = transition(task, "RefundedOrSlashed");
 

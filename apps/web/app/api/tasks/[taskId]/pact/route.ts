@@ -9,7 +9,7 @@ export async function POST(_: Request, context: RouteContext) {
   const { taskId } = await context.params;
   const service = getTaskService();
 
-  service.submitPact(taskId);
+  await service.submitPact(taskId);
 
-  return NextResponse.json(service.activatePact(taskId));
+  return NextResponse.json(await service.activatePact(taskId));
 }

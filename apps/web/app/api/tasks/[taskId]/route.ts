@@ -8,5 +8,5 @@ type RouteContext = {
 export async function GET(_: Request, context: RouteContext) {
   const { taskId } = await context.params;
 
-  return NextResponse.json(getTaskService().getTask(taskId));
+  return NextResponse.json(await getTaskService().getTask(taskId));
 }

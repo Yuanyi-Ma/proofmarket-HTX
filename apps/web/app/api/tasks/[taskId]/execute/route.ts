@@ -8,5 +8,5 @@ type RouteContext = {
 export async function POST(_: Request, context: RouteContext) {
   const { taskId } = await context.params;
 
-  return NextResponse.json(getTaskService().executeEscrow(taskId));
+  return NextResponse.json(await getTaskService().executeEscrow(taskId));
 }

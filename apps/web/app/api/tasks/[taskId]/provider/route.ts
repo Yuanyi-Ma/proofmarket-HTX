@@ -37,5 +37,5 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  return NextResponse.json(getTaskService().runProvider(taskId, providerId));
+  return NextResponse.json(await getTaskService().runProvider(taskId, providerId));
 }
