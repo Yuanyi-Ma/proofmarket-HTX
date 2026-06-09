@@ -6,6 +6,9 @@ const COBO_WALLET = process.env.COBO_WALLET_ADDRESS ?? "";
 const MINT_AMOUNT = 100_000_000n; // 100 mUSDC at 6 decimals
 
 async function main() {
+  if (!process.env.SEPOLIA_RPC_URL) throw new Error("SEPOLIA_RPC_URL not set");
+  if (!process.env.DEPLOYER_PRIVATE_KEY) throw new Error("DEPLOYER_PRIVATE_KEY not set");
+
   if (!COBO_WALLET.startsWith("0x") || COBO_WALLET.length !== 42) {
     throw new Error("COBO_WALLET_ADDRESS must be a 42-char 0x address");
   }
@@ -25,11 +28,13 @@ async function main() {
 
   const mintTx = await usdc.mint(COBO_WALLET, MINT_AMOUNT);
   const mintReceipt = await mintTx.wait();
-  console.log(`Minted 100 mUSDC to ${COBO_WALLET}: ${mintReceipt?.hash}`);
+  if (!mintReceipt) throw new Error("mint tx receipt is null — tx may have been dropped");
+  console.log(`Minted 100 mUSDC to ${COBO_WALLET}: ${mintReceipt.hash}`);
 
+  const network = await hre.ethers.provider.getNetwork();
   const block = await hre.ethers.provider.getBlockNumber();
   const artifact = {
-    chainId: 11155111,
+    chainId: Number(network.chainId),
     network: "sepolia",
     deployer: deployer.address,
     blockNumber: block,
@@ -41,7 +46,7 @@ async function main() {
     mint: {
       to: COBO_WALLET,
       rawAmount: MINT_AMOUNT.toString(),
-      txHash: mintReceipt?.hash ?? ""
+      txHash: mintReceipt.hash
     },
     deployedAt: new Date().toISOString()
   };
