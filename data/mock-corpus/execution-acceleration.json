@@ -1,0 +1,25 @@
+{
+  "sources": [
+    {
+      "sourceTitle": "Block-STM: Scaling Blockchain Execution by Turning Ordering Curse to a Performance Blessing",
+      "sourceLocator": "arXiv:2203.06871",
+      "year": 2022,
+      "type": "paper",
+      "summary": "Block-STM uses optimistic parallel execution and conflict detection to execute ordered blockchain transactions in parallel while preserving deterministic results."
+    },
+    {
+      "sourceTitle": "Parallel EVM Execution and Conflict-Aware Scheduling",
+      "sourceLocator": "mock-paper:parallel-evm-2024",
+      "year": 2024,
+      "type": "paper",
+      "summary": "Parallel EVM systems depend on transaction dependency prediction, state access patterns, and conflict rollback costs."
+    },
+    {
+      "sourceTitle": "State Hotspots in High-Throughput Smart Contract Execution",
+      "sourceLocator": "mock-report:state-hotspots-2025",
+      "year": 2025,
+      "type": "report",
+      "summary": "State hotspots and storage I/O can dominate execution latency even when scheduling allows parallel execution."
+    }
+  ]
+}

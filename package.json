@@ -1,0 +1,21 @@
+{
+  "name": "proofmarket-demo",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev": "pnpm --filter @proofmarket/web dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "test:contracts": "pnpm --filter @proofmarket/contracts test",
+    "test:e2e": "pnpm --filter @proofmarket/web test:e2e",
+    "demo:success": "tsx scripts/run-demo-success.ts",
+    "demo:challenge": "tsx scripts/run-demo-challenge.ts",
+    "demo:denial": "tsx scripts/run-demo-denial.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

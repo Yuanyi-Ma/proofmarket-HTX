@@ -1,0 +1,116 @@
+{
+  "id": "task_001",
+  "userQuestion": "请调研近几年区块链交易执行加速的最新研究进展。",
+  "status": "DeniedByCobo",
+  "budgetLimit": "5 test USDC",
+  "selectedProviderIds": [
+    "execution-research-expert",
+    "shallow-search-provider",
+    "general-web-summary"
+  ],
+  "plan": {
+    "taskId": "task_001",
+    "userQuestion": "请调研近几年区块链交易执行加速的最新研究进展。",
+    "evidenceNeed": "The question asks for recent research progress and needs sources that identify concrete execution-acceleration mechanisms and their limits.",
+    "totalBudget": "5 test USDC",
+    "perJobCap": "1 test USDC",
+    "recommendedProviderId": "execution-research-expert",
+    "providerCount": 3,
+    "coverage": "2021-2026 blockchain execution acceleration: parallel execution, speculative execution, conflict detection, state access, Block-STM, EVM parallelization, Sei, Sui, Solana runtime.",
+    "returnType": "provider-answer-package",
+    "verificationMethod": "Verifier checks source locators, excerpt or summary alignment, relevance explanation, and coverage statement."
+  },
+  "pact": {
+    "intent": "Fund one provider research job for task task_001.",
+    "totalBudget": "5 test USDC",
+    "perJobCap": "1 test USDC",
+    "allowedTargets": [
+      "ProofMarketEscrow",
+      "MockUSDC",
+      "ProofMarketChallengeManager"
+    ],
+    "allowedFunctions": [
+      "createJob",
+      "fund",
+      "submit",
+      "complete",
+      "reject",
+      "approve"
+    ],
+    "denyRules": [
+      "direct transfer",
+      "non-whitelisted target",
+      "amount above cap",
+      "expired pact"
+    ],
+    "expiresInMinutes": 30,
+    "pactId": "pact_001",
+    "status": "active"
+  },
+  "providerPackage": null,
+  "audit": [
+    {
+      "id": "audit_001",
+      "taskId": "task_001",
+      "source": "user",
+      "type": "task_created",
+      "result": "success",
+      "message": "User created task with budget 5 test USDC.",
+      "txHash": null,
+      "pactId": null,
+      "jobId": null,
+      "createdAt": "2026-06-09T00:00:00.000Z"
+    },
+    {
+      "id": "audit_002",
+      "taskId": "task_001",
+      "source": "research-agent",
+      "type": "procurement_plan_created",
+      "result": "success",
+      "message": "Selected execution-research-expert, shallow-search-provider, general-web-summary.",
+      "txHash": null,
+      "pactId": null,
+      "jobId": null,
+      "createdAt": "2026-06-09T00:00:00.000Z"
+    },
+    {
+      "id": "audit_003",
+      "taskId": "task_001",
+      "source": "cobo",
+      "type": "pact_submitted",
+      "result": "success",
+      "message": "Submitted pact pact_001.",
+      "txHash": null,
+      "pactId": "pact_001",
+      "jobId": null,
+      "createdAt": "2026-06-09T00:00:00.000Z"
+    },
+    {
+      "id": "audit_004",
+      "taskId": "task_001",
+      "source": "cobo",
+      "type": "pact_activated",
+      "result": "success",
+      "message": "Activated pact pact_001.",
+      "txHash": null,
+      "pactId": "pact_001",
+      "jobId": null,
+      "createdAt": "2026-06-09T00:00:00.000Z"
+    },
+    {
+      "id": "audit_005",
+      "taskId": "task_001",
+      "source": "cobo",
+      "type": "escrow_denied",
+      "result": "denied",
+      "message": "Direct transfer rejected because target is not whitelisted and amount exceeds Pact cap. Attempted target=0xDeniedDirectTransfer; function=transfer; amount=10 SETH; moved funds=0 test USDC; no escrow job created.",
+      "txHash": null,
+      "pactId": "pact_001",
+      "jobId": null,
+      "createdAt": "2026-06-09T00:00:00.000Z"
+    }
+  ],
+  "jobId": null,
+  "createdAt": "2026-06-09T00:00:00.000Z",
+  "updatedAt": "2026-06-09T00:00:00.000Z"
+}

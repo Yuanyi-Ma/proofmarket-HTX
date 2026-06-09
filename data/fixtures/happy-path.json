@@ -1,0 +1,183 @@
+{
+  "id": "task_001",
+  "userQuestion": "请调研近几年区块链交易执行加速的最新研究进展。",
+  "status": "Settled",
+  "budgetLimit": "5 test USDC",
+  "selectedProviderIds": [
+    "execution-research-expert",
+    "shallow-search-provider",
+    "general-web-summary"
+  ],
+  "plan": {
+    "taskId": "task_001",
+    "userQuestion": "请调研近几年区块链交易执行加速的最新研究进展。",
+    "evidenceNeed": "The question asks for recent research progress and needs sources that identify concrete execution-acceleration mechanisms and their limits.",
+    "totalBudget": "5 test USDC",
+    "perJobCap": "1 test USDC",
+    "recommendedProviderId": "execution-research-expert",
+    "providerCount": 3,
+    "coverage": "2021-2026 blockchain execution acceleration: parallel execution, speculative execution, conflict detection, state access, Block-STM, EVM parallelization, Sei, Sui, Solana runtime.",
+    "returnType": "provider-answer-package",
+    "verificationMethod": "Verifier checks source locators, excerpt or summary alignment, relevance explanation, and coverage statement."
+  },
+  "pact": {
+    "intent": "Fund one provider research job for task task_001.",
+    "totalBudget": "5 test USDC",
+    "perJobCap": "1 test USDC",
+    "allowedTargets": [
+      "ProofMarketEscrow",
+      "MockUSDC",
+      "ProofMarketChallengeManager"
+    ],
+    "allowedFunctions": [
+      "createJob",
+      "fund",
+      "submit",
+      "complete",
+      "reject",
+      "approve"
+    ],
+    "denyRules": [
+      "direct transfer",
+      "non-whitelisted target",
+      "amount above cap",
+      "expired pact"
+    ],
+    "expiresInMinutes": 30,
+    "pactId": "pact_001",
+    "status": "active"
+  },
+  "providerPackage": {
+    "taskId": "task_001",
+    "providerAgentId": 1,
+    "providerId": "execution-research-expert",
+    "providerName": "Execution Research Expert Agent",
+    "coverageStatement": "Searched 2021-2026 blockchain transaction execution acceleration sources across parallel execution, speculative execution, conflict detection, state access optimization, Block-STM, EVM parallelization, Sei, Sui, and Solana runtime.",
+    "answers": [
+      {
+        "providerAnswer": "Recent blockchain execution acceleration work centers on optimistic parallel execution, speculative execution, conflict detection, and state access optimization.",
+        "sourceTitle": "Block-STM: Scaling Blockchain Execution by Turning Ordering Curse to a Performance Blessing",
+        "sourceLocator": "arXiv:2203.06871",
+        "sourceMetadata": {
+          "year": 2022,
+          "type": "paper"
+        },
+        "excerptOrSummary": "Block-STM uses optimistic parallel execution and conflict detection to execute ordered blockchain transactions concurrently while preserving deterministic results.",
+        "relevanceExplanation": "This supports speculative parallel execution as a major direction, but does not prove linear speedup for all workloads."
+      },
+      {
+        "providerAnswer": "Execution acceleration is limited by transaction conflicts, state hotspots, and storage access costs.",
+        "sourceTitle": "State Hotspots in High-Throughput Smart Contract Execution",
+        "sourceLocator": "mock-report:state-hotspots-2025",
+        "sourceMetadata": {
+          "year": 2025,
+          "type": "report"
+        },
+        "excerptOrSummary": "State hotspots and storage I/O can dominate execution latency even when scheduling allows parallel execution.",
+        "relevanceExplanation": "This limits overclaims about parallel execution and explains why workload structure matters."
+      }
+    ],
+    "packageHash": "0x24131c9e7ac03180b7f1ffa0d4e4a0dace0dd01d0ad4eba317c451a2548cb6a9"
+  },
+  "audit": [
+    {
+      "id": "audit_001",
+      "taskId": "task_001",
+      "source": "user",
+      "type": "task_created",
+      "result": "success",
+      "message": "User created task with budget 5 test USDC.",
+      "txHash": null,
+      "pactId": null,
+      "jobId": null,
+      "createdAt": "2026-06-09T16:37:10.911Z"
+    },
+    {
+      "id": "audit_002",
+      "taskId": "task_001",
+      "source": "research-agent",
+      "type": "procurement_plan_created",
+      "result": "success",
+      "message": "Selected execution-research-expert, shallow-search-provider, general-web-summary.",
+      "txHash": null,
+      "pactId": null,
+      "jobId": null,
+      "createdAt": "2026-06-09T16:37:10.911Z"
+    },
+    {
+      "id": "audit_003",
+      "taskId": "task_001",
+      "source": "cobo",
+      "type": "pact_submitted",
+      "result": "success",
+      "message": "Submitted pact pact_001.",
+      "txHash": null,
+      "pactId": "pact_001",
+      "jobId": null,
+      "createdAt": "2026-06-09T16:37:10.911Z"
+    },
+    {
+      "id": "audit_004",
+      "taskId": "task_001",
+      "source": "cobo",
+      "type": "pact_activated",
+      "result": "success",
+      "message": "Activated pact pact_001.",
+      "txHash": null,
+      "pactId": "pact_001",
+      "jobId": null,
+      "createdAt": "2026-06-09T16:37:10.911Z"
+    },
+    {
+      "id": "audit_005",
+      "taskId": "task_001",
+      "source": "cobo",
+      "type": "escrow_executed",
+      "result": "success",
+      "message": "Escrow job funded on demo chain.",
+      "txHash": "0xproofmarket0000000000000000000000000000000000000000000000000001",
+      "pactId": "pact_001",
+      "jobId": 1,
+      "createdAt": "2026-06-09T16:37:10.911Z"
+    },
+    {
+      "id": "audit_006",
+      "taskId": "task_001",
+      "source": "provider",
+      "type": "provider_package_delivered",
+      "result": "success",
+      "message": "Provider execution-research-expert delivered package 0x24131c9e7ac03180b7f1ffa0d4e4a0dace0dd01d0ad4eba317c451a2548cb6a9.",
+      "txHash": null,
+      "pactId": null,
+      "jobId": 1,
+      "createdAt": "2026-06-09T16:37:10.912Z"
+    },
+    {
+      "id": "audit_007",
+      "taskId": "task_001",
+      "source": "verifier",
+      "type": "verification_passed",
+      "result": "success",
+      "message": "Evidence supports the provider answer within the declared execution-acceleration coverage scope. resultHash=0x28434d42cb21b2461490bc817be2724a1f58099186d7cc159d734cdf50450c61",
+      "txHash": null,
+      "pactId": null,
+      "jobId": 1,
+      "createdAt": "2026-06-09T16:37:10.912Z"
+    },
+    {
+      "id": "audit_008",
+      "taskId": "task_001",
+      "source": "settlement",
+      "type": "settled",
+      "result": "success",
+      "message": "Provider payment settled.",
+      "txHash": null,
+      "pactId": null,
+      "jobId": 1,
+      "createdAt": "2026-06-09T16:37:10.912Z"
+    }
+  ],
+  "jobId": 1,
+  "createdAt": "2026-06-09T16:37:10.911Z",
+  "updatedAt": "2026-06-09T16:37:10.912Z"
+}

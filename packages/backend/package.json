@@ -1,0 +1,20 @@
+{
+  "name": "@proofmarket/backend",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run tests"
+  },
+  "dependencies": {
+    "@proofmarket/agents": "workspace:*",
+    "@proofmarket/cobo": "workspace:*",
+    "@proofmarket/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
