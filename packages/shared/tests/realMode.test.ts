@@ -110,4 +110,57 @@ describe("validateResearchPlanOutput", () => {
       "complete"
     ]);
   });
+
+  it('rejects maxPayment "0" with positive finite message', () => {
+    expect(() =>
+      validateResearchPlanOutput(
+        { ...goodPlan, maxPayment: "0" },
+        { taskId: "task_001", budgetAmount: "5", providerIds: catalogIds }
+      )
+    ).toThrow(/positive finite/i);
+  });
+
+  it('rejects maxPayment "abc" with positive finite message', () => {
+    expect(() =>
+      validateResearchPlanOutput(
+        { ...goodPlan, maxPayment: "abc" },
+        { taskId: "task_001", budgetAmount: "5", providerIds: catalogIds }
+      )
+    ).toThrow(/positive finite/i);
+  });
+
+  it("rejects undefined requiredEvidenceSchema", () => {
+    expect(() =>
+      validateResearchPlanOutput(
+        { ...goodPlan, requiredEvidenceSchema: undefined as any },
+        { taskId: "task_001", budgetAmount: "5", providerIds: catalogIds }
+      )
+    ).toThrow(/requiredEvidenceSchema/i);
+  });
+
+  it("rejects empty chainActions with must not be empty message", () => {
+    expect(() =>
+      validateResearchPlanOutput(
+        { ...goodPlan, chainActions: [] },
+        { taskId: "task_001", budgetAmount: "5", providerIds: catalogIds }
+      )
+    ).toThrow(/must not be empty/i);
+  });
+
+  it("does not reject a reason containing a 64-char tx hash", () => {
+    const plan = validateResearchPlanOutput(
+      { ...goodPlan, reason: "see tx 0x" + "a".repeat(64) },
+      { taskId: "task_001", budgetAmount: "5", providerIds: catalogIds }
+    );
+    expect(plan.reason).toContain("0x");
+  });
+
+  it("rejects plan with wrong taskId", () => {
+    expect(() =>
+      validateResearchPlanOutput(
+        { ...goodPlan, taskId: "task_999" },
+        { taskId: "task_001", budgetAmount: "5", providerIds: catalogIds }
+      )
+    ).toThrow(/mismatch/i);
+  });
 });
