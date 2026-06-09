@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildPactPolicy, createFixtureCoboClient } from "../src/index";
+import { buildRealPactSubmission } from "../src/pactPolicy";
 
 describe("buildPactPolicy", () => {
   it("builds the complete fixed Pact policy", () => {
@@ -43,5 +44,47 @@ describe("createFixtureCoboClient", () => {
       attemptedAmount: "10 SETH",
       movedFunds: "0 test USDC"
     });
+  });
+});
+
+describe("buildRealPactSubmission", () => {
+  const input = {
+    escrowAddress: "0x" + "4".repeat(40),
+    tokenAddress: "0x" + "3".repeat(40),
+    budgetAmount: "5",
+    taskId: "task_001"
+  };
+
+  it("whitelists exactly escrow and token contracts on SETH", () => {
+    const submission = buildRealPactSubmission(input);
+    const policy = submission.policies[0];
+    expect(policy.type).toBe("contract_call");
+    expect(policy.rules.when.chain_in).toEqual(["SETH"]);
+    expect(policy.rules.when.target_in).toEqual([
+      { chain_id: "SETH", contract_addr: input.escrowAddress },
+      { chain_id: "SETH", contract_addr: input.tokenAddress }
+    ]);
+  });
+
+  it("has no transfer policy so direct transfers are default-denied", () => {
+    const submission = buildRealPactSubmission(input);
+    expect(submission.policies.every((p) => p.type === "contract_call")).toBe(true);
+  });
+
+  it("caps tx count and expires", () => {
+    const submission = buildRealPactSubmission(input);
+    expect(submission.completionConditions).toEqual([
+      { type: "tx_count", threshold: "7" },
+      { type: "time_elapsed", threshold: "5400" }
+    ]);
+    expect(
+      submission.policies[0].rules.deny_if.usage_limits.rolling_24h.tx_count_gt
+    ).toBe(7);
+  });
+
+  it("mentions the budget in intent and execution plan", () => {
+    const submission = buildRealPactSubmission(input);
+    expect(submission.intent).toContain("5 mUSDC");
+    expect(submission.executionPlan).toContain("# Risk Controls");
   });
 });

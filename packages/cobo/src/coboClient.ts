@@ -1,90 +1,195 @@
 import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 
-import type { PactPolicy } from "./pactPolicy";
+import type { RealPactSubmission } from "./pactPolicy";
 
-const execFileAsync = promisify(execFile);
-
-export type PactSubmission = {
-  pactId: string;
-  status: "submitted" | "active" | "denied" | "expired";
+export type CoboClientOptions = {
+  pathPrepend?: string; // tests inject a fake caw directory
+  timeoutMs?: number;
 };
 
-export type PactStatus = {
-  pactId: string;
-  status: "submitted" | "active" | "denied" | "expired";
-};
-
-export type ContractCallInput = {
-  pactId: string;
-  target: string;
-  functionName: string;
-  args?: readonly string[];
-};
-
-export type ContractCallResult = {
-  txHash: string;
-  status: "submitted";
-};
-
-export type DeniedTransferResult = {
-  denied: boolean;
-  reason: string;
-  attemptedTarget: string;
-  attemptedFunction: string;
-  attemptedAmount: string;
-  movedFunds: string;
+export type PactSubmitResult = { pactId: string; status: string; raw: string };
+export type PactStatusResult = { pactId: string; status: string; raw: string };
+export type ContractCallResult = { coboTxId: string; status: string; raw: string };
+export type DenialResult = {
+  denied: true;
+  exitCode: number;
+  attemptedAction: string;
+  rawOutput: string;
 };
 
 export interface CoboClient {
-  submitPact(policyJson: PactPolicy): Promise<PactSubmission>;
-  getPactStatus(pactId: string): Promise<PactStatus>;
-  callContract(input: ContractCallInput): Promise<ContractCallResult>;
-  triggerDeniedTransfer(): Promise<DeniedTransferResult>;
+  submitPact(submission: RealPactSubmission): Promise<PactSubmitResult>;
+  getPactStatus(pactId: string): Promise<PactStatusResult>;
+  callContract(input: {
+    pactId: string;
+    contract: string;
+    calldata: string;
+    requestId: string;
+    description: string;
+  }): Promise<ContractCallResult>;
+  getTx(coboTxId: string): Promise<{ raw: string; parsed: Record<string, unknown> }>;
+  attemptDeniedTransfer(input: {
+    pactId: string;
+    dstAddress: string;
+    amount: string;
+  }): Promise<DenialResult>;
 }
 
-function parseJson<T>(stdout: string): T {
-  return JSON.parse(stdout) as T;
+type RunResult = { stdout: string; stderr: string; exitCode: number };
+
+function runCaw(args: string[], options: CoboClientOptions): Promise<RunResult> {
+  const env = { ...process.env };
+  if (options.pathPrepend) env.PATH = `${options.pathPrepend}:${env.PATH}`;
+  return new Promise((resolve) => {
+    execFile(
+      "caw",
+      args,
+      { env, timeout: options.timeoutMs ?? 120_000 },
+      (error, stdout, stderr) => {
+        const exitCode =
+          error && typeof (error as NodeJS.ErrnoException & { code?: number }).code === "number"
+            ? ((error as unknown as { code: number }).code as number)
+            : error
+              ? 1
+              : 0;
+        resolve({ stdout: stdout ?? "", stderr: stderr ?? "", exitCode });
+      }
+    );
+  });
 }
 
-export function createCliCoboClient(): CoboClient {
+function parseLooseJson(raw: string): Record<string, unknown> {
+  let parsed: Record<string, unknown> = {};
+  try {
+    parsed = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        parsed = JSON.parse(match[0]) as Record<string, unknown>;
+      } catch {
+        /* fall through */
+      }
+    }
+  }
+  // caw wraps payloads as {message, result: {...}, success} — unwrap when present
+  if (parsed.result && typeof parsed.result === "object" && !Array.isArray(parsed.result)) {
+    return { ...parsed, ...(parsed.result as Record<string, unknown>) };
+  }
+  return parsed;
+}
+
+function pickString(obj: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = obj[key];
+    if (typeof value === "string" && value) return value;
+  }
+  return "";
+}
+
+export function createCliCoboClient(options: CoboClientOptions = {}): CoboClient {
+  async function expectSuccess(args: string[], action: string): Promise<RunResult> {
+    const result = await runCaw(args, options);
+    if (result.exitCode !== 0) {
+      throw new Error(
+        `caw ${action} failed with exit ${result.exitCode}: ${result.stderr || result.stdout}`
+      );
+    }
+    return result;
+  }
+
   return {
-    async submitPact(policyJson) {
-      const { stdout } = await execFileAsync("caw", ["pact", "submit", JSON.stringify(policyJson)]);
-      return parseJson<PactSubmission>(stdout);
+    async submitPact(submission) {
+      const result = await expectSuccess(
+        [
+          "pact",
+          "submit",
+          "--intent",
+          submission.intent,
+          "--execution-plan",
+          submission.executionPlan,
+          "--policies",
+          JSON.stringify(submission.policies),
+          "--completion-conditions",
+          JSON.stringify(submission.completionConditions)
+        ],
+        "pact submit"
+      );
+      const parsed = parseLooseJson(result.stdout);
+      const pactId = pickString(parsed, ["pact_id", "pactId", "id"]);
+      if (!pactId) throw new Error(`caw pact submit returned no pact id: ${result.stdout}`);
+      return { pactId, status: pickString(parsed, ["status"]), raw: result.stdout };
     },
 
     async getPactStatus(pactId) {
-      const { stdout } = await execFileAsync("caw", ["pact", "status", pactId]);
-      return parseJson<PactStatus>(stdout);
+      const result = await expectSuccess(
+        ["pact", "status", "--pact-id", pactId],
+        "pact status"
+      );
+      const parsed = parseLooseJson(result.stdout);
+      return {
+        pactId,
+        status: pickString(parsed, ["status", "state"]),
+        raw: result.stdout
+      };
     },
 
     async callContract(input) {
-      const { stdout } = await execFileAsync("caw", [
-        "contract",
-        "call",
-        "--pact",
-        input.pactId,
-        "--target",
-        input.target,
-        "--function",
-        input.functionName,
-        "--args",
-        JSON.stringify(input.args ?? [])
-      ]);
-      return parseJson<ContractCallResult>(stdout);
+      const result = await expectSuccess(
+        [
+          "tx",
+          "call",
+          "--pact-id",
+          input.pactId,
+          "--chain-id",
+          "SETH",
+          "--contract",
+          input.contract,
+          "--calldata",
+          input.calldata,
+          "--request-id",
+          input.requestId,
+          "--description",
+          input.description
+        ],
+        "tx call"
+      );
+      const parsed = parseLooseJson(result.stdout);
+      const coboTxId = pickString(parsed, ["tx_id", "txId", "transaction_id", "id"]);
+      if (!coboTxId) throw new Error(`caw tx call returned no tx id: ${result.stdout}`);
+      return { coboTxId, status: pickString(parsed, ["status"]), raw: result.stdout };
     },
 
-    async triggerDeniedTransfer() {
-      return {
-        denied: true,
-        reason:
-          "Direct transfer rejected because target is not whitelisted and amount exceeds Pact cap.",
-        attemptedTarget: "0xDeniedDirectTransfer",
-        attemptedFunction: "transfer",
-        attemptedAmount: "10 SETH",
-        movedFunds: "0 test USDC"
-      };
+    async getTx(coboTxId) {
+      const result = await expectSuccess(["tx", "get", "--tx-id", coboTxId], "tx get");
+      return { raw: result.stdout, parsed: parseLooseJson(result.stdout) };
+    },
+
+    async attemptDeniedTransfer(input) {
+      const args = [
+        "tx",
+        "transfer",
+        "--pact-id",
+        input.pactId,
+        "--token-id",
+        "SETH",
+        "--dst-address",
+        input.dstAddress,
+        "--amount",
+        input.amount
+      ];
+      const result = await runCaw(args, options);
+      if (result.exitCode !== 0) {
+        return {
+          denied: true,
+          exitCode: result.exitCode,
+          attemptedAction: `tx transfer ${input.amount} SETH -> ${input.dstAddress}`,
+          rawOutput: result.stderr || result.stdout
+        };
+      }
+      throw new Error(
+        `DENIAL DEMO FAILED OPEN: caw allowed a transfer that must be denied. Output: ${result.stdout}`
+      );
     }
   };
 }
