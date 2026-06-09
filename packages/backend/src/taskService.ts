@@ -134,6 +134,10 @@ export function createTaskService(store: InMemoryStore): TaskService {
         providerPackage: null,
         audit: [],
         jobId: null,
+        mode: "fixture",
+        txRecords: [],
+        claudePlanRaw: null,
+        denial: null,
         createdAt: timestamp,
         updatedAt: timestamp
       };

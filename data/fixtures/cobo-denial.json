@@ -111,6 +111,10 @@
     }
   ],
   "jobId": null,
+  "mode": "fixture",
+  "txRecords": [],
+  "claudePlanRaw": null,
+  "denial": null,
   "createdAt": "2026-06-09T00:00:00.000Z",
   "updatedAt": "2026-06-09T00:00:00.000Z"
 }

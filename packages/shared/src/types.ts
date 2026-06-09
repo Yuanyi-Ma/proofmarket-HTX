@@ -115,6 +115,10 @@ export type Task = {
   providerPackage: ProviderAnswerPackage | null;
   audit: AuditEvent[];
   jobId: number | null;
+  mode: "fixture" | "real";
+  txRecords: import("./realMode").TxRecord[];
+  claudePlanRaw: string | null;
+  denial: import("./realMode").CoboDenialRecord | null;
   createdAt: string;
   updatedAt: string;
 };
