@@ -43,6 +43,10 @@ function task(overrides: Partial<Task> = {}): Task {
     providerPackage: null,
     audit: [],
     jobId: null,
+    mode: "fixture",
+    txRecords: [],
+    claudePlanRaw: null,
+    denial: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",
     ...overrides
