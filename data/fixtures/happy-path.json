@@ -75,9 +75,20 @@
         },
         "excerptOrSummary": "State hotspots and storage I/O can dominate execution latency even when scheduling allows parallel execution.",
         "relevanceExplanation": "This limits overclaims about parallel execution and explains why workload structure matters."
+      },
+      {
+        "providerAnswer": "EVM parallelization in Sei v2 and Monad achieves significant throughput gains through optimistic concurrency and pipelined execution stages.",
+        "sourceTitle": "Sei v2: Parallelized EVM Execution",
+        "sourceLocator": "mock-report:sei-v2-parallel-evm-2024",
+        "sourceMetadata": {
+          "year": 2024,
+          "type": "report"
+        },
+        "excerptOrSummary": "Sei v2 introduces a parallelized EVM that pipelines transaction execution, state access, and block commitment to maximize hardware utilization.",
+        "relevanceExplanation": "This provides a concrete production example of EVM parallelization beyond research prototypes."
       }
     ],
-    "packageHash": "0x24131c9e7ac03180b7f1ffa0d4e4a0dace0dd01d0ad4eba317c451a2548cb6a9"
+    "packageHash": "0x79a3e6bb5d99750f62a223e05d3aa79381351753141e64aa70f4ad233268b387"
   },
   "audit": [
     {
@@ -90,7 +101,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-09T16:37:10.911Z"
+      "createdAt": "2026-06-09T19:39:34.428Z"
     },
     {
       "id": "audit_002",
@@ -102,7 +113,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-09T16:37:10.911Z"
+      "createdAt": "2026-06-09T19:39:34.428Z"
     },
     {
       "id": "audit_003",
@@ -114,7 +125,7 @@
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-09T16:37:10.911Z"
+      "createdAt": "2026-06-09T19:39:34.428Z"
     },
     {
       "id": "audit_004",
@@ -126,7 +137,7 @@
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-09T16:37:10.911Z"
+      "createdAt": "2026-06-09T19:39:34.428Z"
     },
     {
       "id": "audit_005",
@@ -138,7 +149,7 @@
       "txHash": "0xproofmarket0000000000000000000000000000000000000000000000000001",
       "pactId": "pact_001",
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:10.911Z"
+      "createdAt": "2026-06-09T19:39:34.428Z"
     },
     {
       "id": "audit_006",
@@ -146,11 +157,11 @@
       "source": "provider",
       "type": "provider_package_delivered",
       "result": "success",
-      "message": "Provider execution-research-expert delivered package 0x24131c9e7ac03180b7f1ffa0d4e4a0dace0dd01d0ad4eba317c451a2548cb6a9.",
+      "message": "Provider execution-research-expert delivered package 0x79a3e6bb5d99750f62a223e05d3aa79381351753141e64aa70f4ad233268b387.",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:10.912Z"
+      "createdAt": "2026-06-09T19:39:34.428Z"
     },
     {
       "id": "audit_007",
@@ -158,11 +169,11 @@
       "source": "verifier",
       "type": "verification_passed",
       "result": "success",
-      "message": "Evidence supports the provider answer within the declared execution-acceleration coverage scope. resultHash=0x28434d42cb21b2461490bc817be2724a1f58099186d7cc159d734cdf50450c61",
+      "message": "Evidence supports the provider answer within the declared execution-acceleration coverage scope. resultHash=0x1d45948d509c39b8a133b6dd7b04d7c349e4bec0d73f1576856cba741ea1f87f",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:10.912Z"
+      "createdAt": "2026-06-09T19:39:34.428Z"
     },
     {
       "id": "audit_008",
@@ -174,7 +185,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:10.912Z"
+      "createdAt": "2026-06-09T19:39:34.428Z"
     }
   ],
   "jobId": 1,
@@ -182,6 +193,6 @@
   "txRecords": [],
   "claudePlanRaw": null,
   "denial": null,
-  "createdAt": "2026-06-09T16:37:10.911Z",
-  "updatedAt": "2026-06-09T16:37:10.912Z"
+  "createdAt": "2026-06-09T19:39:34.427Z",
+  "updatedAt": "2026-06-09T19:39:34.428Z"
 }

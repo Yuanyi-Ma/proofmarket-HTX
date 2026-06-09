@@ -1,8 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { parseDeploymentArtifact } from "@proofmarket/shared/src/realMode";
 import { createProviderSubmitter } from "./providerSigner";
 import { startServicesServer, type SubmitOnChain } from "./server";
+
+const moduleDir = fileURLToPath(new URL(".", import.meta.url));
 
 async function main(): Promise<void> {
   const port = Number(process.env.SERVICES_PORT ?? 4010);
@@ -12,7 +15,7 @@ async function main(): Promise<void> {
   let submitOnChain: SubmitOnChain | null = null;
   if (rpcUrl && providerKey) {
     const artifact = parseDeploymentArtifact(
-      JSON.parse(readFileSync(join(process.cwd(), "..", "..", "deployments", "sepolia.json"), "utf8"))
+      JSON.parse(readFileSync(join(moduleDir, "..", "..", "..", "deployments", "sepolia.json"), "utf8"))
     );
     submitOnChain = createProviderSubmitter({
       rpcUrl,
