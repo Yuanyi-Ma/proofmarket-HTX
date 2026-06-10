@@ -40,6 +40,89 @@ Open `http://localhost:3000`.
 If MockUSDC is not visible in Cobo, say "test asset" during the demo.
 Use `Create fresh task` between the success, challenge, and denial paths when presenting the live UI.
 
+## Real mode (Sepolia + Cobo + Claude Code)
+
+This section covers running the full on-chain flow against Sepolia testnet with a real Cobo Agentic Wallet and Claude Code as the research agent.
+
+### Environment setup
+
+```bash
+cp .env.example .env
+# Fill in the following keys:
+#   DEPLOYER_PRIVATE_KEY      — test key that deploys contracts and pays gas
+#   PROVIDER_SIGNER_PRIVATE_KEY — test key for the demo Provider identity
+#   PROVIDER_SIGNER_ADDRESS   — address of the provider signer key above
+#   COBO_WALLET_ADDRESS       — Cobo Agentic Wallet Sepolia address
+#   SEPOLIA_RPC_URL           — already set to a public RPC; use your own for reliability
+#   SERVICES_URL / SERVICES_PORT — leave defaults unless you changed the port
+#   CLAUDE_BIN                — path to the Claude Code binary (default: claude)
+```
+
+### Deploy contracts (first time, or after reset)
+
+```bash
+cd packages/contracts && set -a; source ../../.env; set +a; pnpm hardhat run scripts/deploy-sepolia.ts --network sepolia
+```
+
+This writes `deployments/sepolia.json`. The preflight will FAIL until this file exists.
+
+### Preflight
+
+Run this before every demo to confirm all prerequisites are satisfied:
+
+```bash
+pnpm preflight
+```
+
+Each check prints `PASS`, `FAIL`, or `INFO`. Fix any `FAIL` items before proceeding. Typical pre-demo failures and fixes:
+
+| FAIL | Fix |
+|---|---|
+| `deployment_artifact` | Run the deploy command above |
+| `gas_cobo_wallet` | `caw faucet deposit` (Sepolia faucet; daily limit 0.02 SETH) |
+| `gas_deployer` | Send SETH to the deployer address via a Sepolia faucet |
+| `gas_provider_signer` | Send SETH to the provider signer address |
+| `services_reachable` | Start services: `pnpm dev:services` |
+
+### Running the demo
+
+Open three terminals:
+
+**Terminal A** — Provider/Judge service:
+```bash
+pnpm dev:services
+```
+
+**Terminal B** — Web server in real mode:
+```bash
+PROOFMARKET_MODE=real pnpm dev
+```
+
+**Terminal C** — Headless driver (or open browser to `http://localhost:3000`):
+```bash
+pnpm demo:real
+```
+
+`pnpm demo:real` runs the full success path (create → plan → pact → execute → provider → verify → settle) then a denial-demo path on a fresh task. It prints every transaction hash with Etherscan links and the audit file path.
+
+### Demo Day plan
+
+**Pairing decision before the demo:**
+
+- **Unpaired wallet (recommended for live demos):** Pacts auto-approve on first `pact-status` check — zero waiting, fully automated. No human step needed.
+- **Paired wallet (adds a visible human-approval scene):** The script prints "waiting for Cobo approval — approve in the Cobo app when prompted" between pact-status tries. You have up to 5 minutes. Re-rehearse the full flow with pairing enabled before demo day — do not pair for the first time during the live run.
+
+**Pre-demo checklist:**
+
+1. Run `pnpm preflight` — all checks must PASS.
+2. Pre-run one complete `pnpm demo:real` execution as a backup artifact. Keep the task ID and Etherscan links.
+3. Top up Cobo wallet via `caw faucet deposit` if gas is below 0.01 SETH (Sepolia faucet daily limit: 0.02 SETH).
+4. Keep fixture-mode challenge and denial demos clearly labeled "local simulation" when presenting alongside the real-mode run.
+
+**Recovery:** If a real-mode escrow run fails mid-flow, start a fresh task (`pnpm demo:real` again). Do not retry the same task's `execute` step — partial escrow state is not recoverable without a contract-level reset.
+
+---
+
 ### Talk Track
 
 1. Create a task from the default blockchain execution acceleration research question.

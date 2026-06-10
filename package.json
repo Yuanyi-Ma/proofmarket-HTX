@@ -11,7 +11,9 @@
     "dev:services": "pnpm --filter @proofmarket/services dev",
     "demo:success": "tsx scripts/run-demo-success.ts",
     "demo:challenge": "tsx scripts/run-demo-challenge.ts",
-    "demo:denial": "tsx scripts/run-demo-denial.ts"
+    "demo:denial": "tsx scripts/run-demo-denial.ts",
+    "preflight": "tsx --env-file=.env scripts/check-real-env.ts",
+    "demo:real": "tsx --env-file=.env scripts/run-real-success.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
