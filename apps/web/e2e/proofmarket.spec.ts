@@ -1,107 +1,67 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const buttons = {
-  createTask: "Create task",
-  generatePlan: "Generate procurement plan",
-  submitPact: "Submit Pact",
-  fundEscrow: "Fund escrow",
-  runExpert: "Run expert provider",
-  runShallow: "Run shallow provider",
-  verifyEvidence: "Verify evidence",
-  releasePayment: "Release payment",
-  triggerDenial: "Trigger Cobo denial",
-  winChallenge: "Win challenge",
-  refundOrSlash: "Refund or slash"
-} as const;
+// 驱动 fixture 模式下的 6 步向导（playwright webServer 默认不带
+// PROOFMARKET_MODE=real，走本地状态机）。每一步以「下一步的主按钮可见」
+// 作为完成信号——按钮在 busy 时会换文案并禁用，等下一步出现最稳。
 
-function section(page: Page, heading: string) {
-  return page.locator(".section").filter({
-    has: page.getByRole("heading", { name: heading })
-  });
-}
+test.describe("ProofMarket 六步向导（fixture 模式）", () => {
+  test("成功路径：提问 → 方案 → 授权 → 链上采购 → 核验 → 结算完成", async ({
+    page
+  }) => {
+    await page.goto("/");
 
-async function createPlannedTask(page: Page) {
-  await page.goto("/");
-
-  for (const name of Object.values(buttons)) {
-    await expect(page.getByRole("button", { name })).toBeVisible();
-  }
-
-  await page.getByRole("button", { name: buttons.createTask }).click();
-  await expect(page.getByText(/task_\d+ created/i)).toBeVisible();
-
-  await page.getByRole("button", { name: buttons.generatePlan }).click();
-  await expect(section(page, "Provider market").locator("[data-provider-card]")).toHaveCount(3);
-  await expect(section(page, "Provider market").getByText("Recommended", { exact: true })).toBeVisible();
-  await expect(section(page, "Provider market").getByText("Execution Research Expert Agent", { exact: true })).toBeVisible();
-  await expect(section(page, "Procurement plan").getByText("Exactly three candidates will be shown.")).not.toBeVisible();
-}
-
-async function activatePact(page: Page) {
-  await page.getByRole("button", { name: buttons.submitPact }).click();
-  await expect(section(page, "Cobo Pact").getByText("active", { exact: true })).toBeVisible();
-}
-
-test.describe("ProofMarket demo task flows", () => {
-  test("settles the expert provider happy path", async ({ page }) => {
-    await createPlannedTask(page);
-    await activatePact(page);
-
-    await page.getByRole("button", { name: buttons.fundEscrow }).click();
-    await expect(section(page, "Cobo Pact").getByText(/result funded escrow/i).first()).toBeVisible();
-
-    await page.getByRole("button", { name: buttons.runExpert }).click();
-    await expect(section(page, "Evidence package").getByText(/provider answer package/i).first()).toBeVisible();
-    await expect(section(page, "Evidence package").getByText(/^0x[0-9a-f]{64}$/).first()).toBeVisible();
-
-    await page.getByRole("button", { name: buttons.verifyEvidence }).click();
-    await expect(section(page, "Evidence package").getByText("Verified").first()).toBeVisible();
-
-    await page.getByRole("button", { name: buttons.releasePayment }).click();
-    await expect(section(page, "Final answer").getByText(/payment released/i).first()).toBeVisible();
-    await expect(section(page, "Final answer").getByText(/reputation increase recorded/i).first()).toBeVisible();
+    // 第 1 步：提出问题（问题与预算已预填）
     await expect(
-      section(page, "Execution timeline")
-        .locator(".timeline-row.current")
-        .filter({ hasText: "Settled" })
+      page.getByRole("heading", { name: "提出你的研究问题" })
     ).toBeVisible();
-    await expect(section(page, "Evidence package").getByText(/^0x[0-9a-f]{64}$/).first()).toBeVisible();
-  });
+    const generatePlan = page.getByRole("button", { name: "生成采购方案" });
+    await expect(generatePlan).toBeEnabled();
+    await generatePlan.click();
 
-  test("challenges shallow provider evidence and resolves refund or slash", async ({
-    page
-  }) => {
-    await createPlannedTask(page);
-    await activatePact(page);
+    // 第 2 步：采购方案（创建任务后自动生成方案）
+    const confirmPlan = page.getByRole("button", { name: "确认方案，去授权" });
+    await expect(confirmPlan).toBeVisible();
+    await expect(page.getByText("Agent 推荐").first()).toBeVisible();
+    await confirmPlan.click();
 
-    await page.getByRole("button", { name: buttons.fundEscrow }).click();
-    await page.getByRole("button", { name: buttons.runShallow }).click();
-    await page.getByRole("button", { name: buttons.verifyEvidence }).click();
+    // 第 3 步：授权支付（fixture 模式 pact 自动激活）
+    const executeOnchain = page.getByRole("button", { name: "执行链上采购" });
+    await expect(executeOnchain).toBeVisible();
+    await expect(
+      page.getByText("已授权（演示钱包自动批准）").first()
+    ).toBeVisible();
+    await expect(executeOnchain).toBeEnabled();
+    await executeOnchain.click();
 
-    await expect(section(page, "Evidence package").getByText(/Challenged: CoverageMiss/i).first()).toBeVisible();
-    await expect(section(page, "Challenge panel").getByText("CoverageMiss", { exact: true })).toBeVisible();
-    await expect(section(page, "Challenge panel").getByText(/Block-STM, arXiv:2203\.06871/i).first()).toBeVisible();
+    // 第 4 步：链上采购完成后可获取证据
+    const getEvidence = page.getByRole("button", { name: "获取证据" });
+    await expect(getEvidence).toBeVisible();
+    await getEvidence.click();
 
-    await page.getByRole("button", { name: buttons.winChallenge }).click();
-    await expect(section(page, "Challenge panel").getByText(/Challenge won after provider fault verdict/i).first()).toBeVisible();
+    // 第 5 步：证据与核验
+    const verifyEvidence = page.getByRole("button", { name: "核验证据" });
+    await expect(verifyEvidence).toBeVisible();
+    await expect(page.getByText("证据包哈希").first()).toBeVisible();
+    await verifyEvidence.click();
 
-    await page.getByRole("button", { name: buttons.refundOrSlash }).click();
-    await expect(section(page, "Challenge panel").getByText(/Refund or provider slash executed/i).first()).toBeVisible();
-    await expect(section(page, "Challenge panel").getByText(/provider reputation decrease recorded/i)).toBeVisible();
-  });
+    // 第 6 步：核验通过后结算
+    const settle = page.getByRole("button", { name: "确认结算" });
+    await expect(settle).toBeVisible();
+    await settle.click();
 
-  test("records Cobo denial on a fresh pact without moving funds", async ({
-    page
-  }) => {
-    await createPlannedTask(page);
-    await activatePact(page);
+    // 结算完成：标题「完成」+ 凭证清单
+    await expect(page.getByRole("heading", { name: "完成" })).toBeVisible();
+    await expect(page.getByText("凭证清单")).toBeVisible();
+    await expect(page.getByText("Pact ID", { exact: true })).toBeVisible();
+    await expect(page.getByText("证据包哈希").first()).toBeVisible();
+    await expect(page.getByText("Verdict 哈希")).toBeVisible();
 
-    await page.getByRole("button", { name: buttons.triggerDenial }).click();
-
-    await expect(section(page, "Cobo Pact").getByText(/rejected by\s+Cobo/i).first()).toBeVisible();
-    await expect(section(page, "Cobo Pact").getByText(/non-whitelisted/i).first()).toBeVisible();
-    await expect(section(page, "Cobo Pact").getByText(/moved funds:\s*0 test USDC/i)).toBeVisible();
-    await expect(section(page, "Cobo Pact").getByText(/No escrow job was funded/i)).toBeVisible();
-    await expect(section(page, "Cobo Pact").getByText(/amount 1 test USDC, result funded escrow/i)).not.toBeVisible();
+    // 操作按钮：一个「开始新任务」+ 一个「查看完整审计」
+    await expect(
+      page.getByRole("button", { name: "开始新任务" })
+    ).toHaveCount(1);
+    await expect(
+      page.getByRole("button", { name: "查看完整审计" })
+    ).toBeVisible();
   });
 });

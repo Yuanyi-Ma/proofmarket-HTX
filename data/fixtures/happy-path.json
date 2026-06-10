@@ -97,11 +97,11 @@
       "source": "user",
       "type": "task_created",
       "result": "success",
-      "message": "User created task with budget 5 test USDC.",
+      "message": "用户创建任务，预算 5 test USDC。",
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.063Z"
+      "createdAt": "2026-06-10T07:42:43.464Z"
     },
     {
       "id": "audit_002",
@@ -109,11 +109,11 @@
       "source": "research-agent",
       "type": "procurement_plan_created",
       "result": "success",
-      "message": "Selected execution-research-expert, shallow-search-provider, general-web-summary.",
+      "message": "已选定候选 Provider：execution-research-expert、shallow-search-provider、general-web-summary。",
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.063Z"
+      "createdAt": "2026-06-10T07:42:43.464Z"
     },
     {
       "id": "audit_003",
@@ -121,11 +121,11 @@
       "source": "cobo",
       "type": "pact_submitted",
       "result": "success",
-      "message": "Submitted pact pact_001.",
+      "message": "已提交 Pact pact_001。",
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.063Z"
+      "createdAt": "2026-06-10T07:42:43.464Z"
     },
     {
       "id": "audit_004",
@@ -133,11 +133,11 @@
       "source": "cobo",
       "type": "pact_activated",
       "result": "success",
-      "message": "Activated pact pact_001.",
+      "message": "Pact pact_001 已激活。",
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.063Z"
+      "createdAt": "2026-06-10T07:42:43.464Z"
     },
     {
       "id": "audit_005",
@@ -145,11 +145,11 @@
       "source": "cobo",
       "type": "escrow_executed",
       "result": "success",
-      "message": "Escrow job funded on demo chain.",
+      "message": "托管订单已在演示链上注资。",
       "txHash": "0xproofmarket0000000000000000000000000000000000000000000000000001",
       "pactId": "pact_001",
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.063Z"
+      "createdAt": "2026-06-10T07:42:43.464Z"
     },
     {
       "id": "audit_006",
@@ -157,11 +157,11 @@
       "source": "provider",
       "type": "provider_package_delivered",
       "result": "success",
-      "message": "Provider execution-research-expert delivered package 0x704c08fa7e50df3800b25323ef483788494d0362c0fc6f23ab5fa4de8cd59387.",
+      "message": "Provider execution-research-expert 交付证据包 0x704c08fa7e50df3800b25323ef483788494d0362c0fc6f23ab5fa4de8cd59387。",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.063Z"
+      "createdAt": "2026-06-10T07:42:43.465Z"
     },
     {
       "id": "audit_007",
@@ -169,11 +169,11 @@
       "source": "verifier",
       "type": "verification_passed",
       "result": "success",
-      "message": "Evidence supports the provider answer within the declared execution-acceleration coverage scope. resultHash=0x3c7974a2959729b1b3162f849ae6778713ec6d3469df422b70642603f022444f",
+      "message": "证据在声明的执行加速覆盖范围内支持该 Provider 回答。 resultHash=0x3c9277fcb59fdf0c5b92b1555d9163c469c20a5fe23fd81b5dcfbdce3c4429cd",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.063Z"
+      "createdAt": "2026-06-10T07:42:43.465Z"
     },
     {
       "id": "audit_008",
@@ -181,11 +181,11 @@
       "source": "settlement",
       "type": "settled",
       "result": "success",
-      "message": "Provider payment settled.",
+      "message": "已向 Provider 结算付款。",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.063Z"
+      "createdAt": "2026-06-10T07:42:43.465Z"
     }
   ],
   "jobId": 1,
@@ -193,6 +193,6 @@
   "txRecords": [],
   "claudePlanRaw": null,
   "denial": null,
-  "createdAt": "2026-06-10T07:19:36.062Z",
-  "updatedAt": "2026-06-10T07:19:36.063Z"
+  "createdAt": "2026-06-10T07:42:43.464Z",
+  "updatedAt": "2026-06-10T07:42:43.465Z"
 }

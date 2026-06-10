@@ -150,7 +150,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "user",
             type: "task_created",
             result: "success",
-            message: `User created task with budget ${budget}.`
+            message: `用户创建任务，预算 ${budget}。`
           })
         )
       );
@@ -180,7 +180,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "research-agent",
             type: "procurement_plan_created",
             result: "success",
-            message: `Selected ${selectedProviderIds.join(", ")}.`
+            message: `已选定候选 Provider：${selectedProviderIds.join("、")}。`
           })
         )
       );
@@ -205,7 +205,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "cobo",
             type: "pact_submitted",
             result: "success",
-            message: `Submitted pact ${pact.pactId}.`,
+            message: `已提交 Pact ${pact.pactId}。`,
             pactId: pact.pactId
           })
         )
@@ -237,7 +237,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "cobo",
             type: "pact_activated",
             result: "success",
-            message: `Activated pact ${pact.pactId}.`,
+            message: `Pact ${pact.pactId} 已激活。`,
             pactId: pact.pactId
           })
         )
@@ -262,7 +262,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "cobo",
             type: "escrow_executed",
             result: "success",
-            message: "Escrow job funded on demo chain.",
+            message: "托管订单已在演示链上注资。",
             txHash: "0xproofmarket0000000000000000000000000000000000000000000000000001",
             pactId: task.pact?.pactId ?? null,
             jobId: 1
@@ -277,7 +277,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
       const denial = {
         denied: true,
         reason:
-          "Direct transfer rejected because target is not whitelisted and amount exceeds Pact cap.",
+          "直接转账被拒绝：目标地址不在白名单内，且金额超出 Pact 上限。",
         attemptedTarget: "0xDeniedDirectTransfer",
         attemptedFunction: "transfer",
         attemptedAmount: "10 SETH",
@@ -293,9 +293,9 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "escrow_denied",
             result: "denied",
             message:
-              `${denial.reason} Attempted target=${denial.attemptedTarget}; ` +
-              `function=${denial.attemptedFunction}; amount=${denial.attemptedAmount}; ` +
-              `moved funds=${denial.movedFunds}; no escrow job created.`,
+              `${denial.reason} 尝试目标=${denial.attemptedTarget}；` +
+              `函数=${denial.attemptedFunction}；金额=${denial.attemptedAmount}；` +
+              `已转移资金=${denial.movedFunds}；未创建任何托管订单。`,
             pactId: task.pact?.pactId ?? null
           })
         )
@@ -321,7 +321,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "provider",
             type: "provider_package_delivered",
             result: "success",
-            message: `Provider ${providerId} delivered package ${providerPackage.packageHash}.`,
+            message: `Provider ${providerId} 交付证据包 ${providerPackage.packageHash}。`,
             jobId: task.jobId
           })
         )
@@ -370,7 +370,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "settlement",
             type: "settled",
             result: "success",
-            message: "Provider payment settled.",
+            message: "已向 Provider 结算付款。",
             jobId: task.jobId
           })
         )
@@ -389,7 +389,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "verifier",
             type: "challenge_won",
             result: "success",
-            message: "Challenge won after provider fault verdict.",
+            message: "验证者判定 Provider 失职，挑战成立。",
             jobId: task.jobId
           })
         )
@@ -408,7 +408,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "settlement",
             type: "refund_or_slash",
             result: "success",
-            message: "Refund or provider slash executed.",
+            message: "已执行退款或对 Provider 的罚没。",
             jobId: task.jobId
           })
         )

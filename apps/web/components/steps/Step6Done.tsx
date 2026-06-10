@@ -109,7 +109,8 @@ export function Step6Done({
 
   const txRecords = task?.txRecords ?? [];
 
-  // Determine primary action.
+  // Actions live in the StepShell row only — nothing duplicated in the body.
+  // Verified: primary = 确认结算. Settled: primary = 开始新任务, secondary = 查看完整审计.
   let primary:
     | { label: string; onClick: () => void; disabled?: boolean; busy?: boolean }
     | undefined;
@@ -120,6 +121,12 @@ export function Step6Done({
       onClick: onSettle,
       disabled: isBusy,
       busy: isBusy,
+    };
+  } else if (isSettled) {
+    primary = {
+      label: "开始新任务",
+      onClick: onReset,
+      disabled: isBusy,
     };
   }
 
@@ -132,9 +139,8 @@ export function Step6Done({
       secondary={
         isSettled
           ? {
-              label: "开始新任务",
-              onClick: onReset,
-              disabled: isBusy,
+              label: "查看完整审计",
+              onClick: onOpenAudit,
             }
           : undefined
       }
@@ -248,26 +254,6 @@ export function Step6Done({
                 );
               })}
             </dl>
-          </div>
-
-          {/* ── 操作区 ───────────────────────────────────── */}
-          <div className="receipt-actions" style={{ marginTop: 24 }}>
-            <button
-              type="button"
-              className="secondary"
-              onClick={onOpenAudit}
-            >
-              查看完整审计
-            </button>
-            <button
-              type="button"
-              className="secondary"
-              onClick={onReset}
-              disabled={isBusy}
-              style={{ marginLeft: 10 }}
-            >
-              开始新任务
-            </button>
           </div>
         </>
       )}

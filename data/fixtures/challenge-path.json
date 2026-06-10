@@ -75,11 +75,11 @@
       "source": "user",
       "type": "task_created",
       "result": "success",
-      "message": "User created task with budget 5 test USDC.",
+      "message": "用户创建任务，预算 5 test USDC。",
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_002",
@@ -87,11 +87,11 @@
       "source": "research-agent",
       "type": "procurement_plan_created",
       "result": "success",
-      "message": "Selected execution-research-expert, shallow-search-provider, general-web-summary.",
+      "message": "已选定候选 Provider：execution-research-expert、shallow-search-provider、general-web-summary。",
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_003",
@@ -99,11 +99,11 @@
       "source": "cobo",
       "type": "pact_submitted",
       "result": "success",
-      "message": "Submitted pact pact_001.",
+      "message": "已提交 Pact pact_001。",
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_004",
@@ -111,11 +111,11 @@
       "source": "cobo",
       "type": "pact_activated",
       "result": "success",
-      "message": "Activated pact pact_001.",
+      "message": "Pact pact_001 已激活。",
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_005",
@@ -123,11 +123,11 @@
       "source": "cobo",
       "type": "escrow_executed",
       "result": "success",
-      "message": "Escrow job funded on demo chain.",
+      "message": "托管订单已在演示链上注资。",
       "txHash": "0xproofmarket0000000000000000000000000000000000000000000000000001",
       "pactId": "pact_001",
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_006",
@@ -135,11 +135,11 @@
       "source": "provider",
       "type": "provider_package_delivered",
       "result": "success",
-      "message": "Provider shallow-search-provider delivered package 0xb10fe126d3c4f33ae7f65c66581574630a133fd225d7c1fa7fa3386dfed5940e.",
+      "message": "Provider shallow-search-provider 交付证据包 0xb10fe126d3c4f33ae7f65c66581574630a133fd225d7c1fa7fa3386dfed5940e。",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_007",
@@ -147,11 +147,11 @@
       "source": "verifier",
       "type": "verification_failed",
       "result": "failed",
-      "message": "Provider declared 2021-2026 blockchain execution acceleration coverage but missed Block-STM, a directly relevant source in the declared scope. resultHash=0x99a1b655de5fbadf8a87ab2c2afce1aa5b4eea42974d0781eba7dffe073f7911",
+      "message": "Provider 声明覆盖 2021-2026 年区块链执行加速方向，却遗漏了 Block-STM——该声明范围内直接相关的来源。 resultHash=0xc5e1e521f485b238264bba57589bd9db7373aa73b32d823c3bf7a414a9661796",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_008",
@@ -159,11 +159,11 @@
       "source": "verifier",
       "type": "challenge_won",
       "result": "success",
-      "message": "Challenge won after provider fault verdict.",
+      "message": "验证者判定 Provider 失职，挑战成立。",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_009",
@@ -171,11 +171,11 @@
       "source": "settlement",
       "type": "refund_or_slash",
       "result": "success",
-      "message": "Refund or provider slash executed.",
+      "message": "已执行退款或对 Provider 的罚没。",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-10T07:19:36.335Z"
+      "createdAt": "2026-06-10T07:42:43.742Z"
     }
   ],
   "jobId": 1,
@@ -183,6 +183,6 @@
   "txRecords": [],
   "claudePlanRaw": null,
   "denial": null,
-  "createdAt": "2026-06-10T07:19:36.334Z",
-  "updatedAt": "2026-06-10T07:19:36.335Z"
+  "createdAt": "2026-06-10T07:42:43.741Z",
+  "updatedAt": "2026-06-10T07:42:43.742Z"
 }

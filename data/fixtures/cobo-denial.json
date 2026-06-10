@@ -55,11 +55,11 @@
       "source": "user",
       "type": "task_created",
       "result": "success",
-      "message": "User created task with budget 5 test USDC.",
+      "message": "用户创建任务，预算 5 test USDC。",
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.609Z"
+      "createdAt": "2026-06-10T07:42:44.017Z"
     },
     {
       "id": "audit_002",
@@ -67,11 +67,11 @@
       "source": "research-agent",
       "type": "procurement_plan_created",
       "result": "success",
-      "message": "Selected execution-research-expert, shallow-search-provider, general-web-summary.",
+      "message": "已选定候选 Provider：execution-research-expert、shallow-search-provider、general-web-summary。",
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.609Z"
+      "createdAt": "2026-06-10T07:42:44.017Z"
     },
     {
       "id": "audit_003",
@@ -79,11 +79,11 @@
       "source": "cobo",
       "type": "pact_submitted",
       "result": "success",
-      "message": "Submitted pact pact_001.",
+      "message": "已提交 Pact pact_001。",
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.609Z"
+      "createdAt": "2026-06-10T07:42:44.017Z"
     },
     {
       "id": "audit_004",
@@ -91,11 +91,11 @@
       "source": "cobo",
       "type": "pact_activated",
       "result": "success",
-      "message": "Activated pact pact_001.",
+      "message": "Pact pact_001 已激活。",
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.609Z"
+      "createdAt": "2026-06-10T07:42:44.017Z"
     },
     {
       "id": "audit_005",
@@ -103,11 +103,11 @@
       "source": "cobo",
       "type": "escrow_denied",
       "result": "denied",
-      "message": "Direct transfer rejected because target is not whitelisted and amount exceeds Pact cap. Attempted target=0xDeniedDirectTransfer; function=transfer; amount=10 SETH; moved funds=0 test USDC; no escrow job created.",
+      "message": "直接转账被拒绝：目标地址不在白名单内，且金额超出 Pact 上限。 尝试目标=0xDeniedDirectTransfer；函数=transfer；金额=10 SETH；已转移资金=0 test USDC；未创建任何托管订单。",
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-10T07:19:36.609Z"
+      "createdAt": "2026-06-10T07:42:44.017Z"
     }
   ],
   "jobId": null,
@@ -115,6 +115,6 @@
   "txRecords": [],
   "claudePlanRaw": null,
   "denial": null,
-  "createdAt": "2026-06-10T07:19:36.609Z",
-  "updatedAt": "2026-06-10T07:19:36.609Z"
+  "createdAt": "2026-06-10T07:42:44.016Z",
+  "updatedAt": "2026-06-10T07:42:44.017Z"
 }

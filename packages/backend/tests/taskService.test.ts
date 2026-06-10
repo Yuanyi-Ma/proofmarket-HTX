@@ -68,14 +68,14 @@ describe("task service orchestration", () => {
     expect(denied.audit.at(-1)?.result).toBe("denied");
     expect(denied.audit.at(-1)?.txHash).toBeNull();
     expect(denied.audit.at(-1)?.message).toContain(
-      "Direct transfer rejected because target is not whitelisted"
+      "直接转账被拒绝：目标地址不在白名单内"
     );
     expect(denied.audit.at(-1)?.message).toContain(
-      "target=0xDeniedDirectTransfer"
+      "尝试目标=0xDeniedDirectTransfer"
     );
-    expect(denied.audit.at(-1)?.message).toContain("amount=10 SETH");
-    expect(denied.audit.at(-1)?.message).toContain("moved funds=0 test USDC");
-    expect(denied.audit.at(-1)?.message).toContain("no escrow job created");
+    expect(denied.audit.at(-1)?.message).toContain("金额=10 SETH");
+    expect(denied.audit.at(-1)?.message).toContain("已转移资金=0 test USDC");
+    expect(denied.audit.at(-1)?.message).toContain("未创建任何托管订单");
   });
 
   it("recovers from Cobo denial by executing escrow later", async () => {

@@ -64,12 +64,12 @@ describe("checked-in demo task fixtures", () => {
       jobId: null
     });
     expect(denial?.message).toContain(
-      "Direct transfer rejected because target is not whitelisted"
+      "直接转账被拒绝：目标地址不在白名单内"
     );
-    expect(denial?.message).toContain("target=0xDeniedDirectTransfer");
-    expect(denial?.message).toContain("function=transfer");
-    expect(denial?.message).toContain("amount=10 SETH");
-    expect(denial?.message).toContain("moved funds=0 test USDC");
-    expect(denial?.message).toContain("no escrow job created");
+    expect(denial?.message).toContain("尝试目标=0xDeniedDirectTransfer");
+    expect(denial?.message).toContain("函数=transfer");
+    expect(denial?.message).toContain("金额=10 SETH");
+    expect(denial?.message).toContain("已转移资金=0 test USDC");
+    expect(denial?.message).toContain("未创建任何托管订单");
   });
 });

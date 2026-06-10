@@ -71,7 +71,7 @@ export function verifyPackage(
     const verdict = "provider_fault";
     const challengeType = "CoverageMiss";
     const reason =
-      "Provider declared 2021-2026 blockchain execution acceleration coverage but missed Block-STM, a directly relevant source in the declared scope.";
+      "Provider 声明覆盖 2021-2026 年区块链执行加速方向，却遗漏了 Block-STM——该声明范围内直接相关的来源。";
 
     return {
       verdict,
@@ -88,7 +88,7 @@ export function verifyPackage(
 
   const verdict = "valid";
   const reason =
-    "Evidence supports the provider answer within the declared execution-acceleration coverage scope.";
+    "证据在声明的执行加速覆盖范围内支持该 Provider 回答。";
 
   return {
     verdict,

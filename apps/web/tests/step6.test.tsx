@@ -226,7 +226,7 @@ describe("Step6Done — 凭证清单 (settled)", () => {
 });
 
 describe("Step6Done — actions (settled)", () => {
-  it("shows 开始新任务 button", () => {
+  it("shows exactly one 开始新任务 button", () => {
     render(
       <Step6Done
         task={task()}
@@ -236,7 +236,7 @@ describe("Step6Done — actions (settled)", () => {
       />
     );
     const btns = screen.getAllByRole("button", { name: /开始新任务/ });
-    expect(btns.length).toBeGreaterThan(0);
+    expect(btns.length).toBe(1);
   });
 
   it("shows 查看完整审计 button", () => {
@@ -261,9 +261,7 @@ describe("Step6Done — actions (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    // Click the 开始新任务 in secondary action (StepShell secondary) or receipt area
-    const btns = screen.getAllByRole("button", { name: /开始新任务/ });
-    btns[btns.length - 1].click();
+    screen.getByRole("button", { name: /开始新任务/ }).click();
     expect(onReset).toHaveBeenCalledOnce();
   });
 

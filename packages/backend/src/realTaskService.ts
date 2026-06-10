@@ -255,7 +255,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "chain",
             type: "chain_tx_failed",
             result: "failed",
-            message: `${label} failed: ${error instanceof Error ? error.message : String(error)}`,
+            message: `${label} 执行失败：${error instanceof Error ? error.message : String(error)}`,
             pactId,
             jobId: taskRef.task.jobId
           })
@@ -326,7 +326,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           source: "chain",
           type: "chain_tx_confirmed",
           result: "success",
-          message: `${label} confirmed on Sepolia.`,
+          message: `${label} 交易已在 Sepolia 上确认。`,
           txHash,
           pactId,
           jobId: taskRef.task.jobId
@@ -376,7 +376,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "user",
             type: "task_created",
             result: "success",
-            message: `User created task with budget ${budget}.`
+            message: `用户创建任务，预算 ${budget}。`
           })
         )
       );
@@ -440,8 +440,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "procurement_plan_created",
             result: "success",
             message:
-              `Claude research agent recommended ${plan.recommendedProviderId} ` +
-              `(max payment ${plan.maxPayment} mUSDC): ${plan.reason}`
+              `Claude 研究 Agent 推荐 ${plan.recommendedProviderId}` +
+              `（最高支付 ${plan.maxPayment} mUSDC）：${plan.reason}`
           })
         )
       );
@@ -494,7 +494,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "cobo",
             type: "pact_submitted",
             result: "success",
-            message: `Submitted pact ${pact.pactId} (status ${result.status}). Raw: ${truncate(result.raw)}`,
+            message: `已提交 Pact ${pact.pactId}（状态 ${result.status}）。原始返回：${truncate(result.raw)}`,
             pactId: pact.pactId
           })
         )
@@ -520,8 +520,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "pact_activation_pending",
               result: "pending",
               message:
-                `Pact ${task.pact.pactId} is not active yet (status ${status.status}). ` +
-                `Raw: ${truncate(status.raw)}`,
+                `Pact ${task.pact.pactId} 尚未激活（状态 ${status.status}）。` +
+                `原始返回：${truncate(status.raw)}`,
               pactId: task.pact.pactId
             })
           )
@@ -544,7 +544,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "cobo",
             type: "pact_activated",
             result: "success",
-            message: `Pact ${task.pact.pactId} is active.`,
+            message: `Pact ${task.pact.pactId} 已激活。`,
             pactId: task.pact.pactId
           })
         )
@@ -629,7 +629,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               source: "chain",
               type: "escrow_funded_verified",
               result: "success",
-              message: `On-chain readback confirms job ${jobId} is Funded with budget ${jobState.budget} raw units.`,
+              message: `链上回读确认订单 ${jobId} 已注资（Funded），预算 ${jobState.budget} 原始单位。`,
               pactId: task.pact.pactId,
               jobId: Number(jobId)
             })
@@ -646,7 +646,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               source: "cobo",
               type: "escrow_executed",
               result: "success",
-              message: `Escrow job ${jobId} funded with ${budgetAmount} mUSDC on Sepolia.`,
+              message: `托管订单 ${jobId} 已在 Sepolia 上注资 ${budgetAmount} mUSDC。`,
               pactId: task.pact.pactId,
               jobId: Number(jobId)
             })
@@ -688,9 +688,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "cobo",
             type: "escrow_denied",
             result: "denied",
+            // rawOutput 是 caw CLI 的真实返回（真实证据），保持原文不翻译。
             message:
-              `Cobo denied ${denial.attemptedAction} (exit code ${denial.exitCode}). ` +
-              `Raw output: ${truncate(denial.rawOutput)}`,
+              `Cobo 已拒绝 ${denial.attemptedAction}（退出码 ${denial.exitCode}）。` +
+              `原始输出：${truncate(denial.rawOutput)}`,
             pactId: task.pact.pactId
           })
         )
@@ -720,7 +721,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "provider",
             type: "provider_package_delivered",
             result: "success",
-            message: `Provider ${providerId} delivered package ${providerPackage.packageHash}.`,
+            message: `Provider ${providerId} 交付证据包 ${providerPackage.packageHash}。`,
             jobId: task.jobId
           })
         )
@@ -748,7 +749,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "chain",
             type: "deliverable_submitted",
             result: "success",
-            message: `Provider submitted deliverable hash ${providerPackage.packageHash} on-chain.`,
+            message: `Provider 已将交付物哈希 ${providerPackage.packageHash} 提交上链。`,
             txHash: submitted.txHash,
             jobId: task.jobId
           })
@@ -798,9 +799,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "verifier",
             type: verdict.decision === "valid" ? "verification_passed" : "verification_failed",
             result: verdict.decision === "valid" ? "success" : "failed",
+            // 步骤 5/6 用 verdictHash= 前缀正则提取哈希，保持该字段格式不变。
             message:
-              `Judge ${verdict.judgeId} decided ${verdict.decision} ` +
-              `(${verdict.reasonCode}) verdictHash=${verdict.verdictHash}`,
+              `Judge ${verdict.judgeId} 判定 ${verdict.decision}` +
+              `（${verdict.reasonCode}）verdictHash=${verdict.verdictHash}`,
             jobId: task.jobId
           })
         )
@@ -841,7 +843,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               source: "settlement",
               type: "settled",
               result: "success",
-              message: `Provider payment settled with verdict hash ${verdictHash}.`,
+              message: `已向 Provider 结算付款，verdict 哈希 ${verdictHash}。`,
               jobId: task.jobId
             })
           )
