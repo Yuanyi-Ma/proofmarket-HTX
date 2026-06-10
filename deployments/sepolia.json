@@ -2,16 +2,51 @@
   "chainId": 11155111,
   "network": "sepolia",
   "deployer": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
-  "blockNumber": 11027518,
+  "blockNumber": 11031061,
   "coboWallet": "0xe84772e20744cdc22318825e00cf5fdf6000cc24",
   "contracts": {
-    "MockUSDC": "0x7528910Abbe570ad70F09a9694226f303Cbb9f96",
-    "ProofMarketEscrow": "0x8bd19cf98C3edb4D613106A20cEbB58FAfb22dA6"
+    "MockUSDC": "0xe94054bc75524B197255e605CE02f41F086F0Cc5",
+    "ProofMarketEscrow": "0xde60301995c2d2f9D6Ea9A965C89fbBa5d3dC41A",
+    "ProofMarketChallengeManager": "0x2f1a8131377466e29B66E916635a8c1EccC3Db83"
+  },
+  "challengeManagerParams": {
+    "minStake": "10000000",
+    "challengeDeposit": "2000000",
+    "slashBps": "5000",
+    "slashRewardBps": "5000"
+  },
+  "resolver": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
+  "treasury": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
+  "challenger": {
+    "address": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
+    "mintedUsdc": "5000000"
+  },
+  "providers": {
+    "execution-research-expert": {
+      "address": "0x0866e2b066d1D04e4a5A4Cccc380E7Da2c1c2f3a",
+      "mintedUsdc": "20000000",
+      "stakedAmount": "20000000",
+      "stakePending": false
+    },
+    "shallow-search-provider": {
+      "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "mintedUsdc": "20000000",
+      "stakedAmount": "0",
+      "stakePending": true,
+      "stakePendingReason": "No private key held by deploy script; provider self-stakes in P1"
+    },
+    "general-web-summary": {
+      "address": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+      "mintedUsdc": "20000000",
+      "stakedAmount": "0",
+      "stakePending": true,
+      "stakePendingReason": "No private key held by deploy script; provider self-stakes in P1"
+    }
   },
   "mint": {
     "to": "0xe84772e20744cdc22318825e00cf5fdf6000cc24",
     "rawAmount": "100000000",
-    "txHash": "0xf4169817dd044e4dd5520f2f46ae0d9f1642d54c5f29db5b79d44c47b9b92138"
+    "txHash": "0x72df2c465abc59afc992f7f1628a90ee57743b40806172fd5dc3539af233a343"
   },
-  "deployedAt": "2026-06-10T05:22:38.125Z"
+  "deployedAt": "2026-06-10T17:16:38.578Z"
 }
