@@ -1,18 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { defaultQuestion } from "@proofmarket/shared/src/fixtures";
-import type { ProviderId, Task } from "@proofmarket/shared/src/types";
-import { AuditLog } from "../components/AuditLog";
-import { ChallengePanel } from "../components/ChallengePanel";
-import { EvidencePanel } from "../components/EvidencePanel";
-import { ExecutionTimeline } from "../components/ExecutionTimeline";
-import { FinalAnswer } from "../components/FinalAnswer";
+import type { Task } from "@proofmarket/shared/src/types";
+import { AuditSidebar } from "../components/AuditSidebar";
 import { ModeBadge } from "../components/ModeBadge";
-import { PactReview } from "../components/PactReview";
-import { ProcurementPlan } from "../components/ProcurementPlan";
-import { ProviderMarket } from "../components/ProviderMarket";
-import { TaskEntry } from "../components/TaskEntry";
+import { Stepper } from "../components/Stepper";
+import { StepShell } from "../components/StepShell";
+import { Step1Question } from "../components/steps/Step1Question";
+import { Step2Plan } from "../components/steps/Step2Plan";
+import { STEPS, stepFor } from "../lib/steps";
 
 type ActionName =
   | "plan"
@@ -50,11 +46,11 @@ async function readTaskResponse(response: Response): Promise<Task> {
 }
 
 export default function Page() {
-  const [question, setQuestion] = useState(defaultQuestion);
-  const [budget, setBudget] = useState("5 test USDC");
   const [task, setTask] = useState<Task | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  // A done step the user clicked to review read-only; null = follow the task.
+  const [viewStep, setViewStep] = useState<number | null>(null);
   const isBusy = busyAction !== null;
   const taskId = task?.id ?? null;
 
@@ -82,11 +78,12 @@ export default function Page() {
     };
   }, [busyAction, taskId]);
 
-  async function createTask() {
+  async function createTask(question: string, budget: string) {
     if (isBusy) return;
 
     setError(null);
     setBusyAction("create");
+    let createdId: string | null = null;
 
     try {
       const response = await fetch("/api/tasks", {
@@ -94,13 +91,36 @@ export default function Page() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ question, budget })
       });
-      setTask(await readTaskResponse(response));
+      const created = await readTaskResponse(response);
+      createdId = created.id;
+      setTask(created);
+
+      // Auto-chain the pure-computation plan action so the user lands on
+      // step 2 with the procurement plan ready (spec §二). On-chain actions
+      // stay click-triggered.
+      const planResponse = await fetch(`/api/tasks/${created.id}/plan`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({})
+      });
+      setTask(await readTaskResponse(planResponse));
+      setViewStep(null);
     } catch (requestError) {
       setError(
         requestError instanceof Error
           ? requestError.message
           : "Unable to create task."
       );
+      // If creation succeeded but planning failed, refetch so partial
+      // progress (audit events) renders alongside the error strip.
+      if (createdId) {
+        try {
+          const refetch = await fetch(`/api/tasks/${createdId}`);
+          if (refetch.ok) setTask((await refetch.json()) as Task);
+        } catch {
+          // Best-effort: keep the existing task state if the refetch fails.
+        }
+      }
     } finally {
       setBusyAction(null);
     }
@@ -119,6 +139,7 @@ export default function Page() {
         body: JSON.stringify(body)
       });
       setTask(await readTaskResponse(response));
+      setViewStep(null);
     } catch (requestError) {
       setError(
         requestError instanceof Error
@@ -139,75 +160,90 @@ export default function Page() {
     }
   }
 
-  function runProvider(providerId: ProviderId) {
-    return runAction("provider", { providerId });
+  const currentStep = stepFor(task);
+  // Review mode only goes backwards: a stale viewStep (>= current) is ignored.
+  const displayStep =
+    viewStep !== null && viewStep < currentStep ? viewStep : currentStep;
+  const isReviewing = displayStep < currentStep;
+
+  function renderStep() {
+    switch (displayStep) {
+      case 1:
+        return (
+          <Step1Question
+            task={task}
+            onCreate={createTask}
+            isBusy={isBusy}
+            readOnly={isReviewing}
+          />
+        );
+      case 2:
+        return (
+          <Step2Plan
+            task={task}
+            onConfirm={() => runAction("pact")}
+            isBusy={isBusy}
+            readOnly={isReviewing}
+          />
+        );
+      default: {
+        const step = STEPS[displayStep - 1];
+        return (
+          <StepShell
+            stepNo={step.no}
+            title={`${step.title}（开发中）`}
+            subtitle="该步骤的界面尚在开发中；后端流程不受影响。"
+          >
+            <div className="info-strip">
+              第 {step.no} 步 · {step.title}（开发中）
+            </div>
+          </StepShell>
+        );
+      }
+    }
   }
 
   return (
-    <main className="app-shell" aria-busy={busyAction ? "true" : "false"}>
-      <div className="page-header">
-        <h1>ProofMarket task workflow</h1>
-        <p>Bounded procurement, Cobo policy, evidence, challenge, and audit.</p>
-        <ModeBadge task={task} />
-      </div>
-      <div className="workflow-grid">
-        <section className="main-stack" aria-label="ProofMarket workflow">
+    <main className="wizard-shell" aria-busy={busyAction ? "true" : "false"}>
+      <header className="wizard-header">
+        <div className="brand-row">
+          <span className="brand">ProofMarket</span>
+          <ModeBadge task={task} />
+        </div>
+        <Stepper
+          task={task}
+          viewingStep={isReviewing ? displayStep : null}
+          onSelectStep={(n) => setViewStep(n === currentStep ? null : n)}
+        />
+      </header>
+
+      <div className="wizard-grid">
+        <section className="wizard-main" aria-label="当前步骤">
           {error ? (
             <div className="error-strip" role="alert">
-              Route error: {error}
+              请求出错：{error}
             </div>
           ) : null}
 
-          <TaskEntry
-            task={task}
-            question={question}
-            budget={budget}
-            onQuestionChange={setQuestion}
-            onBudgetChange={setBudget}
-            onCreate={createTask}
-            isBusy={isBusy}
-          />
-          <ProcurementPlan
-            task={task}
-            onGenerate={() => runAction("plan")}
-            isBusy={isBusy}
-          />
-          <ProviderMarket
-            task={task}
-            onRunExpert={() => runProvider("execution-research-expert")}
-            onRunShallow={() => runProvider("shallow-search-provider")}
-            isBusy={isBusy}
-          />
-          <PactReview
-            task={task}
-            onSubmit={() => runAction("pact")}
-            onFund={() => runAction("execute")}
-            onTriggerDenial={() => runAction("denial-demo")}
-            onCheckApproval={() => runAction("pact-status")}
-            isBusy={isBusy}
-          />
-          <EvidencePanel
-            task={task}
-            onVerify={() => runAction("verify")}
-            isBusy={isBusy}
-          />
-          <FinalAnswer
-            task={task}
-            onSettle={() => runAction("settle")}
-            isBusy={isBusy}
-          />
-          <ChallengePanel
-            task={task}
-            onWinChallenge={() => runAction("challenge-win")}
-            onRefundOrSlash={() => runAction("refund-or-slash")}
-            isBusy={isBusy}
-          />
+          {isReviewing ? (
+            <div className="info-strip viewing-strip">
+              <span>
+                正在回看第 {displayStep} 步（只读），当前流程在第 {currentStep} 步。
+              </span>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setViewStep(null)}
+              >
+                回到当前步骤
+              </button>
+            </div>
+          ) : null}
+
+          {renderStep()}
         </section>
 
-        <aside className="side-stack" aria-label="Timeline and audit">
-          <ExecutionTimeline task={task} />
-          <AuditLog task={task} />
-        </aside>
+        <AuditSidebar task={task} />
       </div>
     </main>
   );
