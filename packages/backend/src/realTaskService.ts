@@ -127,6 +127,10 @@ function leadingDecimal(budgetLimit: string): string {
 export function createRealTaskService(store: InMemoryStore, deps: RealDeps): TaskService {
   let taskCounter = 0;
   let auditCounter = 0;
+  // Per-instance suffix so requestIds stay unique across process restarts:
+  // a restarted server replays task/attempt counters from zero, and Cobo
+  // deduplicates by requestId — a reused id would silently drop the call.
+  const instanceSuffix = Date.now().toString(36);
   // Judge verdict hashes live only between verify() and settle() in one process.
   const verdicts = new Map<string, string>();
   // Re-entry guard: task ids with a money-moving operation currently in flight.
@@ -265,7 +269,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         pactId,
         contract,
         calldata,
-        requestId: `${taskRef.task.id}-${label}-${attemptIndex}`,
+        requestId: `${taskRef.task.id}-${label}-${attemptIndex}-${instanceSuffix}`,
         description: label
       });
     } catch (error) {
@@ -563,7 +567,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           throw new Error("Cannot execute escrow without a procurement plan");
         }
 
-        const budgetAmount = leadingDecimal(task.budgetLimit);
+        // Fund what the plan says: perJobCap carries the Claude-validated
+        // maxPayment, already checked against budgetLimit (the user ceiling)
+        // when the plan was produced.
+        const budgetAmount = leadingDecimal(task.plan.perJobCap);
         const budgetRaw = BigInt(Math.round(Number(budgetAmount) * 1e6));
         const taskRef = { task };
 
@@ -604,6 +611,31 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         await coboCall(taskRef, "setBudget", escrowAddress, encodeSetBudget(jobId, budgetRaw));
         await coboCall(taskRef, "fund", escrowAddress, encodeFund(jobId, budgetRaw));
 
+        // Post-fund readback: the chain is the source of truth, not the
+        // sequence of confirmed receipts. State 1 = Funded.
+        const jobState = await deps.chain.readJobState(escrowAddress, jobId);
+        if (jobState.state !== 1 || jobState.budget !== budgetRaw) {
+          throw new Error(
+            `post-fund readback mismatch for job ${jobId}: ` +
+              `state=${jobState.state} (expected 1 Funded), ` +
+              `budget=${jobState.budget} (expected ${budgetRaw})`
+          );
+        }
+        taskRef.task = save(
+          withAudit(
+            taskRef.task,
+            audit({
+              taskId: id,
+              source: "chain",
+              type: "escrow_funded_verified",
+              result: "success",
+              message: `On-chain readback confirms job ${jobId} is Funded with budget ${jobState.budget} raw units.`,
+              pactId: task.pact.pactId,
+              jobId: Number(jobId)
+            })
+          )
+        );
+
         const funded = transition(taskRef.task, "JobFunded");
 
         return save(
@@ -627,6 +659,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async triggerDenial(id: string): Promise<Task> {
       const task = store.getTask(id);
+      // Gate BEFORE the cobo side effect: a denial attempt against an
+      // unapproved pact would prove nothing about the policy.
+      assertStatus(task, ["PactActive"], "trigger denial");
       if (!task.pact) {
         throw new Error("Cannot trigger a denial demo without a pact");
       }

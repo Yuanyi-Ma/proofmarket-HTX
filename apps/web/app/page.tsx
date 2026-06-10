@@ -125,6 +125,15 @@ export default function Page() {
           ? requestError.message
           : `Unable to run ${action}.`
       );
+      // The action failed, but the service may have persisted partial
+      // progress (failed txRecords, audit events). Refetch once so the
+      // failure artifacts render alongside the error strip.
+      try {
+        const refetch = await fetch(`/api/tasks/${task.id}`);
+        if (refetch.ok) setTask((await refetch.json()) as Task);
+      } catch {
+        // Best-effort: keep the existing task state if the refetch fails.
+      }
     } finally {
       setBusyAction(null);
     }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getTaskService } from "../../../../../lib/api";
+import { jsonOrError } from "../../../../../lib/routeError";
 import type { ProviderId } from "@proofmarket/shared/src/types";
 
 type RouteContext = {
@@ -37,5 +38,5 @@ export async function POST(request: Request, context: RouteContext) {
     );
   }
 
-  return NextResponse.json(await getTaskService().runProvider(taskId, providerId));
+  return jsonOrError(() => getTaskService().runProvider(taskId, providerId));
 }

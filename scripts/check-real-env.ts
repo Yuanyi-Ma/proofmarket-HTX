@@ -15,6 +15,7 @@ import { resolve } from "node:path";
 import { promisify } from "node:util";
 
 import { createPublicClient, formatEther, http } from "viem";
+import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 
 import { erc20Abi } from "@proofmarket/chain/src/escrowAbi";
@@ -153,6 +154,38 @@ function checkEnvVars(): void {
   }
 }
 
+function checkProviderKeyMatchesAddress(): void {
+  const name = "provider_key_matches_address";
+  const privateKey = process.env.PROVIDER_SIGNER_PRIVATE_KEY;
+  const address = process.env.PROVIDER_SIGNER_ADDRESS;
+  if (!privateKey || !address) {
+    fail(
+      name,
+      "PROVIDER_SIGNER_PRIVATE_KEY or PROVIDER_SIGNER_ADDRESS is not set — cannot verify the provider identity."
+    );
+    return;
+  }
+  let derived: string;
+  try {
+    derived = privateKeyToAccount(privateKey as `0x${string}`).address;
+  } catch (err) {
+    const hint = /^[0-9a-fA-F]{64}$/.test(privateKey)
+      ? " It looks like a 64-char hex key missing the 0x prefix — the services boot passes it to viem verbatim, so add 0x in .env."
+      : "";
+    fail(name, `PROVIDER_SIGNER_PRIVATE_KEY is not a valid private key: ${String(err)}.${hint}`);
+    return;
+  }
+  if (derived.toLowerCase() !== address.toLowerCase()) {
+    fail(
+      name,
+      `PROVIDER_SIGNER_PRIVATE_KEY derives ${derived}, but PROVIDER_SIGNER_ADDRESS is ${address}. ` +
+        "submit() would revert — fix .env so the key and address belong to the same account."
+    );
+    return;
+  }
+  pass(name, `private key derives ${derived} (matches PROVIDER_SIGNER_ADDRESS)`);
+}
+
 async function checkGasBalance(
   client: ReturnType<typeof createPublicClient>,
   label: string,
@@ -260,6 +293,9 @@ async function main(): Promise<void> {
 
   // 4. Env vars
   checkEnvVars();
+
+  // 4b. Provider signer key must derive the configured provider address
+  checkProviderKeyMatchesAddress();
 
   // 5-8: On-chain checks — only run if we have the RPC URL
   const rpcUrl = process.env.SEPOLIA_RPC_URL;

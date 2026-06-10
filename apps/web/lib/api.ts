@@ -26,6 +26,16 @@ function buildRealService(): TaskService {
   const deployment = parseDeploymentArtifact(
     JSON.parse(readFileSync(join(root, "deployments", "sepolia.json"), "utf8"))
   );
+  // No fallback to the deployer: createJob pins the provider address, and the
+  // provider service signs submit() with PROVIDER_SIGNER_PRIVATE_KEY — a
+  // mismatched identity would make every submit revert.
+  const providerAddress = process.env.PROVIDER_SIGNER_ADDRESS;
+  if (!providerAddress) {
+    throw new Error(
+      "PROVIDER_SIGNER_ADDRESS is not set. Real mode requires the provider signer address " +
+        "(the account matching PROVIDER_SIGNER_PRIVATE_KEY) in .env — see .env.example."
+    );
+  }
   const servicesUrl = process.env.SERVICES_URL ?? "http://localhost:4010";
   const chain = createChainReader(process.env.SEPOLIA_RPC_URL ?? "");
   const cobo = createCliCoboClient({});
@@ -44,7 +54,7 @@ function buildRealService(): TaskService {
 
   return createRealTaskService(createInMemoryStore(), {
     deployment,
-    providerAddress: process.env.PROVIDER_SIGNER_ADDRESS ?? deployment.deployer,
+    providerAddress,
     runResearchAgent: (context) => runClaudeResearchAgent(context),
     cobo,
     chain,

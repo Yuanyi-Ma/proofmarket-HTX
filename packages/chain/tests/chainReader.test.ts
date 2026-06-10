@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { encodeEventTopics } from "viem";
 import { escrowAbi } from "../src/escrowAbi";
-import { createChainReader } from "../src/chainReader";
+import { assertReceiptSuccess, createChainReader } from "../src/chainReader";
 import type { TransactionReceipt, Log } from "viem";
 
 const addr = (c: string) => `0x${c.padEnd(40, "0")}` as `0x${string}`;
@@ -32,6 +32,25 @@ function makeReceipt(logs: Log[]): TransactionReceipt {
     root: undefined
   } as unknown as TransactionReceipt;
 }
+
+describe("assertReceiptSuccess", () => {
+  const txHash = `0x${"f".repeat(64)}`;
+
+  it("passes through a successful receipt", () => {
+    expect(() =>
+      assertReceiptSuccess({ status: "success" } as TransactionReceipt, txHash)
+    ).not.toThrow();
+  });
+
+  it("throws /reverted/ for a reverted receipt and names the tx hash", () => {
+    expect(() =>
+      assertReceiptSuccess({ status: "reverted" } as TransactionReceipt, txHash)
+    ).toThrow(/reverted/);
+    expect(() =>
+      assertReceiptSuccess({ status: "reverted" } as TransactionReceipt, txHash)
+    ).toThrow(txHash);
+  });
+});
 
 describe("extractJobId", () => {
   const reader = createChainReader("http://localhost:8545");

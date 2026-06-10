@@ -2,6 +2,7 @@ import { createWalletClient, http, publicActions } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 import { escrowAbi } from "@proofmarket/chain/src/escrowAbi";
+import { assertReceiptSuccess } from "@proofmarket/chain/src/chainReader";
 import type { SubmitOnChain } from "./server";
 
 export function createProviderSubmitter(input: {
@@ -23,7 +24,8 @@ export function createProviderSubmitter(input: {
       functionName: "submit",
       args: [jobId, deliverableHash]
     });
-    await client.waitForTransactionReceipt({ hash, timeout: 180_000 });
+    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 180_000 });
+    assertReceiptSuccess(receipt, hash);
     return { txHash: hash };
   };
 }

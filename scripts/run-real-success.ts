@@ -59,6 +59,37 @@ function etherscanLink(txHash: string): string {
   return `${ETHERSCAN_BASE}/${txHash}`;
 }
 
+// Poll pact-status until PactActive (max 30 tries × 10s = 5 min).
+// Shared by the success and denial paths — both need an active pact.
+async function waitForPactActive(task: Task): Promise<Task> {
+  const MAX_PACT_TRIES = 30;
+  let pactActive = task.status === "PactActive";
+
+  for (let attempt = 1; attempt <= MAX_PACT_TRIES && !pactActive; attempt++) {
+    if (attempt > 1) {
+      console.log(
+        `      [attempt ${attempt}/${MAX_PACT_TRIES}] waiting for Cobo approval — approve in the Cobo app if paired`
+      );
+      await sleep(10_000);
+    } else {
+      console.log(`      [attempt ${attempt}/${MAX_PACT_TRIES}] checking pact status...`);
+    }
+    task = await postAction(`/api/tasks/${task.id}/pact-status`);
+    console.log(`      pact.status=${task.pact?.status} task.status=${task.status}`);
+    pactActive = task.status === "PactActive";
+  }
+
+  if (!pactActive) {
+    console.error(
+      `\nERROR: Pact did not become active after ${MAX_PACT_TRIES} attempts. ` +
+        `Last task.status=${task.status}. If wallet is paired, approve the pact in the Cobo app.`
+    );
+    process.exit(1);
+  }
+  console.log(`      Pact is active.`);
+  return task;
+}
+
 async function runSuccessPath(): Promise<{ task: Task; providerId: string }> {
   console.log("\n=== SUCCESS PATH ===\n");
 
@@ -90,33 +121,9 @@ async function runSuccessPath(): Promise<{ task: Task; providerId: string }> {
   console.log(`      pact.status = ${task.pact?.status ?? "(unknown)"}`);
   console.log(`      task.status = ${task.status}`);
 
-  // 4. Poll pact-status until PactActive (max 30 tries × 10s = 5 min)
+  // 4. Poll pact-status until PactActive
   console.log("\n[4/7] Waiting for Pact to become active...");
-  const MAX_PACT_TRIES = 30;
-  let pactActive = task.status === "PactActive";
-
-  for (let attempt = 1; attempt <= MAX_PACT_TRIES && !pactActive; attempt++) {
-    if (attempt > 1) {
-      console.log(
-        `      [attempt ${attempt}/${MAX_PACT_TRIES}] waiting for Cobo approval — approve in the Cobo app if paired`
-      );
-      await sleep(10_000);
-    } else {
-      console.log(`      [attempt ${attempt}/${MAX_PACT_TRIES}] checking pact status...`);
-    }
-    task = await postAction(`/api/tasks/${task.id}/pact-status`);
-    console.log(`      pact.status=${task.pact?.status} task.status=${task.status}`);
-    pactActive = task.status === "PactActive";
-  }
-
-  if (!pactActive) {
-    console.error(
-      `\nERROR: Pact did not become active after ${MAX_PACT_TRIES} attempts. ` +
-        `Last task.status=${task.status}. If wallet is paired, approve the pact in the Cobo app.`
-    );
-    process.exit(1);
-  }
-  console.log(`      Pact is active.`);
+  task = await waitForPactActive(task);
 
   // 5. Execute escrow (fund)
   console.log("\n[5/7] Executing escrow (funding job)...");
@@ -193,10 +200,9 @@ async function runDenialPath(): Promise<void> {
   console.log(`      pactId = ${task.pact?.pactId ?? "(unknown)"}`);
   console.log(`      status = ${task.status}`);
 
-  // Pact-status (just once — denial demo doesn't need a funded pact)
-  console.log("\n[pact-status] Checking pact status once...");
-  task = await postAction(`/api/tasks/${task.id}/pact-status`);
-  console.log(`      pact.status = ${task.pact?.status}, task.status = ${task.status}`);
+  // Poll pact-status until active — triggerDenial requires PactActive
+  console.log("\n[pact-status] Waiting for Pact to become active...");
+  task = await waitForPactActive(task);
 
   // Denial demo
   console.log("\n[4/4] Triggering denial demo...");

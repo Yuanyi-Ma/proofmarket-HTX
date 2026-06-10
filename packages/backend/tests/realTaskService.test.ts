@@ -4,8 +4,11 @@ import { createRealTaskService, type RealDeps } from "../src/realTaskService";
 
 const HASH64 = `0x${"a".repeat(64)}`;
 
-function makeDeps(overrides: Partial<RealDeps> = {}): RealDeps & { calls: string[] } {
+function makeDeps(
+  overrides: Partial<RealDeps> = {}
+): RealDeps & { calls: string[]; calldatas: Array<{ label: string; calldata: string }> } {
   const calls: string[] = [];
+  const calldatas: Array<{ label: string; calldata: string }> = [];
   const base: RealDeps = {
     deployment: {
       chainId: 11155111,
@@ -36,25 +39,31 @@ function makeDeps(overrides: Partial<RealDeps> = {}): RealDeps & { calls: string
     cobo: {
       submitPact: async () => ({ pactId: "p-1", status: "pending_approval", raw: "{}" }),
       getPactStatus: async () => ({ pactId: "p-1", status: "active", raw: "{}" }),
-      callContract: async ({ description }) => {
+      callContract: async ({ description, calldata }) => {
         calls.push(`cobo:${description}`);
+        calldatas.push({ label: description, calldata });
         return { coboTxId: `tx-${description}`, status: "submitted", raw: "{}" };
       },
       getTx: async (id) => ({
         raw: "{}",
         parsed: { tx_hash: `0x${"b".repeat(64)}`, status: "confirmed", id }
       }),
-      attemptDeniedTransfer: async () => ({
-        denied: true,
-        exitCode: 5,
-        attemptedAction: "tx transfer 0.001 SETH -> 0xdead",
-        rawOutput: '{"error":"policy denied"}'
-      })
+      attemptDeniedTransfer: async () => {
+        calls.push("cobo:attemptDeniedTransfer");
+        return {
+          denied: true,
+          exitCode: 5,
+          attemptedAction: "tx transfer 0.001 SETH -> 0xdead",
+          rawOutput: '{"error":"policy denied"}'
+        };
+      }
     },
     chain: {
       waitForReceipt: async () => ({ logs: [], transactionHash: `0x${"b".repeat(64)}` }) as never,
       extractJobId: () => 7n,
-      readJobState: async () => ({ state: 2, budget: 5_000_000n, deliverableHash: HASH64 as `0x${string}` })
+      // state 1 = Funded: satisfies the post-fund readback; deliverableHash HASH64
+      // satisfies the runProvider integrity check (which only compares the hash).
+      readJobState: async () => ({ state: 1, budget: 5_000_000n, deliverableHash: HASH64 as `0x${string}` })
     },
     services: {
       runProvider: async () => ({
@@ -89,8 +98,11 @@ function makeDeps(overrides: Partial<RealDeps> = {}): RealDeps & { calls: string
     now: () => "2026-06-10T12:00:00.000Z",
     pollDelayMs: 0
   };
-  const deps = { ...base, ...overrides, calls };
-  return deps as RealDeps & { calls: string[] };
+  const deps = { ...base, ...overrides, calls, calldatas };
+  return deps as RealDeps & {
+    calls: string[];
+    calldatas: Array<{ label: string; calldata: string }>;
+  };
 }
 
 async function driveToPactActive(service: ReturnType<typeof createRealTaskService>) {
@@ -203,8 +215,10 @@ describe("real task service", () => {
     const deps = makeDeps({
       chain: {
         ...baseDeps.chain,
+        // state 1 + matching budget so executeEscrow's post-fund readback passes;
+        // the mismatching deliverableHash is what runProvider must reject.
         readJobState: async () => ({
-          state: 2,
+          state: 1,
           budget: 5_000_000n,
           deliverableHash: `0x${"9".repeat(64)}` as `0x${string}`
         })
@@ -238,6 +252,69 @@ describe("real task service", () => {
     expect(denied.status).toBe("DeniedByCobo");
     expect(denied.denial?.exitCode).toBe(5);
     expect(denied.denial?.rawOutput).toContain("policy denied");
+  });
+
+  it("refuses to trigger denial before the pact is active and never calls cobo", async () => {
+    const deps = makeDeps();
+    const service = createRealTaskService(createInMemoryStore(), deps);
+    const created = await service.createTask("q", "5 test USDC");
+    await service.plan(created.id);
+    await service.submitPact(created.id); // PactSubmitted, not PactActive
+    await expect(service.triggerDenial(created.id)).rejects.toThrow(/trigger denial/);
+    expect(deps.calls).not.toContain("cobo:attemptDeniedTransfer");
+  });
+
+  it("funds the amount the plan says, not the raw budget limit", async () => {
+    const baseDeps = makeDeps();
+    const deps = makeDeps({
+      runResearchAgent: async (context) => {
+        const base = await baseDeps.runResearchAgent(context);
+        return { ...base, plan: { ...base.plan, maxPayment: "3" } };
+      },
+      chain: {
+        ...baseDeps.chain,
+        readJobState: async () => ({
+          state: 1,
+          budget: 3_000_000n,
+          deliverableHash: HASH64 as `0x${string}`
+        })
+      }
+    });
+    const service = createRealTaskService(createInMemoryStore(), deps);
+    const active = await driveToPactActive(service); // budgetLimit stays "5 test USDC"
+    await service.executeEscrow(active.id);
+    const approve = deps.calldatas.find((c) => c.label === "approve");
+    // 3_000_000 = 0x2dc6c0 — the approve allowance follows plan.maxPayment
+    expect(approve?.calldata).toContain("2dc6c0");
+    const fund = deps.calldatas.find((c) => c.label === "fund");
+    expect(fund?.calldata).toContain("2dc6c0");
+  });
+
+  it("verifies the funded job on-chain and audits escrow_funded_verified", async () => {
+    const store = createInMemoryStore();
+    const service = createRealTaskService(store, makeDeps());
+    const active = await driveToPactActive(service);
+    const funded = await service.executeEscrow(active.id);
+    const verifiedEvent = funded.audit.find((e) => e.type === "escrow_funded_verified");
+    expect(verifiedEvent).toBeDefined();
+    expect(verifiedEvent?.message).toContain("5000000");
+  });
+
+  it("rejects escrow execution when the post-fund readback disagrees", async () => {
+    const baseDeps = makeDeps();
+    const deps = makeDeps({
+      chain: {
+        ...baseDeps.chain,
+        readJobState: async () => ({
+          state: 0, // still Open — fund did not take effect
+          budget: 0n,
+          deliverableHash: `0x${"0".repeat(64)}` as `0x${string}`
+        })
+      }
+    });
+    const service = createRealTaskService(createInMemoryStore(), deps);
+    const active = await driveToPactActive(service);
+    await expect(service.executeEscrow(active.id)).rejects.toThrow(/readback|Funded/i);
   });
 
   it("propagates research agent failure instead of fabricating a plan", async () => {
@@ -307,12 +384,17 @@ describe("real task service", () => {
     const service = createRealTaskService(createInMemoryStore(), deps);
     const active = await driveToPactActive(service);
     await service.executeEscrow(active.id);
-    expect(requestIds).toEqual([
-      `${active.id}-approve-0`,
-      `${active.id}-createJob-1`,
-      `${active.id}-setBudget-2`,
-      `${active.id}-fund-3`
-    ]);
+    // Four-part shape: <taskId>-<label>-<attemptIndex>-<instanceSuffix>
+    const labels = ["approve", "createJob", "setBudget", "fund"];
+    expect(requestIds).toHaveLength(4);
+    requestIds.forEach((requestId, index) => {
+      expect(requestId).toMatch(
+        new RegExp(`^${active.id}-${labels[index]}-${index}-[0-9a-z]+$`)
+      );
+    });
+    // Process-unique suffix is identical within one service instance
+    const suffixes = new Set(requestIds.map((id) => id.split("-").at(-1)));
+    expect(suffixes.size).toBe(1);
     expect(new Set(requestIds).size).toBe(requestIds.length);
   });
 

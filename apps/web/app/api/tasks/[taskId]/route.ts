@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
 import { getTaskService } from "../../../../lib/api";
+import { jsonOrError } from "../../../../lib/routeError";
 
 type RouteContext = {
   params: Promise<{ taskId: string }>;
@@ -8,5 +8,5 @@ type RouteContext = {
 export async function GET(_: Request, context: RouteContext) {
   const { taskId } = await context.params;
 
-  return NextResponse.json(await getTaskService().getTask(taskId));
+  return jsonOrError(() => getTaskService().getTask(taskId));
 }

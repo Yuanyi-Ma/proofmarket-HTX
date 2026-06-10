@@ -9,6 +9,19 @@ import {
 import { sepolia } from "viem/chains";
 import { escrowAbi } from "./escrowAbi";
 
+/**
+ * A mined receipt is not a successful receipt: a reverted tx still mines.
+ * Every receipt consumer must run this gate before treating the tx as confirmed.
+ */
+export function assertReceiptSuccess(
+  receipt: Pick<TransactionReceipt, "status">,
+  txHash: string
+): void {
+  if (receipt.status !== "success") {
+    throw new Error(`transaction reverted on-chain: ${txHash}`);
+  }
+}
+
 export type ChainReader = {
   waitForReceipt(txHash: Hash): Promise<TransactionReceipt>;
   extractJobId(receipt: TransactionReceipt, escrowAddress: string): bigint;
@@ -21,7 +34,9 @@ export function createChainReader(rpcUrl: string): ChainReader {
 
   return {
     async waitForReceipt(txHash) {
-      return client.waitForTransactionReceipt({ hash: txHash, timeout: 180_000 });
+      const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 180_000 });
+      assertReceiptSuccess(receipt, txHash);
+      return receipt;
     },
 
     extractJobId(receipt, escrowAddress) {
