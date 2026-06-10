@@ -146,11 +146,19 @@ export async function startServicesServer(options: {
         }
 
         const isValid = result.verdict === "valid";
+        let reasonCode: string;
+        if (isValid) {
+          reasonCode = "EVIDENCE_VERIFIED";
+        } else if (result.verdict === "provider_fault" && result.challengeType === "CoverageMiss") {
+          reasonCode = "COVERAGE_MISS";
+        } else {
+          reasonCode = "PROVIDER_FAULT";
+        }
         const verdict = {
           judgeId: "judge-demo-001",
           jobId,
           decision: isValid ? ("valid" as const) : ("provider_fault" as const),
-          reasonCode: isValid ? "EVIDENCE_VERIFIED" : "COVERAGE_MISS",
+          reasonCode,
           reason: result.reason,
           ...(result.verdict === "provider_fault" ? { challengeType: result.challengeType } : {}),
           verdictHash: result.resultHash,

@@ -245,6 +245,29 @@ describe("real task service", () => {
     expect(deps.calls).toContain("cobo:complete");
   });
 
+  it("routes task to Challenged when judgeVerify returns provider_fault", async () => {
+    const deps = makeDeps({
+      services: {
+        ...makeDeps().services,
+        judgeVerify: async () => ({
+          judgeId: "judge-demo-001",
+          jobId: "7",
+          decision: "provider_fault" as const,
+          reasonCode: "COVERAGE_MISS",
+          challengeType: "CoverageMiss",
+          verdictHash: HASH64,
+          voting: { mode: "not_triggered", voteId: null, onchainTxHash: null }
+        })
+      }
+    });
+    const service = createRealTaskService(createInMemoryStore(), deps);
+    const active = await driveToPactActive(service);
+    await service.executeEscrow(active.id);
+    await service.runProvider(active.id, "execution-research-expert");
+    const result = await service.verify(active.id);
+    expect(result.status).toBe("Challenged");
+  });
+
   it("denial records the real cobo output", async () => {
     const service = createRealTaskService(createInMemoryStore(), makeDeps());
     const active = await driveToPactActive(service);
