@@ -804,6 +804,122 @@ a.hash {
   background: var(--border);
 }
 
+/* ---- Step 3: authorize ---- */
+
+.pact-list {
+  margin: 6px 0 0;
+  padding: 0 0 0 16px;
+  display: grid;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.pact-list li {
+  line-height: 1.5;
+}
+
+.pact-status-area {
+  display: grid;
+  gap: 10px;
+}
+
+.pact-authorized {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid var(--ok);
+  border-radius: var(--radius-sm);
+  background: var(--ok-bg);
+  color: var(--ok);
+  font-size: 14px;
+  font-weight: 600;
+  width: fit-content;
+}
+
+.denial-card {
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+  padding: 16px;
+  display: grid;
+  gap: 4px;
+}
+
+.denial-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--danger);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+/* ---- Step 4: on-chain progress ---- */
+
+.tx-progress-list {
+  display: grid;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.tx-progress-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.tx-progress-row:last-child {
+  border-bottom: none;
+}
+
+.tx-progress-row.confirmed {
+  background: var(--surface);
+}
+
+.tx-progress-row.pending {
+  background: var(--pending-bg);
+}
+
+.tx-progress-row.failed {
+  background: var(--danger-bg);
+}
+
+.tx-row-left {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tx-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.tx-sublabel {
+  font-size: 13px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Pulsing animation for in-flight tx rows */
+@keyframes tx-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+
+.tx-pending-text {
+  animation: tx-pulse 1.6s ease-in-out infinite;
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 1080px) {

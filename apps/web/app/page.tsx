@@ -8,6 +8,8 @@ import { Stepper } from "../components/Stepper";
 import { StepShell } from "../components/StepShell";
 import { Step1Question } from "../components/steps/Step1Question";
 import { Step2Plan } from "../components/steps/Step2Plan";
+import { Step3Authorize } from "../components/steps/Step3Authorize";
+import { Step4Onchain } from "../components/steps/Step4Onchain";
 import { STEPS, stepFor } from "../lib/steps";
 
 type ActionName =
@@ -184,6 +186,28 @@ export default function Page() {
             onConfirm={() => runAction("pact")}
             isBusy={isBusy}
             readOnly={isReviewing}
+          />
+        );
+      case 3:
+        return (
+          <Step3Authorize
+            task={task}
+            onExecute={() => runAction("execute")}
+            onCheckApproval={() => runAction("pact-status")}
+            onTriggerDenial={() => runAction("denial-demo")}
+            isBusy={isBusy}
+          />
+        );
+      case 4:
+        return (
+          <Step4Onchain
+            task={task}
+            onGetEvidence={() =>
+              runAction("provider", {
+                providerId: task?.plan?.recommendedProviderId
+              })
+            }
+            isBusy={isBusy}
           />
         );
       default: {
