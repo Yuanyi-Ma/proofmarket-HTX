@@ -1,0 +1,17 @@
+{
+  "chainId": 11155111,
+  "network": "sepolia",
+  "deployer": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
+  "blockNumber": 11027518,
+  "coboWallet": "0xe84772e20744cdc22318825e00cf5fdf6000cc24",
+  "contracts": {
+    "MockUSDC": "0x7528910Abbe570ad70F09a9694226f303Cbb9f96",
+    "ProofMarketEscrow": "0x8bd19cf98C3edb4D613106A20cEbB58FAfb22dA6"
+  },
+  "mint": {
+    "to": "0xe84772e20744cdc22318825e00cf5fdf6000cc24",
+    "rawAmount": "100000000",
+    "txHash": "0xf4169817dd044e4dd5520f2f46ae0d9f1642d54c5f29db5b79d44c47b9b92138"
+  },
+  "deployedAt": "2026-06-10T05:22:38.125Z"
+}
