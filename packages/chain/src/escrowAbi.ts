@@ -57,6 +57,57 @@ export const escrowAbi = [
   },
   {
     type: "function",
+    name: "reject",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "jobId", type: "uint256" },
+      { name: "reasonHash", type: "bytes32" }
+    ],
+    outputs: []
+  },
+  // P0 additions: challenge lifecycle hooks callable only by challengeManager
+  {
+    type: "function",
+    name: "markChallenged",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "refundForChallenge",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "unfreezeForChallenge",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "setChallengeManager",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "challengeManager_", type: "address" }],
+    outputs: []
+  },
+  // View: return all three parties for a job (used by ChallengeManager.openChallenge)
+  {
+    type: "function",
+    name: "jobParties",
+    stateMutability: "view",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: [
+      { name: "client", type: "address" },
+      { name: "provider", type: "address" },
+      { name: "evaluator", type: "address" }
+    ]
+  },
+  {
+    type: "function",
     name: "jobs",
     stateMutability: "view",
     inputs: [{ name: "", type: "uint256" }],
@@ -107,6 +158,227 @@ export const escrowAbi = [
     inputs: [
       { name: "jobId", type: "uint256", indexed: true },
       { name: "reasonHash", type: "bytes32", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "JobRejected",
+    inputs: [
+      { name: "jobId", type: "uint256", indexed: true },
+      { name: "reasonHash", type: "bytes32", indexed: false }
+    ]
+  },
+  // P0 challenge-lifecycle events
+  {
+    type: "event",
+    name: "JobChallenged",
+    inputs: [
+      { name: "jobId", type: "uint256", indexed: true }
+    ]
+  },
+  {
+    type: "event",
+    name: "JobRefundedForChallenge",
+    inputs: [
+      { name: "jobId", type: "uint256", indexed: true }
+    ]
+  },
+  {
+    type: "event",
+    name: "JobUnfrozenForChallenge",
+    inputs: [
+      { name: "jobId", type: "uint256", indexed: true }
+    ]
+  },
+  {
+    type: "event",
+    name: "ChallengeManagerSet",
+    inputs: [
+      { name: "challengeManager", type: "address", indexed: true }
+    ]
+  }
+] as const;
+
+/**
+ * ABI for ProofMarketChallengeManager.
+ *
+ * Enum encoding (uint8 in ABI):
+ *   ChallengeType  — 0 SourceNotFound | 1 LocatorInvalid | 2 ExcerptMismatch
+ *                    3 NumericMismatch | 4 CoverageMiss
+ *   ChallengeResult — 0 Pending | 1 ProviderFault | 2 ProviderNotFault
+ *
+ * See ChallengeType / ChallengeResult in calldata.ts for named enum maps.
+ */
+export const challengeManagerAbi = [
+  // ── Admin ──────────────────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "setEscrow",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "escrow_", type: "address" }],
+    outputs: []
+  },
+  // ── Stake management ───────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "depositStake",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "withdrawStake",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "amount", type: "uint256" }],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "hasMinStake",
+    stateMutability: "view",
+    inputs: [{ name: "provider", type: "address" }],
+    outputs: [{ name: "", type: "bool" }]
+  },
+  // ── Escrow hooks (callable only by escrow) ─────────────────────────────────
+  {
+    type: "function",
+    name: "lockStakeForJob",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "provider", type: "address" }],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "unlockStakeForJob",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "provider", type: "address" }],
+    outputs: []
+  },
+  // ── Challenge lifecycle ────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "openChallenge",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "jobId", type: "uint256" },
+      { name: "challengeType", type: "uint8" },   // ChallengeType enum
+      { name: "challengeHash", type: "bytes32" }
+    ],
+    outputs: [{ name: "challengeId", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "resolve",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "challengeId", type: "uint256" },
+      { name: "result", type: "uint8" }            // ChallengeResult enum
+    ],
+    outputs: []
+  },
+  // ── Public getters ─────────────────────────────────────────────────────────
+  {
+    type: "function",
+    name: "stake",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "lockedStake",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "activeChallenges",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "challenges",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [
+      { name: "challengeId", type: "uint256" },
+      { name: "jobId", type: "uint256" },
+      { name: "challengeType", type: "uint8" },
+      { name: "challengeHash", type: "bytes32" },
+      { name: "result", type: "uint8" },
+      { name: "challenger", type: "address" },
+      { name: "provider", type: "address" }
+    ]
+  },
+  // ── Events ─────────────────────────────────────────────────────────────────
+  {
+    type: "event",
+    name: "EscrowSet",
+    inputs: [
+      { name: "escrow", type: "address", indexed: true }
+    ]
+  },
+  {
+    type: "event",
+    name: "StakeDeposited",
+    inputs: [
+      { name: "provider", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "totalStake", type: "uint256", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "StakeWithdrawn",
+    inputs: [
+      { name: "provider", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "remainingStake", type: "uint256", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "StakeLocked",
+    inputs: [
+      { name: "provider", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "totalLocked", type: "uint256", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "StakeUnlocked",
+    inputs: [
+      { name: "provider", type: "address", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "totalLocked", type: "uint256", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "ChallengeOpened",
+    inputs: [
+      { name: "challengeId", type: "uint256", indexed: true },
+      { name: "jobId", type: "uint256", indexed: true },
+      { name: "challengeType", type: "uint8", indexed: false },
+      { name: "challengeHash", type: "bytes32", indexed: false },
+      { name: "challenger", type: "address", indexed: true },
+      { name: "provider", type: "address", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "ChallengeResolved",
+    inputs: [
+      { name: "challengeId", type: "uint256", indexed: true },
+      { name: "result", type: "uint8", indexed: false },
+      { name: "slashAmount", type: "uint256", indexed: false },
+      { name: "challengerPayout", type: "uint256", indexed: false },
+      { name: "treasuryPayout", type: "uint256", indexed: false }
     ]
   }
 ] as const;
