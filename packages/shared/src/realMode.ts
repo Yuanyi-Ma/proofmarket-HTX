@@ -7,15 +7,44 @@ export const ALLOWED_CHAIN_ACTIONS = [
 ] as const;
 export type ChainAction = (typeof ALLOWED_CHAIN_ACTIONS)[number];
 
+export type ProviderEntry = {
+  address: string;
+  mintedUsdc: string;
+  stakedAmount: string;
+  stakePending: boolean;
+  stakePendingReason?: string;
+};
+
 export type DeploymentArtifact = {
   chainId: number;
   network: string;
   deployer: string;
   blockNumber: number;
   coboWallet: string;
-  contracts: { MockUSDC: string; ProofMarketEscrow: string };
+  contracts: {
+    MockUSDC: string;
+    ProofMarketEscrow: string;
+    /** Present in artifacts produced by the P0-2 deploy script and later. */
+    ProofMarketChallengeManager?: string;
+  };
   mint: { to: string; rawAmount: string; txHash: string };
   deployedAt: string;
+  // ── Optional P0-2 fields ──────────────────────────────────────────────────
+  /** Constructor parameters used for ProofMarketChallengeManager. */
+  challengeManagerParams?: {
+    minStake: string;
+    challengeDeposit: string;
+    slashBps: string;
+    slashRewardBps: string;
+  };
+  /** Resolver address (backend/verifier in demo). */
+  resolver?: string;
+  /** Protocol treasury address. */
+  treasury?: string;
+  /** Challenger account that was funded for the challenge-path demo. */
+  challenger?: { address: string; mintedUsdc: string };
+  /** Per-provider stake information keyed by provider id. */
+  providers?: Record<string, ProviderEntry>;
 };
 
 export type ResearchPlanOutput = {
@@ -51,6 +80,7 @@ export function parseDeploymentArtifact(input: unknown): DeploymentArtifact {
   if (a.chainId !== SEPOLIA_CHAIN_ID) {
     throw new Error(`artifact chainId must be ${SEPOLIA_CHAIN_ID}, got ${a.chainId}`);
   }
+  // Required addresses — always present.
   for (const [name, addr] of [
     ["deployer", a.deployer],
     ["coboWallet", a.coboWallet],
@@ -58,6 +88,27 @@ export function parseDeploymentArtifact(input: unknown): DeploymentArtifact {
     ["contracts.ProofMarketEscrow", a.contracts?.ProofMarketEscrow]
   ] as const) {
     if (!isHexAddress(addr)) throw new Error(`artifact ${name} is not a valid address`);
+  }
+  // Optional P0-2 fields: validate address shape when present.
+  const cm = a.contracts?.ProofMarketChallengeManager;
+  if (cm !== undefined && !isHexAddress(cm)) {
+    throw new Error("artifact contracts.ProofMarketChallengeManager is not a valid address");
+  }
+  if (a.resolver !== undefined && !isHexAddress(a.resolver)) {
+    throw new Error("artifact resolver is not a valid address");
+  }
+  if (a.treasury !== undefined && !isHexAddress(a.treasury)) {
+    throw new Error("artifact treasury is not a valid address");
+  }
+  if (a.challenger !== undefined && !isHexAddress(a.challenger.address)) {
+    throw new Error("artifact challenger.address is not a valid address");
+  }
+  if (a.providers !== undefined) {
+    for (const [id, entry] of Object.entries(a.providers)) {
+      if (!isHexAddress(entry.address)) {
+        throw new Error(`artifact providers["${id}"].address is not a valid address`);
+      }
+    }
   }
   return a;
 }

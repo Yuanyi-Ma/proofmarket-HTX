@@ -19,6 +19,39 @@ const goodArtifact = {
   deployedAt: "2026-06-10T00:00:00.000Z"
 };
 
+// P0-2 artifact: includes ChallengeManager and staking fields.
+const goodArtifactWithCM = {
+  ...goodArtifact,
+  contracts: {
+    ...goodArtifact.contracts,
+    ProofMarketChallengeManager: "0x" + "6".repeat(40)
+  },
+  challengeManagerParams: {
+    minStake: "10000000",
+    challengeDeposit: "2000000",
+    slashBps: "5000",
+    slashRewardBps: "5000"
+  },
+  resolver:  "0x" + "7".repeat(40),
+  treasury:  "0x" + "7".repeat(40),
+  challenger: { address: "0x" + "8".repeat(40), mintedUsdc: "5000000" },
+  providers: {
+    "execution-research-expert": {
+      address: "0x" + "9".repeat(40),
+      mintedUsdc: "20000000",
+      stakedAmount: "20000000",
+      stakePending: false
+    },
+    "shallow-search-provider": {
+      address: "0x" + "a".repeat(40),
+      mintedUsdc: "20000000",
+      stakedAmount: "0",
+      stakePending: true,
+      stakePendingReason: "No private key held by deploy script; provider self-stakes in P1"
+    }
+  }
+};
+
 const goodPlan = {
   taskId: "task_001",
   recommendedProviderId: "execution-research-expert",
@@ -51,6 +84,66 @@ describe("parseDeploymentArtifact", () => {
         contracts: { ...goodArtifact.contracts, MockUSDC: "0x123" }
       })
     ).toThrow(/address/);
+  });
+
+  // ── P0-2 ChallengeManager fields ──────────────────────────────────────────
+
+  it("accepts a P0-2 artifact with ChallengeManager and staking fields", () => {
+    const result = parseDeploymentArtifact(goodArtifactWithCM);
+    expect(result.contracts.ProofMarketChallengeManager).toBe(
+      goodArtifactWithCM.contracts.ProofMarketChallengeManager
+    );
+    expect(result.resolver).toBe(goodArtifactWithCM.resolver);
+    expect(result.providers?.["execution-research-expert"]?.stakePending).toBe(false);
+    expect(result.providers?.["shallow-search-provider"]?.stakePending).toBe(true);
+  });
+
+  it("accepts a pre-P0-2 artifact without ChallengeManager (backwards compat)", () => {
+    // goodArtifact has no ProofMarketChallengeManager — must still parse OK.
+    const result = parseDeploymentArtifact(goodArtifact);
+    expect(result.contracts.ProofMarketChallengeManager).toBeUndefined();
+  });
+
+  it("rejects a malformed ChallengeManager address", () => {
+    expect(() =>
+      parseDeploymentArtifact({
+        ...goodArtifactWithCM,
+        contracts: { ...goodArtifactWithCM.contracts, ProofMarketChallengeManager: "0x123" }
+      })
+    ).toThrow(/ProofMarketChallengeManager/);
+  });
+
+  it("rejects a malformed resolver address", () => {
+    expect(() =>
+      parseDeploymentArtifact({ ...goodArtifactWithCM, resolver: "not-an-address" })
+    ).toThrow(/resolver/);
+  });
+
+  it("rejects a malformed treasury address", () => {
+    expect(() =>
+      parseDeploymentArtifact({ ...goodArtifactWithCM, treasury: "bad" })
+    ).toThrow(/treasury/);
+  });
+
+  it("rejects a malformed challenger address", () => {
+    expect(() =>
+      parseDeploymentArtifact({
+        ...goodArtifactWithCM,
+        challenger: { address: "0xinvalid", mintedUsdc: "5000000" }
+      })
+    ).toThrow(/challenger/);
+  });
+
+  it("rejects a malformed provider address in providers map", () => {
+    expect(() =>
+      parseDeploymentArtifact({
+        ...goodArtifactWithCM,
+        providers: {
+          ...goodArtifactWithCM.providers,
+          "bad-provider": { address: "not-hex", mintedUsdc: "0", stakedAmount: "0", stakePending: true }
+        }
+      })
+    ).toThrow(/providers\["bad-provider"\]/);
   });
 });
 
