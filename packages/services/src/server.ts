@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
+import { verifyPackage } from "@proofmarket/agents/src/verifierAgent";
 import { runProvider } from "@proofmarket/agents/src/providers";
-import { stableHash } from "@proofmarket/shared/src/hash";
-import type { ProviderId } from "@proofmarket/shared/src/types";
+import type { ProviderAnswerPackage, ProviderId } from "@proofmarket/shared/src/types";
 
 const VALID_PROVIDER_IDS = new Set<ProviderId>([
   "execution-research-expert",
@@ -106,16 +106,54 @@ export async function startServicesServer(options: {
       }
 
       if (request.method === "POST" && request.url === "/judge/verify") {
+        // Validate evidencePackage: must be an object with an answers array and a packageHash string.
+        const raw = body.evidencePackage;
+        if (
+          raw === null ||
+          typeof raw !== "object" ||
+          Array.isArray(raw) ||
+          !Array.isArray((raw as Record<string, unknown>).answers) ||
+          typeof (raw as Record<string, unknown>).packageHash !== "string"
+        ) {
+          send(response, 400, {
+            error: "evidencePackage must be an object with an answers array and a packageHash string"
+          });
+          return;
+        }
+
+        const evidencePackage = raw as unknown as ProviderAnswerPackage;
+        const jobId = String(body.jobId ?? "");
+
+        let result: ReturnType<typeof verifyPackage>;
+        try {
+          result = verifyPackage(evidencePackage);
+        } catch (err) {
+          // verifyPackage throws "Provider package hash mismatch" when the package
+          // has been tampered with.  This is a non-valid outcome — route to Challenged.
+          // We return HTTP 200 (not 400) because the request was structurally valid;
+          // the package itself was fraudulent.  realTaskService branches on decision,
+          // so returning a non-valid decision here correctly routes to Challenged.
+          send(response, 200, {
+            judgeId: "judge-demo-001",
+            jobId,
+            decision: "provider_fault",
+            reasonCode: "PACKAGE_HASH_MISMATCH",
+            reason: err instanceof Error ? err.message : String(err),
+            verdictHash: null,
+            voting: { mode: "not_triggered", voteId: null, onchainTxHash: null }
+          });
+          return;
+        }
+
+        const isValid = result.verdict === "valid";
         const verdict = {
           judgeId: "judge-demo-001",
-          jobId: String(body.jobId ?? ""),
-          decision: "valid" as const,
-          reasonCode: "PRESET_SUCCESS_PATH",
-          verdictHash: stableHash({
-            jobId: String(body.jobId ?? ""),
-            evidencePackageHash: String(body.evidencePackageHash ?? ""),
-            decision: "valid"
-          }),
+          jobId,
+          decision: isValid ? ("valid" as const) : ("provider_fault" as const),
+          reasonCode: isValid ? "EVIDENCE_VERIFIED" : "COVERAGE_MISS",
+          reason: result.reason,
+          ...(result.verdict === "provider_fault" ? { challengeType: result.challengeType } : {}),
+          verdictHash: result.resultHash,
           voting: { mode: "not_triggered", voteId: null, onchainTxHash: null }
         };
         send(response, 200, verdict);

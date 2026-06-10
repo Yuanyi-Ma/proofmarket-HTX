@@ -92,7 +92,7 @@ export type RealDeps = {
     }): Promise<{
       judgeId: string;
       jobId: string;
-      decision: "valid" | "invalid";
+      decision: "valid" | "invalid" | "provider_fault";
       reasonCode: string;
       verdictHash: string;
       voting: { mode: string; voteId: string | null; onchainTxHash: string | null };

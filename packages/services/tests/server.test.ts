@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { startServicesServer, type RunningServer, type SubmitOnChain } from "../src/server";
+import { runProvider, hashProviderAnswerPackage } from "@proofmarket/agents/src/providers";
 
 let server: RunningServer;
 
@@ -66,24 +67,107 @@ describe("provider endpoint", () => {
 });
 
 describe("judge endpoint", () => {
-  it("returns a deterministic valid verdict with a verdict hash", async () => {
+  it("returns a valid verdict with EVIDENCE_VERIFIED for a well-formed expert package", async () => {
+    const expertPackage = runProvider("task_001", "execution-research-expert");
     const response = await fetch(`${server.url}/judge/verify`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         taskId: "task_001",
         jobId: "1",
-        evidencePackageHash: "0x" + "a".repeat(64),
-        evidencePackage: { answers: [1, 2, 3] },
+        evidencePackageHash: expertPackage.packageHash,
+        evidencePackage: expertPackage,
         successCriteria: ["at least 3 evidence items"]
       })
     });
     expect(response.status).toBe(200);
     const body = await response.json() as Record<string, unknown>;
     expect(body.decision).toBe("valid");
-    expect(body.reasonCode).toBe("PRESET_SUCCESS_PATH");
+    expect(body.reasonCode).toBe("EVIDENCE_VERIFIED");
     expect(body.verdictHash).toMatch(/^0x[0-9a-f]{64}$/);
     expect((body.voting as Record<string, unknown>).mode).toBe("not_triggered");
+  });
+
+  it("returns provider_fault with COVERAGE_MISS for a shallow provider package", async () => {
+    const shallowPackage = runProvider("task_001", "shallow-search-provider");
+    const response = await fetch(`${server.url}/judge/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        taskId: "task_001",
+        jobId: "2",
+        evidencePackageHash: shallowPackage.packageHash,
+        evidencePackage: shallowPackage,
+        successCriteria: ["at least 3 evidence items"]
+      })
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json() as Record<string, unknown>;
+    expect(body.decision).toBe("provider_fault");
+    expect(body.reasonCode).toBe("COVERAGE_MISS");
+    expect(body.challengeType).toBe("CoverageMiss");
+    expect(body.verdictHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect((body.voting as Record<string, unknown>).mode).toBe("not_triggered");
+  });
+
+  it("returns provider_fault with PACKAGE_HASH_MISMATCH for a tampered package", async () => {
+    const expertPackage = runProvider("task_001", "execution-research-expert");
+    // Tamper: replace the packageHash with a wrong value
+    const tampered = { ...expertPackage, packageHash: "0x" + "d".repeat(64) };
+    const response = await fetch(`${server.url}/judge/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        taskId: "task_001",
+        jobId: "3",
+        evidencePackageHash: tampered.packageHash,
+        evidencePackage: tampered,
+        successCriteria: []
+      })
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json() as Record<string, unknown>;
+    expect(body.decision).toBe("provider_fault");
+    expect(body.reasonCode).toBe("PACKAGE_HASH_MISMATCH");
+    expect((body.voting as Record<string, unknown>).mode).toBe("not_triggered");
+  });
+
+  it("returns 400 when evidencePackage is missing or malformed", async () => {
+    // Missing evidencePackage entirely
+    const r1 = await fetch(`${server.url}/judge/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ taskId: "task_001", jobId: "4" })
+    });
+    expect(r1.status).toBe(400);
+    const b1 = await r1.json() as Record<string, unknown>;
+    expect(typeof b1.error).toBe("string");
+
+    // evidencePackage with no packageHash
+    const r2 = await fetch(`${server.url}/judge/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jobId: "5",
+        evidencePackage: { answers: [1, 2, 3] }
+      })
+    });
+    expect(r2.status).toBe(400);
+    const b2 = await r2.json() as Record<string, unknown>;
+    expect(typeof b2.error).toBe("string");
+
+    // evidencePackage with no answers array
+    const r3 = await fetch(`${server.url}/judge/verify`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        jobId: "6",
+        evidencePackage: { packageHash: "0x" + "a".repeat(64) }
+      })
+    });
+    expect(r3.status).toBe(400);
+    const b3 = await r3.json() as Record<string, unknown>;
+    expect(typeof b3.error).toBe("string");
   });
 });
 
@@ -157,14 +241,15 @@ describe("body size cap", () => {
     }
 
     // Whether or not we got 413, the server must still answer subsequent good requests
+    const expertPkg = runProvider("task_001", "execution-research-expert");
     const good = await fetch(`${server.url}/judge/verify`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         taskId: "task_001",
         jobId: "1",
-        evidencePackageHash: "0x" + "c".repeat(64),
-        evidencePackage: { answers: [1, 2, 3] },
+        evidencePackageHash: expertPkg.packageHash,
+        evidencePackage: expertPkg,
         successCriteria: ["at least 3 evidence items"]
       })
     });
@@ -192,14 +277,15 @@ describe("routing and error handling", () => {
     expect(badResponse.status).toBe(500);
 
     // Server must still serve subsequent requests
+    const alivePkg = runProvider("task_001", "execution-research-expert");
     const goodResponse = await fetch(`${server.url}/judge/verify`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         taskId: "task_001",
         jobId: "1",
-        evidencePackageHash: "0x" + "b".repeat(64),
-        evidencePackage: { answers: [1, 2, 3] },
+        evidencePackageHash: alivePkg.packageHash,
+        evidencePackage: alivePkg,
         successCriteria: ["at least 3 evidence items"]
       })
     });
