@@ -3,8 +3,8 @@ import type { ReactNode } from "react";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "ProofMarket Demo",
-  description: "Bounded evidence procurement workflow demo"
+  title: "ProofMarket 演示",
+  description: "有边界的可核验证据采购流程演示"
 };
 
 export default function RootLayout({

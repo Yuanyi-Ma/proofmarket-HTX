@@ -127,7 +127,7 @@ pnpm demo:real
 
 1. Create a task from the default blockchain execution acceleration research question.
 2. Generate the procurement plan and show the scope, providers, budget, and verification method before spending.
-3. Show exactly three providers and explain why `Execution Research Expert Agent` is recommended.
+3. Show exactly three providers and explain why `执行加速研究专家 Agent` (execution-research-expert) is recommended.
 4. Submit and activate the Cobo Pact, making the spending boundary visible.
 5. Fund the escrow job and point to the transaction hash rather than a direct provider payment.
 6. Run the expert provider and show the evidence-backed answer package.

@@ -35,7 +35,7 @@ export function buildResearchPrompt(context: ResearchContext): string {
       {
         taskId: context.taskId,
         recommendedProviderId: "<one providerId from the catalog>",
-        reason: "<why this provider fits the question>",
+        reason: "<why this provider fits the question — written in Simplified Chinese (简体中文)>",
         maxPayment: `<decimal string, must not exceed ${context.budgetAmount}>`,
         requiredEvidenceSchema: {
           minItems: 3,
@@ -57,7 +57,8 @@ export function buildResearchPrompt(context: ResearchContext): string {
     JSON.stringify(context.providerCatalog, null, 2),
     "",
     "Rules: never output a contract address, calldata, or key material.",
-    "Pick the provider whose specialties best match the question and justify briefly."
+    "Pick the provider whose specialties best match the question and justify briefly.",
+    "The reason value MUST be written in Simplified Chinese (简体中文); keep all JSON field names and every other value exactly as specified by the schema."
   ].join("\n");
 }
 

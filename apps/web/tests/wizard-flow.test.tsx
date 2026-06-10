@@ -88,7 +88,7 @@ describe("wizard step 1 → 2 flow", () => {
     await waitFor(() => {
       expect(screen.getByRole("button", { name: "确认方案，去授权" })).toBeTruthy();
     });
-    expect(screen.getAllByText("Execution Research Expert Agent").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("执行加速研究专家 Agent").length).toBeGreaterThan(0);
     expect(screen.getByText(plan.evidenceNeed)).toBeTruthy();
 
     // Both POSTs happened without further clicks (auto-chain).

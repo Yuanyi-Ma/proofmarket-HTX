@@ -125,9 +125,9 @@ describe("ProofMarket workflow UI content", () => {
     );
 
     expect((html.match(/data-provider-card=/g) ?? [])).toHaveLength(3);
-    expect(html).toContain("Execution Research Expert Agent");
-    expect(html).toContain("Shallow Search Provider Agent");
-    expect(html).toContain("General Web Summary Agent");
+    expect(html).toContain("执行加速研究专家 Agent");
+    expect(html).toContain("浅层检索 Provider Agent");
+    expect(html).toContain("通用网页摘要 Agent");
     expect(html).toContain("Run expert provider");
     expect(html).toContain("Run shallow provider");
   });
@@ -266,9 +266,9 @@ describe("ProofMarket workflow UI content", () => {
     const realHtml = renderToStaticMarkup(<ModeBadge task={task({ mode: "real" })} />);
     const emptyHtml = renderToStaticMarkup(<ModeBadge task={null} />);
 
-    expect(fixtureHtml).toContain("fixture mode");
+    expect(fixtureHtml).toContain("演示模式（fixture）");
     expect(fixtureHtml).not.toContain("Sepolia");
-    expect(realHtml).toContain("real · Sepolia");
+    expect(realHtml).toContain("真链模式 · Sepolia");
     expect(emptyHtml).toBe("");
   });
 

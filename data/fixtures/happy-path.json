@@ -11,14 +11,14 @@
   "plan": {
     "taskId": "task_001",
     "userQuestion": "请调研近几年区块链交易执行加速的最新研究进展。",
-    "evidenceNeed": "The question asks for recent research progress and needs sources that identify concrete execution-acceleration mechanisms and their limits.",
+    "evidenceNeed": "该问题询问的是最新研究进展，需要能指出具体执行加速机制及其局限的一手来源。",
     "totalBudget": "5 test USDC",
     "perJobCap": "1 test USDC",
     "recommendedProviderId": "execution-research-expert",
     "providerCount": 3,
-    "coverage": "2021-2026 blockchain execution acceleration: parallel execution, speculative execution, conflict detection, state access, Block-STM, EVM parallelization, Sei, Sui, Solana runtime.",
+    "coverage": "2021-2026 年区块链执行加速方向：并行执行、投机执行、冲突检测、状态访问、Block-STM、EVM 并行化、Sei、Sui、Solana 运行时。",
     "returnType": "provider-answer-package",
-    "verificationMethod": "Verifier checks source locators, excerpt or summary alignment, relevance explanation, and coverage statement."
+    "verificationMethod": "验证者核对来源定位、摘录与摘要的一致性、相关性说明以及覆盖声明。"
   },
   "pact": {
     "intent": "Fund one provider research job for task task_001.",
@@ -51,44 +51,44 @@
     "taskId": "task_001",
     "providerAgentId": 1,
     "providerId": "execution-research-expert",
-    "providerName": "Execution Research Expert Agent",
-    "coverageStatement": "Searched 2021-2026 blockchain transaction execution acceleration sources across parallel execution, speculative execution, conflict detection, state access optimization, Block-STM, EVM parallelization, Sei, Sui, and Solana runtime.",
+    "providerName": "执行加速研究专家 Agent",
+    "coverageStatement": "已检索 2021-2026 年区块链交易执行加速方向的来源，覆盖并行执行、投机执行、冲突检测、状态访问优化、Block-STM、EVM 并行化、Sei、Sui 与 Solana 运行时。",
     "answers": [
       {
-        "providerAnswer": "Recent blockchain execution acceleration work centers on optimistic parallel execution, speculative execution, conflict detection, and state access optimization.",
+        "providerAnswer": "近年区块链执行加速研究集中在乐观并行执行、投机执行、冲突检测与状态访问优化。",
         "sourceTitle": "Block-STM: Scaling Blockchain Execution by Turning Ordering Curse to a Performance Blessing",
         "sourceLocator": "arXiv:2203.06871",
         "sourceMetadata": {
           "year": 2022,
           "type": "paper"
         },
-        "excerptOrSummary": "Block-STM uses optimistic parallel execution and conflict detection to execute ordered blockchain transactions concurrently while preserving deterministic results.",
-        "relevanceExplanation": "This supports speculative parallel execution as a major direction, but does not prove linear speedup for all workloads."
+        "excerptOrSummary": "Block-STM 利用乐观并行执行与冲突检测，在保持确定性结果的前提下并发执行有序的区块链交易。",
+        "relevanceExplanation": "支持把投机并行执行视为主要方向，但不能证明所有工作负载都能获得线性加速。"
       },
       {
-        "providerAnswer": "Execution acceleration is limited by transaction conflicts, state hotspots, and storage access costs.",
-        "sourceTitle": "State Hotspots in High-Throughput Smart Contract Execution",
+        "providerAnswer": "执行加速受交易冲突、状态热点与存储访问开销的限制。",
+        "sourceTitle": "高吞吐智能合约执行中的状态热点",
         "sourceLocator": "mock-report:state-hotspots-2025",
         "sourceMetadata": {
           "year": 2025,
           "type": "report"
         },
-        "excerptOrSummary": "State hotspots and storage I/O can dominate execution latency even when scheduling allows parallel execution.",
-        "relevanceExplanation": "This limits overclaims about parallel execution and explains why workload structure matters."
+        "excerptOrSummary": "即使调度允许并行执行，状态热点与存储 I/O 仍可能主导执行延迟。",
+        "relevanceExplanation": "约束了对并行执行的过度宣称，并解释了工作负载结构为何重要。"
       },
       {
-        "providerAnswer": "EVM parallelization in Sei v2 and Monad achieves significant throughput gains through optimistic concurrency and pipelined execution stages.",
-        "sourceTitle": "Sei v2: Parallelized EVM Execution",
+        "providerAnswer": "Sei v2 与 Monad 的 EVM 并行化通过乐观并发与流水线化的执行阶段获得显著吞吐提升。",
+        "sourceTitle": "Sei v2：并行化 EVM 执行",
         "sourceLocator": "mock-report:sei-v2-parallel-evm-2024",
         "sourceMetadata": {
           "year": 2024,
           "type": "report"
         },
-        "excerptOrSummary": "Sei v2 introduces a parallelized EVM that pipelines transaction execution, state access, and block commitment to maximize hardware utilization.",
-        "relevanceExplanation": "This provides a concrete production example of EVM parallelization beyond research prototypes."
+        "excerptOrSummary": "Sei v2 引入并行化 EVM，将交易执行、状态访问与区块提交流水线化，以最大化硬件利用率。",
+        "relevanceExplanation": "提供了 EVM 并行化在生产环境落地的具体案例，而不止于研究原型。"
       }
     ],
-    "packageHash": "0x79a3e6bb5d99750f62a223e05d3aa79381351753141e64aa70f4ad233268b387"
+    "packageHash": "0x704c08fa7e50df3800b25323ef483788494d0362c0fc6f23ab5fa4de8cd59387"
   },
   "audit": [
     {
@@ -101,7 +101,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-09T19:39:34.428Z"
+      "createdAt": "2026-06-10T07:19:36.063Z"
     },
     {
       "id": "audit_002",
@@ -113,7 +113,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-09T19:39:34.428Z"
+      "createdAt": "2026-06-10T07:19:36.063Z"
     },
     {
       "id": "audit_003",
@@ -125,7 +125,7 @@
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-09T19:39:34.428Z"
+      "createdAt": "2026-06-10T07:19:36.063Z"
     },
     {
       "id": "audit_004",
@@ -137,7 +137,7 @@
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-09T19:39:34.428Z"
+      "createdAt": "2026-06-10T07:19:36.063Z"
     },
     {
       "id": "audit_005",
@@ -149,7 +149,7 @@
       "txHash": "0xproofmarket0000000000000000000000000000000000000000000000000001",
       "pactId": "pact_001",
       "jobId": 1,
-      "createdAt": "2026-06-09T19:39:34.428Z"
+      "createdAt": "2026-06-10T07:19:36.063Z"
     },
     {
       "id": "audit_006",
@@ -157,11 +157,11 @@
       "source": "provider",
       "type": "provider_package_delivered",
       "result": "success",
-      "message": "Provider execution-research-expert delivered package 0x79a3e6bb5d99750f62a223e05d3aa79381351753141e64aa70f4ad233268b387.",
+      "message": "Provider execution-research-expert delivered package 0x704c08fa7e50df3800b25323ef483788494d0362c0fc6f23ab5fa4de8cd59387.",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T19:39:34.428Z"
+      "createdAt": "2026-06-10T07:19:36.063Z"
     },
     {
       "id": "audit_007",
@@ -169,11 +169,11 @@
       "source": "verifier",
       "type": "verification_passed",
       "result": "success",
-      "message": "Evidence supports the provider answer within the declared execution-acceleration coverage scope. resultHash=0x1d45948d509c39b8a133b6dd7b04d7c349e4bec0d73f1576856cba741ea1f87f",
+      "message": "Evidence supports the provider answer within the declared execution-acceleration coverage scope. resultHash=0x3c7974a2959729b1b3162f849ae6778713ec6d3469df422b70642603f022444f",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T19:39:34.428Z"
+      "createdAt": "2026-06-10T07:19:36.063Z"
     },
     {
       "id": "audit_008",
@@ -185,7 +185,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T19:39:34.428Z"
+      "createdAt": "2026-06-10T07:19:36.063Z"
     }
   ],
   "jobId": 1,
@@ -193,6 +193,6 @@
   "txRecords": [],
   "claudePlanRaw": null,
   "denial": null,
-  "createdAt": "2026-06-09T19:39:34.427Z",
-  "updatedAt": "2026-06-09T19:39:34.428Z"
+  "createdAt": "2026-06-10T07:19:36.062Z",
+  "updatedAt": "2026-06-10T07:19:36.063Z"
 }

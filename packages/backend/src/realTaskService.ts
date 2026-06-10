@@ -416,9 +416,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         perJobCap: `${plan.maxPayment} mUSDC`,
         recommendedProviderId: plan.recommendedProviderId as ProviderId,
         providerCount: 3,
-        coverage: recommendedProfile?.coverage ?? "specialist evidence coverage",
+        coverage: recommendedProfile?.coverage ?? "专项证据覆盖",
         returnType: "provider-answer-package",
-        verificationMethod: "deterministic judge endpoint"
+        verificationMethod: "确定性 Judge 校验端点"
       };
 
       const planned = transition(

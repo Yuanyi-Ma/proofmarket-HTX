@@ -6,8 +6,8 @@ export function ModeBadge({ task }: { task: Task | null }) {
   if (!task) return null;
 
   return task.mode === "real" ? (
-    <StatusBadge tone="warning">real · Sepolia</StatusBadge>
+    <StatusBadge tone="warning">真链模式 · Sepolia</StatusBadge>
   ) : (
-    <StatusBadge>fixture mode</StatusBadge>
+    <StatusBadge>演示模式（fixture）</StatusBadge>
   );
 }

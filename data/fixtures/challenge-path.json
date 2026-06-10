@@ -11,14 +11,14 @@
   "plan": {
     "taskId": "task_001",
     "userQuestion": "请调研近几年区块链交易执行加速的最新研究进展。",
-    "evidenceNeed": "The question asks for recent research progress and needs sources that identify concrete execution-acceleration mechanisms and their limits.",
+    "evidenceNeed": "该问题询问的是最新研究进展，需要能指出具体执行加速机制及其局限的一手来源。",
     "totalBudget": "5 test USDC",
     "perJobCap": "1 test USDC",
     "recommendedProviderId": "execution-research-expert",
     "providerCount": 3,
-    "coverage": "2021-2026 blockchain execution acceleration: parallel execution, speculative execution, conflict detection, state access, Block-STM, EVM parallelization, Sei, Sui, Solana runtime.",
+    "coverage": "2021-2026 年区块链执行加速方向：并行执行、投机执行、冲突检测、状态访问、Block-STM、EVM 并行化、Sei、Sui、Solana 运行时。",
     "returnType": "provider-answer-package",
-    "verificationMethod": "Verifier checks source locators, excerpt or summary alignment, relevance explanation, and coverage statement."
+    "verificationMethod": "验证者核对来源定位、摘录与摘要的一致性、相关性说明以及覆盖声明。"
   },
   "pact": {
     "intent": "Fund one provider research job for task task_001.",
@@ -51,22 +51,22 @@
     "taskId": "task_001",
     "providerAgentId": 2,
     "providerId": "shallow-search-provider",
-    "providerName": "Shallow Search Provider Agent",
-    "coverageStatement": "Claims broad 2021-2026 blockchain execution acceleration paper coverage.",
+    "providerName": "浅层检索 Provider Agent",
+    "coverageStatement": "声称广泛覆盖 2021-2026 年区块链执行加速方向的论文。",
     "answers": [
       {
-        "providerAnswer": "Blockchain performance has improved through better consensus and hardware.",
-        "sourceTitle": "General Blockchain Performance Overview",
+        "providerAnswer": "区块链性能的提升主要来自更好的共识机制与硬件。",
+        "sourceTitle": "通用区块链性能综述",
         "sourceLocator": "mock-web:generic-performance-overview",
         "sourceMetadata": {
           "year": 2024,
           "type": "report"
         },
-        "excerptOrSummary": "Generic public-web summary of throughput and consensus performance.",
-        "relevanceExplanation": "This is related to blockchain performance but misses execution-specific work such as Block-STM."
+        "excerptOrSummary": "对吞吐量与共识性能的通用公开网页摘要。",
+        "relevanceExplanation": "与区块链性能相关，但遗漏了 Block-STM 等执行层专项工作。"
       }
     ],
-    "packageHash": "0x3120cbc99e748eb50b7bac1368f160015b71078b37665942c647cba4812388f7"
+    "packageHash": "0xb10fe126d3c4f33ae7f65c66581574630a133fd225d7c1fa7fa3386dfed5940e"
   },
   "audit": [
     {
@@ -79,7 +79,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-09T16:37:12.773Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     },
     {
       "id": "audit_002",
@@ -91,7 +91,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": null,
-      "createdAt": "2026-06-09T16:37:12.774Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     },
     {
       "id": "audit_003",
@@ -103,7 +103,7 @@
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-09T16:37:12.774Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     },
     {
       "id": "audit_004",
@@ -115,7 +115,7 @@
       "txHash": null,
       "pactId": "pact_001",
       "jobId": null,
-      "createdAt": "2026-06-09T16:37:12.774Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     },
     {
       "id": "audit_005",
@@ -127,7 +127,7 @@
       "txHash": "0xproofmarket0000000000000000000000000000000000000000000000000001",
       "pactId": "pact_001",
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:12.774Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     },
     {
       "id": "audit_006",
@@ -135,11 +135,11 @@
       "source": "provider",
       "type": "provider_package_delivered",
       "result": "success",
-      "message": "Provider shallow-search-provider delivered package 0x3120cbc99e748eb50b7bac1368f160015b71078b37665942c647cba4812388f7.",
+      "message": "Provider shallow-search-provider delivered package 0xb10fe126d3c4f33ae7f65c66581574630a133fd225d7c1fa7fa3386dfed5940e.",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:12.774Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     },
     {
       "id": "audit_007",
@@ -147,11 +147,11 @@
       "source": "verifier",
       "type": "verification_failed",
       "result": "failed",
-      "message": "Provider declared 2021-2026 blockchain execution acceleration coverage but missed Block-STM, a directly relevant source in the declared scope. resultHash=0x192c601f87584789b8261b31f579fbec559043ec0a57314cdcb70fb2d886287c",
+      "message": "Provider declared 2021-2026 blockchain execution acceleration coverage but missed Block-STM, a directly relevant source in the declared scope. resultHash=0x99a1b655de5fbadf8a87ab2c2afce1aa5b4eea42974d0781eba7dffe073f7911",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:12.774Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     },
     {
       "id": "audit_008",
@@ -163,7 +163,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:12.774Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     },
     {
       "id": "audit_009",
@@ -175,7 +175,7 @@
       "txHash": null,
       "pactId": null,
       "jobId": 1,
-      "createdAt": "2026-06-09T16:37:12.774Z"
+      "createdAt": "2026-06-10T07:19:36.335Z"
     }
   ],
   "jobId": 1,
@@ -183,6 +183,6 @@
   "txRecords": [],
   "claudePlanRaw": null,
   "denial": null,
-  "createdAt": "2026-06-09T16:37:12.773Z",
-  "updatedAt": "2026-06-09T16:37:12.774Z"
+  "createdAt": "2026-06-10T07:19:36.334Z",
+  "updatedAt": "2026-06-10T07:19:36.335Z"
 }
