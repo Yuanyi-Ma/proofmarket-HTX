@@ -1,6 +1,6 @@
 import React from "react";
 import { providerProfiles } from "@proofmarket/shared/src/fixtures";
-import type { Task } from "@proofmarket/shared/src/types";
+import type { ProviderId, Task } from "@proofmarket/shared/src/types";
 import { DataRow } from "../Section";
 import { StatusBadge } from "../StatusBadge";
 import { StepShell } from "../StepShell";
@@ -23,6 +23,13 @@ export function Step2Plan({
   const recommended = plan
     ? providerProfiles.find((p) => p.id === plan.recommendedProviderId) ?? null
     : null;
+
+  /** 查找某个 provider 在链上信誉列表里的得分（仅 real mode 有）。 */
+  function onChainScore(providerId: ProviderId): number | null {
+    if (!plan?.providerReputations) return null;
+    const entry = plan.providerReputations.find((r) => r.providerId === providerId);
+    return entry?.source === "erc8004" ? entry.score : null;
+  }
 
   return (
     <StepShell
@@ -96,7 +103,18 @@ export function Step2Plan({
                         <td className="muted">{provider.coverage}</td>
                         <td className="mono">{provider.price}</td>
                         <td className="mono">
-                          {provider.reputationScore ?? "—"}
+                          {(() => {
+                            const chainScore = onChainScore(provider.id);
+                            if (chainScore !== null) {
+                              return (
+                                <>
+                                  {chainScore}{" "}
+                                  <span className="chain-rep-tag">链上信誉</span>
+                                </>
+                              );
+                            }
+                            return provider.reputationScore ?? "—";
+                          })()}
                         </td>
                       </tr>
                     );

@@ -708,6 +708,19 @@ button.stepper-link:hover {
   color: var(--pending);
 }
 
+/* 链上信誉来源标注 — 仅文字标签，不抢焦点 */
+.chain-rep-tag {
+  display: inline;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+
 .timeline-list,
 .audit-list,
 .evidence-list {

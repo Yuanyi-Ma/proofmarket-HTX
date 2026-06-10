@@ -37,6 +37,14 @@ export function ProviderMarket({
 }: ProviderMarketProps) {
   const canRunProvider = !isBusy && task?.status === "JobFunded";
 
+  /** 查找某个 provider 在链上信誉列表里的得分（仅 real mode 有）。 */
+  function onChainScore(providerId: ProviderProfile["id"]): number | null {
+    const reps = task?.plan?.providerReputations;
+    if (!reps) return null;
+    const entry = reps.find((r) => r.providerId === providerId);
+    return entry?.source === "erc8004" ? entry.score : null;
+  }
+
   return (
     <Section title="Provider market" kicker="Registered agents">
       <div className="provider-grid">
@@ -77,7 +85,20 @@ export function ProviderMarket({
             <div className="two-col">
               <div className="data-row">
                 <span className="data-label">Reputation</span>
-                <div className="data-value">{provider.reputationScore}</div>
+                <div className="data-value">
+                  {(() => {
+                    const chainScore = onChainScore(provider.id);
+                    if (chainScore !== null) {
+                      return (
+                        <>
+                          {chainScore}{" "}
+                          <span className="chain-rep-tag">链上信誉</span>
+                        </>
+                      );
+                    }
+                    return provider.reputationScore;
+                  })()}
+                </div>
               </div>
               <div className="data-row">
                 <span className="data-label">History</span>
