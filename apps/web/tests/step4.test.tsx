@@ -66,10 +66,20 @@ describe("Step4Onchain — tx list rendering", () => {
     expect(screen.getByText("注入托管资金")).toBeTruthy();
   });
 
-  it("shows empty-state message when txRecords is empty", () => {
+  it("shows 演示模式 message when txRecords is empty but status is JobFunded (fixture mode)", () => {
     render(
       <Step4Onchain
-        task={task({ txRecords: [] })}
+        task={task({ txRecords: [], status: "JobFunded" })}
+        onGetEvidence={noop}
+      />
+    );
+    expect(screen.getByText("演示模式：本地状态机，无链上交易明细。")).toBeTruthy();
+  });
+
+  it("shows 等待链上确认 message when txRecords is empty and status is NOT JobFunded (mid-execute)", () => {
+    render(
+      <Step4Onchain
+        task={task({ txRecords: [], status: "PactActive" })}
         onGetEvidence={noop}
       />
     );
@@ -149,24 +159,48 @@ describe("Step4Onchain — 获取证据 action", () => {
     expect(screen.getByRole("button", { name: /获取证据/ })).toBeTruthy();
   });
 
-  it("does NOT show 获取证据 when records are incomplete", () => {
+  it("does NOT show 获取证据 when status is not JobFunded (mid-execute, partial records)", () => {
     render(
       <Step4Onchain
-        task={task({ txRecords: partialRecords })}
+        task={task({ txRecords: partialRecords, status: "PactActive" })}
         onGetEvidence={noop}
       />
     );
     expect(screen.queryByRole("button", { name: /获取证据/ })).toBeNull();
   });
 
-  it("does NOT show 获取证据 when txRecords is empty", () => {
+  // Fixture mode: status is JobFunded, txRecords is empty — button MUST appear.
+  it("shows 获取证据 button in fixture mode (JobFunded + empty txRecords)", () => {
     render(
       <Step4Onchain
-        task={task({ txRecords: [] })}
+        task={task({ txRecords: [], status: "JobFunded" })}
+        onGetEvidence={noop}
+      />
+    );
+    expect(screen.getByRole("button", { name: /获取证据/ })).toBeTruthy();
+  });
+
+  // Fixture mode also shows the honest 演示模式 line alongside the button.
+  it("shows 演示模式 honest line in fixture mode (JobFunded + empty txRecords)", () => {
+    render(
+      <Step4Onchain
+        task={task({ txRecords: [], status: "JobFunded" })}
+        onGetEvidence={noop}
+      />
+    );
+    expect(screen.getByText("演示模式：本地状态机，无链上交易明细。")).toBeTruthy();
+  });
+
+  // Mid-execute: status NOT JobFunded, empty txRecords — no button, calm wait.
+  it("does NOT show 获取证据 when mid-execute (non-JobFunded status + empty txRecords)", () => {
+    render(
+      <Step4Onchain
+        task={task({ txRecords: [], status: "PactActive" })}
         onGetEvidence={noop}
       />
     );
     expect(screen.queryByRole("button", { name: /获取证据/ })).toBeNull();
+    expect(screen.getByText("等待链上确认…")).toBeTruthy();
   });
 
   it("disables 获取证据 when isBusy is true", () => {

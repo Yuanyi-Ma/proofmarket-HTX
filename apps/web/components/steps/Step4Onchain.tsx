@@ -81,13 +81,11 @@ export function Step4Onchain({
 }: Step4OnchainProps) {
   const records = task?.txRecords ?? [];
 
-  // All 4 escrow records confirmed = ready to fetch evidence.
-  const escrowRecords = records.filter((r) =>
-    (ESCROW_LABELS as string[]).includes(r.label)
-  );
-  const allEscrowConfirmed =
-    escrowRecords.length === ESCROW_LABELS.length &&
-    escrowRecords.every((r) => r.status === "confirmed");
+  // Gate 获取证据 on task status, not on txRecords contents.
+  // In fixture mode txRecords stays [] even after JobFunded; real mode
+  // populates all 4 confirmed rows.  Either way, status === "JobFunded"
+  // is the canonical signal that escrow is complete.
+  const isJobFunded = task?.status === "JobFunded";
 
   return (
     <StepShell
@@ -95,7 +93,7 @@ export function Step4Onchain({
       title="链上采购进行中"
       subtitle="资金正在 Sepolia 测试网上按 Cobo 边界托管。每一步都是真实交易，可点开核验。"
       primary={
-        allEscrowConfirmed
+        isJobFunded
           ? {
               label: "获取证据",
               onClick: onGetEvidence,
@@ -105,17 +103,22 @@ export function Step4Onchain({
           : undefined
       }
     >
-      {records.length === 0 ? (
-        <div className="info-strip">等待链上确认…</div>
-      ) : (
+      {records.length > 0 ? (
+        // Real mode: show the 4 confirmed tx rows with Etherscan links.
         <div className="tx-progress-list">
           {records.map((record, index) => (
             <TxRow key={`${record.label}-${index}`} record={record} />
           ))}
         </div>
+      ) : isJobFunded ? (
+        // Fixture mode: status is JobFunded but no on-chain tx details.
+        <div className="info-strip">演示模式：本地状态机，无链上交易明细。</div>
+      ) : (
+        // Genuinely mid-execute: waiting for chain confirmation.
+        <div className="info-strip">等待链上确认…</div>
       )}
 
-      {!allEscrowConfirmed && records.length > 0 && (
+      {!isJobFunded && records.length > 0 && (
         <div className="info-strip">
           托管交易确认中，完成后可获取证据。
         </div>
