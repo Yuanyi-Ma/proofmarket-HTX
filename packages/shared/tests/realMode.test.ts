@@ -145,6 +145,55 @@ describe("parseDeploymentArtifact", () => {
       })
     ).toThrow(/providers\["bad-provider"\]/);
   });
+
+  // ── P1-1 ERC-8004 fields ──────────────────────────────────────────────────
+
+  it("accepts a P1-1 artifact with erc8004 section and provider agentId/agentURI", () => {
+    const result = parseDeploymentArtifact({
+      ...goodArtifactWithCM,
+      erc8004: {
+        identityRegistry: "0x" + "b".repeat(40),
+        reputationRegistry: "0x" + "c".repeat(40)
+      },
+      providers: {
+        ...goodArtifactWithCM.providers,
+        "execution-research-expert": {
+          ...goodArtifactWithCM.providers["execution-research-expert"],
+          agentId: 12,
+          agentURI: "proofmarket://agent/execution-research-expert"
+        }
+      }
+    });
+    expect(result.erc8004?.identityRegistry).toBe("0x" + "b".repeat(40));
+    expect(result.providers?.["execution-research-expert"]?.agentId).toBe(12);
+    expect(result.providers?.["execution-research-expert"]?.agentURI).toBe(
+      "proofmarket://agent/execution-research-expert"
+    );
+  });
+
+  it("rejects a malformed erc8004 registry address", () => {
+    expect(() =>
+      parseDeploymentArtifact({
+        ...goodArtifactWithCM,
+        erc8004: { identityRegistry: "0x123", reputationRegistry: "0x" + "c".repeat(40) }
+      })
+    ).toThrow(/erc8004\.identityRegistry/);
+  });
+
+  it("rejects a non-integer provider agentId", () => {
+    expect(() =>
+      parseDeploymentArtifact({
+        ...goodArtifactWithCM,
+        providers: {
+          ...goodArtifactWithCM.providers,
+          "execution-research-expert": {
+            ...goodArtifactWithCM.providers["execution-research-expert"],
+            agentId: 1.5
+          }
+        }
+      })
+    ).toThrow(/agentId/);
+  });
 });
 
 describe("validateResearchPlanOutput", () => {

@@ -13,6 +13,11 @@ export type ProviderEntry = {
   stakedAmount: string;
   stakePending: boolean;
   stakePendingReason?: string;
+  // ── Optional P1-1 fields (ERC-8004 registration) ──────────────────────────
+  /** ERC-8004 agentId (ERC-721 tokenId) on the official IdentityRegistry. */
+  agentId?: number;
+  /** agentURI stored at registration (returned by tokenURI). */
+  agentURI?: string;
 };
 
 export type DeploymentArtifact = {
@@ -45,6 +50,12 @@ export type DeploymentArtifact = {
   challenger?: { address: string; mintedUsdc: string };
   /** Per-provider stake information keyed by provider id. */
   providers?: Record<string, ProviderEntry>;
+  // ── Optional P1-1 section ─────────────────────────────────────────────────
+  /** Official ERC-8004 registry proxy addresses used for registration. */
+  erc8004?: {
+    identityRegistry: string;
+    reputationRegistry: string;
+  };
 };
 
 export type ResearchPlanOutput = {
@@ -119,6 +130,22 @@ export function parseDeploymentArtifact(input: unknown): DeploymentArtifact {
       if (!isHexAddress(entry.address)) {
         throw new Error(`artifact providers["${id}"].address is not a valid address`);
       }
+      // Optional P1-1 fields: validate shape when present (lenient when absent).
+      if (entry.agentId !== undefined && !Number.isInteger(entry.agentId)) {
+        throw new Error(`artifact providers["${id}"].agentId must be an integer`);
+      }
+      if (entry.agentURI !== undefined && typeof entry.agentURI !== "string") {
+        throw new Error(`artifact providers["${id}"].agentURI must be a string`);
+      }
+    }
+  }
+  // Optional P1-1 section: ERC-8004 registry addresses.
+  if (a.erc8004 !== undefined) {
+    if (!isHexAddress(a.erc8004.identityRegistry)) {
+      throw new Error("artifact erc8004.identityRegistry is not a valid address");
+    }
+    if (!isHexAddress(a.erc8004.reputationRegistry)) {
+      throw new Error("artifact erc8004.reputationRegistry is not a valid address");
     }
   }
   return a;

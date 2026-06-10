@@ -26,21 +26,27 @@
       "address": "0x0866e2b066d1D04e4a5A4Cccc380E7Da2c1c2f3a",
       "mintedUsdc": "20000000",
       "stakedAmount": "20000000",
-      "stakePending": false
+      "stakePending": false,
+      "agentId": 6388,
+      "agentURI": "proofmarket://agent/execution-research-expert"
     },
     "shallow-search-provider": {
       "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
       "mintedUsdc": "20000000",
       "stakedAmount": "0",
       "stakePending": true,
-      "stakePendingReason": "No private key held by deploy script; provider self-stakes in P1"
+      "stakePendingReason": "No private key held by deploy script; provider self-stakes in P1",
+      "agentId": 6389,
+      "agentURI": "proofmarket://agent/shallow-search-provider"
     },
     "general-web-summary": {
       "address": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
       "mintedUsdc": "20000000",
       "stakedAmount": "0",
       "stakePending": true,
-      "stakePendingReason": "No private key held by deploy script; provider self-stakes in P1"
+      "stakePendingReason": "No private key held by deploy script; provider self-stakes in P1",
+      "agentId": 6390,
+      "agentURI": "proofmarket://agent/general-web-summary"
     }
   },
   "mint": {
@@ -48,5 +54,9 @@
     "rawAmount": "100000000",
     "txHash": "0x72df2c465abc59afc992f7f1628a90ee57743b40806172fd5dc3539af233a343"
   },
-  "deployedAt": "2026-06-10T17:16:38.578Z"
+  "deployedAt": "2026-06-10T17:16:38.578Z",
+  "erc8004": {
+    "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713"
+  }
 }
