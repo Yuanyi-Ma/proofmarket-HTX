@@ -7,6 +7,9 @@ interface IERC20Minimal {
 }
 
 interface IEscrowChallengeHooks {
+    function jobParties(
+        uint256 jobId
+    ) external view returns (address client, address provider, address evaluator);
     function markChallenged(uint256 jobId) external;
     function refundForChallenge(uint256 jobId) external;
     function unfreezeForChallenge(uint256 jobId) external;
@@ -53,11 +56,18 @@ contract ProofMarketChallengeManager {
 
     mapping(uint256 => Challenge) public challenges;
     mapping(address => uint256) public stake;
+    // Portion of stake[provider] bonded to in-flight escrow jobs (minStake per
+    // job, locked at createJob, released at terminal settlement). Invariant:
+    // lockedStake[provider] <= stake[provider]. Only free stake (the difference)
+    // is withdrawable, so a provider cannot pull the bond out from under a job.
+    mapping(address => uint256) public lockedStake;
     mapping(address => uint256) public activeChallenges;
 
     event EscrowSet(address indexed escrow);
     event StakeDeposited(address indexed provider, uint256 amount, uint256 totalStake);
     event StakeWithdrawn(address indexed provider, uint256 amount, uint256 remainingStake);
+    event StakeLocked(address indexed provider, uint256 amount, uint256 totalLocked);
+    event StakeUnlocked(address indexed provider, uint256 amount, uint256 totalLocked);
     event ChallengeOpened(
         uint256 indexed challengeId,
         uint256 indexed jobId,
@@ -123,7 +133,11 @@ contract ProofMarketChallengeManager {
     function withdrawStake(uint256 amount) external {
         require(amount > 0, "amount required");
         require(activeChallenges[msg.sender] == 0, "active challenge pending");
-        require(stake[msg.sender] >= amount, "insufficient stake");
+        // Only FREE stake is withdrawable; stake bonded to in-flight jobs stays.
+        require(
+            stake[msg.sender] - lockedStake[msg.sender] >= amount,
+            "insufficient stake"
+        );
 
         stake[msg.sender] -= amount;
         require(token.transfer(msg.sender, amount), "stake transfer failed");
@@ -135,16 +149,53 @@ contract ProofMarketChallengeManager {
         return stake[provider] >= minStake;
     }
 
+    /// @notice Bond minStake of the provider's free stake to a job being created.
+    /// @dev Only callable by the escrow (from createJob). Reverts if the
+    ///      provider's free stake cannot cover another minStake bond, which is
+    ///      what enforces the create-time stake gate.
+    function lockStakeForJob(address provider) external {
+        require(msg.sender == escrow, "only escrow");
+        require(
+            stake[provider] - lockedStake[provider] >= minStake,
+            "provider stake too low"
+        );
+
+        lockedStake[provider] += minStake;
+        emit StakeLocked(provider, minStake, lockedStake[provider]);
+    }
+
+    /// @notice Release the minStake bond when a job reaches a terminal state
+    ///         through the escrow (complete / reject / expireAndRefund).
+    /// @dev Challenged jobs that end via refundForChallenge are settled inside
+    ///      resolve() instead, never here.
+    function unlockStakeForJob(address provider) external {
+        require(msg.sender == escrow, "only escrow");
+        require(lockedStake[provider] >= minStake, "nothing locked");
+
+        lockedStake[provider] -= minStake;
+        emit StakeUnlocked(provider, minStake, lockedStake[provider]);
+    }
+
     function openChallenge(
         uint256 jobId,
         ChallengeType challengeType,
-        bytes32 challengeHash,
-        address provider
+        bytes32 challengeHash
     ) external returns (uint256 challengeId) {
         require(escrow != address(0), "escrow not set");
         require(jobId > 0, "job required");
         require(challengeHash != bytes32(0), "challenge hash required");
-        require(provider != address(0), "provider required");
+
+        // The challenged provider is read from the job itself, never supplied by
+        // the caller, so a challenge can only ever slash the job's real provider.
+        (address client, address provider, address evaluator) =
+            IEscrowChallengeHooks(escrow).jobParties(jobId);
+        require(provider != address(0), "job not found");
+        // Only parties to the job may challenge it; anyone else freezing
+        // arbitrary jobs would be pure griefing.
+        require(
+            msg.sender == client || msg.sender == evaluator,
+            "only client or evaluator"
+        );
         require(stake[provider] > 0, "provider has no stake");
 
         challengeId = nextChallengeId++;
@@ -193,9 +244,17 @@ contract ProofMarketChallengeManager {
         uint256 treasuryPayout = 0;
 
         if (result == ChallengeResult.ProviderFault) {
-            // Slash the provider's stake; split between challenger and treasury.
-            slashAmount = (stake[challenge.provider] * slashBps) / BPS_DENOMINATOR;
+            // Slash against the stake bonded to this job at createJob (minStake),
+            // not the provider's floating balance; split between challenger and
+            // treasury. The job ends terminal (Rejected via refundForChallenge
+            // below), so the whole minStake bond settles here: slashAmount is
+            // burned out of stake, and the un-slashed remainder of the bond
+            // (minStake - slashAmount) returns to free stake by reducing
+            // lockedStake by the full minStake while stake only drops by
+            // slashAmount.
+            slashAmount = (minStake * slashBps) / BPS_DENOMINATOR;
             stake[challenge.provider] -= slashAmount;
+            lockedStake[challenge.provider] -= minStake;
 
             uint256 reward = (slashAmount * slashRewardBps) / BPS_DENOMINATOR;
             challengerPayout = reward + challengeDeposit;

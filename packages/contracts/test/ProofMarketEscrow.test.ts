@@ -375,6 +375,85 @@ describe("ProofMarketEscrow", () => {
     );
   });
 
+  it("exposes the job parties for challenge binding", async () => {
+    const { escrow, client, provider, evaluator } = await createJob();
+
+    const [partyClient, partyProvider, partyEvaluator] =
+      await escrow.jobParties(1);
+    expect(partyClient).to.equal(client.address);
+    expect(partyProvider).to.equal(provider.address);
+    expect(partyEvaluator).to.equal(evaluator.address);
+
+    // Nonexistent jobs return zero parties.
+    const [noClient, noProvider] = await escrow.jobParties(99);
+    expect(noClient).to.equal(ethers.ZeroAddress);
+    expect(noProvider).to.equal(ethers.ZeroAddress);
+  });
+
+  it("bonds provider stake on createJob and releases it when the evaluator rejects", async () => {
+    const { escrow, manager, provider, evaluator, reasonHash } =
+      await createAndFundJob();
+
+    expect(await manager.lockedStake(provider.address)).to.equal(minStake);
+    await expectRevert(
+      manager.connect(provider).withdrawStake(minStake),
+      "insufficient stake"
+    );
+
+    await escrow.connect(evaluator).reject(1, reasonHash);
+
+    expect(await manager.lockedStake(provider.address)).to.equal(0n);
+    await manager.connect(provider).withdrawStake(minStake);
+  });
+
+  it("releases the provider bond when an expired job is refunded", async () => {
+    const { escrow, manager, provider, expiredAt } = await createAndFundJob();
+
+    expect(await manager.lockedStake(provider.address)).to.equal(minStake);
+
+    await advancePastExpiry(expiredAt);
+    await escrow.expireAndRefund(1);
+
+    expect(await manager.lockedStake(provider.address)).to.equal(0n);
+    await manager.connect(provider).withdrawStake(minStake);
+  });
+
+  it("restores a Funded job to Funded when a challenge fails (HIGH-3)", async () => {
+    const {
+      escrow,
+      manager,
+      token,
+      provider,
+      evaluator,
+      resolver,
+      reasonHash
+    } = await createAndFundJob();
+
+    const challengeHash = ethers.keccak256(
+      ethers.toUtf8Bytes("premature challenge")
+    );
+    await token.mint(evaluator.address, challengeDeposit);
+    await token
+      .connect(evaluator)
+      .approve(await manager.getAddress(), challengeDeposit);
+
+    await manager.connect(evaluator).openChallenge(1, 4, challengeHash);
+    let job = await escrow.jobs(1);
+    expect(job.state).to.equal(JobState.Challenged);
+
+    // ProviderNotFault unfreezes back to the pre-challenge state.
+    await manager.connect(resolver).resolve(1, 2);
+    job = await escrow.jobs(1);
+    expect(job.state).to.equal(JobState.Funded);
+
+    // A never-submitted job still cannot pay out.
+    await expectRevert(
+      escrow.connect(evaluator).complete(1, reasonHash),
+      "not submitted"
+    );
+    expect(await token.balanceOf(provider.address)).to.equal(0n);
+  });
+
   it("restricts challenge hooks to the challenge manager", async () => {
     const { escrow, other } = await createAndFundJob();
 

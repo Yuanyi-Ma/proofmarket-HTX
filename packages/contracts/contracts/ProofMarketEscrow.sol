@@ -6,8 +6,9 @@ interface IERC20Like {
     function transferFrom(address from, address to, uint256 amount) external returns (bool);
 }
 
-interface IChallengeManagerView {
-    function hasMinStake(address provider) external view returns (bool);
+interface IChallengeManagerHooks {
+    function lockStakeForJob(address provider) external;
+    function unlockStakeForJob(address provider) external;
 }
 
 contract ProofMarketEscrow {
@@ -41,6 +42,10 @@ contract ProofMarketEscrow {
     address public owner;
     address public challengeManager;
     mapping(uint256 => Job) public jobs;
+    // State a job held immediately before it was frozen by markChallenged, so a
+    // failed challenge restores it exactly (Funded stays Funded, Submitted stays
+    // Submitted) instead of promoting an empty deliverable to Submitted.
+    mapping(uint256 => JobState) private preChallengeState;
 
     event JobCreated(uint256 indexed jobId, address indexed client, address indexed provider);
     event JobFunded(uint256 indexed jobId, uint256 amount);
@@ -85,11 +90,14 @@ contract ProofMarketEscrow {
         require(evaluator != address(0), "evaluator required");
         require(token != address(0), "token required");
         require(expiredAt > block.timestamp, "expiry must be future");
-        require(
-            challengeManager != address(0) &&
-                IChallengeManagerView(challengeManager).hasMinStake(provider),
-            "provider stake too low"
-        );
+        // Same message as the lock revert below: with no challenge manager wired
+        // there is no stake system, so the provider cannot have bonded stake.
+        require(challengeManager != address(0), "provider stake too low");
+
+        // Bond minStake of the provider's free stake to this job before any job
+        // state is written: the lock reverts on insufficient free stake, so
+        // createJob aborts atomically and can never leave a job without a bond.
+        IChallengeManagerHooks(challengeManager).lockStakeForJob(provider);
 
         jobId = nextJobId++;
         jobs[jobId] = Job({
@@ -109,6 +117,13 @@ contract ProofMarketEscrow {
         });
 
         emit JobCreated(jobId, msg.sender, provider);
+    }
+
+    function jobParties(
+        uint256 jobId
+    ) external view returns (address client, address provider, address evaluator) {
+        Job storage job = jobs[jobId];
+        return (job.client, job.provider, job.evaluator);
     }
 
     function setBudget(uint256 jobId, uint256 amount) external {
@@ -160,6 +175,8 @@ contract ProofMarketEscrow {
 
         job.state = JobState.Completed;
         require(IERC20Like(job.token).transfer(job.provider, job.budget), "transfer failed");
+        // Terminal settlement: release the stake bonded to this job.
+        IChallengeManagerHooks(challengeManager).unlockStakeForJob(job.provider);
 
         emit JobCompleted(jobId, reasonHash);
     }
@@ -175,6 +192,8 @@ contract ProofMarketEscrow {
 
         job.state = JobState.Rejected;
         require(IERC20Like(job.token).transfer(job.client, job.budget), "transfer failed");
+        // Terminal settlement: release the stake bonded to this job.
+        IChallengeManagerHooks(challengeManager).unlockStakeForJob(job.provider);
 
         emit JobRejected(jobId, reasonHash);
     }
@@ -188,6 +207,8 @@ contract ProofMarketEscrow {
 
         job.state = JobState.Expired;
         require(IERC20Like(job.token).transfer(job.client, job.budget), "transfer failed");
+        // Terminal settlement: release the stake bonded to this job.
+        IChallengeManagerHooks(challengeManager).unlockStakeForJob(job.provider);
 
         emit JobExpired(jobId);
     }
@@ -200,6 +221,7 @@ contract ProofMarketEscrow {
             "not challengeable"
         );
 
+        preChallengeState[jobId] = job.state;
         job.state = JobState.Challenged;
 
         emit JobChallenged(jobId);
@@ -211,6 +233,11 @@ contract ProofMarketEscrow {
         require(job.state == JobState.Challenged, "not challenged");
 
         job.state = JobState.Rejected;
+        delete preChallengeState[jobId];
+        // NOTE: no unlockStakeForJob call here. This hook is invoked by the
+        // challenge manager inside resolve(), which settles the locked-stake
+        // accounting for the challenged job itself (slash + release). Calling
+        // back would double-unlock.
         require(IERC20Like(job.token).transfer(job.client, job.budget), "transfer failed");
 
         emit JobRefundedForChallenge(jobId);
@@ -221,7 +248,10 @@ contract ProofMarketEscrow {
         require(job.client != address(0), "job not found");
         require(job.state == JobState.Challenged, "not challenged");
 
-        job.state = JobState.Submitted;
+        // Restore the exact pre-challenge state: a Funded job must not become
+        // Submitted, or complete() could pay out for an empty deliverable.
+        job.state = preChallengeState[jobId];
+        delete preChallengeState[jobId];
 
         emit JobUnfrozenForChallenge(jobId);
     }

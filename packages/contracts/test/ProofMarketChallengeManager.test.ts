@@ -101,7 +101,14 @@ describe("ProofMarketChallengeManager", () => {
     await token.connect(provider).approve(await manager.getAddress(), minStake);
     await manager.connect(provider).depositStake(minStake);
 
-    // Challenger holds exactly one deposit, pre-approved.
+    // The evaluator is the challenging party: holds one deposit, pre-approved.
+    await token.mint(evaluator.address, challengeDeposit);
+    await token
+      .connect(evaluator)
+      .approve(await manager.getAddress(), challengeDeposit);
+
+    // A funded, approved outsider — proves non-party rejections are about
+    // authorization, not funds.
     await token.mint(challenger.address, challengeDeposit);
     await token
       .connect(challenger)
@@ -127,7 +134,7 @@ describe("ProofMarketChallengeManager", () => {
     };
   }
 
-  async function deployWithSubmittedJob() {
+  async function deployWithFundedJob() {
     const fixture = await deployFixture();
     const { escrow, token, client, provider, evaluator } = fixture;
 
@@ -154,9 +161,18 @@ describe("ProofMarketChallengeManager", () => {
     await token.mint(client.address, budget);
     await token.connect(client).approve(await escrow.getAddress(), budget);
     await escrow.connect(client).fund(1, budget);
-    await escrow.connect(provider).submit(1, deliverableHash);
 
     return { ...fixture, deliverableHash, reasonHash, jobId: 1n };
+  }
+
+  async function deployWithSubmittedJob() {
+    const fixture = await deployWithFundedJob();
+
+    await fixture.escrow
+      .connect(fixture.provider)
+      .submit(1, fixture.deliverableHash);
+
+    return fixture;
   }
 
   describe("deployment wiring", () => {
@@ -188,8 +204,7 @@ describe("ProofMarketChallengeManager", () => {
     });
 
     it("rejects opening a challenge before the escrow is wired", async () => {
-      const { resolver, provider, token, treasury, challengeHash } =
-        await deployFixture();
+      const { resolver, token, treasury, challengeHash } = await deployFixture();
 
       const Manager = await ethers.getContractFactory(
         "ProofMarketChallengeManager"
@@ -205,12 +220,7 @@ describe("ProofMarketChallengeManager", () => {
       );
 
       await expectRevert(
-        fresh.openChallenge(
-          1,
-          ChallengeType.CoverageMiss,
-          challengeHash,
-          provider.address
-        ),
+        fresh.openChallenge(1, ChallengeType.CoverageMiss, challengeHash),
         "escrow not set"
       );
     });
@@ -268,21 +278,105 @@ describe("ProofMarketChallengeManager", () => {
     });
 
     it("blocks stake withdrawal while a challenge is pending against the provider", async () => {
-      const { manager, provider, challenger, challengeHash } =
+      const { manager, provider, evaluator, challengeHash } =
         await deployWithSubmittedJob();
 
       await manager
-        .connect(challenger)
-        .openChallenge(
-          1,
-          ChallengeType.CoverageMiss,
-          challengeHash,
-          provider.address
-        );
+        .connect(evaluator)
+        .openChallenge(1, ChallengeType.CoverageMiss, challengeHash);
 
       await expectRevert(
         manager.connect(provider).withdrawStake(1n),
         "active challenge pending"
+      );
+    });
+
+    it("bonds minStake to the job at creation so it cannot be withdrawn (HIGH-1)", async () => {
+      const { manager, token, provider, evaluator, reasonHash, escrow } =
+        await deployWithSubmittedJob();
+
+      // createJob locked the full bond.
+      expect(await manager.lockedStake(provider.address)).to.equal(minStake);
+
+      // The provider cannot pull even one unit of the bonded stake.
+      await expectRevert(
+        manager.connect(provider).withdrawStake(1n),
+        "insufficient stake"
+      );
+      await expectRevert(
+        manager.connect(provider).withdrawStake(minStake),
+        "insufficient stake"
+      );
+
+      // Terminal settlement (complete) releases the bond...
+      await escrow.connect(evaluator).complete(1, reasonHash);
+      expect(await manager.lockedStake(provider.address)).to.equal(0n);
+
+      // ...and the stake becomes withdrawable again.
+      await manager.connect(provider).withdrawStake(minStake);
+      expect(await token.balanceOf(provider.address)).to.equal(
+        minStake + budget
+      );
+    });
+
+    it("rejects creating a second job that would over-commit the free stake (HIGH-1)", async () => {
+      const fixture = await deployWithSubmittedJob();
+      const { escrow, manager, token, client, provider, evaluator } = fixture;
+
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const expiredAt = BigInt((latestBlock?.timestamp ?? 0) + 1800);
+      const descriptionHash = ethers.keccak256(ethers.toUtf8Bytes("task_002"));
+      const coverageHash = ethers.keccak256(ethers.toUtf8Bytes("coverage_2"));
+
+      // All of the provider's stake is already bonded to job 1.
+      await expectRevert(
+        escrow
+          .connect(client)
+          .createJob(
+            2,
+            provider.address,
+            4,
+            evaluator.address,
+            await token.getAddress(),
+            expiredAt,
+            descriptionHash,
+            coverageHash
+          ),
+        "provider stake too low"
+      );
+
+      // Topping up free stake makes a second job possible again.
+      await token.mint(provider.address, minStake);
+      await token.connect(provider).approve(await manager.getAddress(), minStake);
+      await manager.connect(provider).depositStake(minStake);
+
+      await escrow
+        .connect(client)
+        .createJob(
+          2,
+          provider.address,
+          4,
+          evaluator.address,
+          await token.getAddress(),
+          expiredAt,
+          descriptionHash,
+          coverageHash
+        );
+      expect(await manager.lockedStake(provider.address)).to.equal(
+        minStake * 2n
+      );
+    });
+
+    it("only the escrow can lock or unlock job bonds", async () => {
+      const { manager, provider, other } = await deployFixture();
+
+      await expectRevert(
+        manager.connect(other).lockStakeForJob(provider.address),
+        "only escrow"
+      );
+      await expectRevert(
+        manager.connect(other).unlockStakeForJob(provider.address),
+        "only escrow"
       );
     });
   });
@@ -294,7 +388,6 @@ describe("ProofMarketChallengeManager", () => {
         escrow,
         token,
         provider,
-        challenger,
         evaluator,
         reasonHash,
         challengeHash
@@ -306,25 +399,21 @@ describe("ProofMarketChallengeManager", () => {
 
       await expectEvent(
         manager
-          .connect(challenger)
-          .openChallenge(
-            1,
-            ChallengeType.CoverageMiss,
-            challengeHash,
-            provider.address
-          ),
+          .connect(evaluator)
+          .openChallenge(1, ChallengeType.CoverageMiss, challengeHash),
         manager,
         "ChallengeOpened",
-        [1n, 1n, ChallengeType.CoverageMiss, challengeHash, challenger.address, provider.address]
+        [1n, 1n, ChallengeType.CoverageMiss, challengeHash, evaluator.address, provider.address]
       );
 
-      expect(await token.balanceOf(challenger.address)).to.equal(0n);
+      expect(await token.balanceOf(evaluator.address)).to.equal(0n);
       expect(await token.balanceOf(await manager.getAddress())).to.equal(
         managerBalanceBefore + challengeDeposit
       );
 
       const challenge = await manager.challenges(1);
-      expect(challenge.challenger).to.equal(challenger.address);
+      expect(challenge.challenger).to.equal(evaluator.address);
+      // The challenged provider is bound from the job record, not caller input.
       expect(challenge.provider).to.equal(provider.address);
       expect(challenge.result).to.equal(ChallengeResult.Pending);
       expect(await manager.activeChallenges(provider.address)).to.equal(1n);
@@ -339,75 +428,80 @@ describe("ProofMarketChallengeManager", () => {
       );
     });
 
+    it("rejects challengers who are not party to the job (HIGH-2)", async () => {
+      const { manager, token, client, provider, challenger, challengeHash } =
+        await deployWithSubmittedJob();
+
+      // The outsider is funded and approved, so the rejection is purely
+      // an authorization failure.
+      await expectRevert(
+        manager
+          .connect(challenger)
+          .openChallenge(1, ChallengeType.CoverageMiss, challengeHash),
+        "only client or evaluator"
+      );
+
+      // The client is a valid challenger and the challenge binds to the job's
+      // real provider.
+      await token.mint(client.address, challengeDeposit);
+      await token
+        .connect(client)
+        .approve(await manager.getAddress(), challengeDeposit);
+      await manager
+        .connect(client)
+        .openChallenge(1, ChallengeType.CoverageMiss, challengeHash);
+
+      const challenge = await manager.challenges(1);
+      expect(challenge.challenger).to.equal(client.address);
+      expect(challenge.provider).to.equal(provider.address);
+    });
+
     it("rejects invalid challenge records", async () => {
-      const { manager, provider, challenger, other, challengeHash } =
+      const { manager, evaluator, challengeHash } =
         await deployWithSubmittedJob();
 
       await expectRevert(
         manager
-          .connect(challenger)
-          .openChallenge(
-            0,
-            ChallengeType.CoverageMiss,
-            challengeHash,
-            provider.address
-          ),
+          .connect(evaluator)
+          .openChallenge(0, ChallengeType.CoverageMiss, challengeHash),
         "job required"
       );
 
       await expectRevert(
         manager
-          .connect(challenger)
-          .openChallenge(
-            1,
-            ChallengeType.CoverageMiss,
-            ethers.ZeroHash,
-            provider.address
-          ),
+          .connect(evaluator)
+          .openChallenge(1, ChallengeType.CoverageMiss, ethers.ZeroHash),
         "challenge hash required"
       );
 
+      // A nonexistent job has no provider to read from escrow.
       await expectRevert(
         manager
-          .connect(challenger)
-          .openChallenge(
-            1,
-            ChallengeType.CoverageMiss,
-            challengeHash,
-            other.address
-          ),
-        "provider has no stake"
+          .connect(evaluator)
+          .openChallenge(99, ChallengeType.CoverageMiss, challengeHash),
+        "job not found"
       );
     });
 
     it("rejects a challenger who cannot fund the deposit", async () => {
-      const { manager, token, provider, other, challengeHash } =
+      const { manager, token, client, challengeHash } =
         await deployWithSubmittedJob();
 
-      // No balance at all: the deposit transfer reverts inside the token.
+      // The client (a valid party) spent everything funding the job:
+      // the deposit transfer reverts inside the token.
       await expectRevert(
         manager
-          .connect(other)
-          .openChallenge(
-            1,
-            ChallengeType.CoverageMiss,
-            challengeHash,
-            provider.address
-          ),
+          .connect(client)
+          .openChallenge(1, ChallengeType.CoverageMiss, challengeHash),
         "insufficient balance"
       );
 
       // Balance but no approval: still rejected.
-      await token.mint(other.address, challengeDeposit);
+      await token.mint(client.address, challengeDeposit);
       await expectRevert(
         manager
-          .connect(other)
-          .openChallenge(
-            1,
-            ChallengeType.CoverageMiss,
-            challengeHash,
-            provider.address
-          ),
+          .connect(client)
+          .openChallenge(1, ChallengeType.CoverageMiss, challengeHash),
         "insufficient allowance"
       );
     });
@@ -418,19 +512,14 @@ describe("ProofMarketChallengeManager", () => {
       const fixture = await deployWithSubmittedJob();
 
       await fixture.manager
-        .connect(fixture.challenger)
-        .openChallenge(
-          1,
-          ChallengeType.CoverageMiss,
-          fixture.challengeHash,
-          fixture.provider.address
-        );
+        .connect(fixture.evaluator)
+        .openChallenge(1, ChallengeType.CoverageMiss, fixture.challengeHash);
 
       return fixture;
     }
 
     it("ProviderFault: slashes stake, pays the challenger, funds the treasury, refunds the buyer", async () => {
-      const { manager, escrow, token, resolver, treasury, client, provider, challenger } =
+      const { manager, escrow, token, resolver, treasury, client, provider, evaluator } =
         await openChallengeFixture();
 
       const slashAmount = (minStake * slashBps) / 10_000n; // 5 mUSDC
@@ -451,12 +540,14 @@ describe("ProofMarketChallengeManager", () => {
         ]
       );
 
-      // Provider stake slashed by 50%.
+      // Provider stake slashed by 50% of the job bond.
       expect(await manager.stake(provider.address)).to.equal(
         minStake - slashAmount
       );
-      // Challenger gets the reward plus their deposit back.
-      expect(await token.balanceOf(challenger.address)).to.equal(
+      // The job bond settled in resolve: nothing stays locked.
+      expect(await manager.lockedStake(provider.address)).to.equal(0n);
+      // Challenger (the evaluator) gets the reward plus their deposit back.
+      expect(await token.balanceOf(evaluator.address)).to.equal(
         reward + challengeDeposit
       );
       // Treasury gets the rest of the slashed stake.
@@ -469,7 +560,8 @@ describe("ProofMarketChallengeManager", () => {
       const job = await escrow.jobs(1);
       expect(job.state).to.equal(JobState.Rejected);
 
-      // Challenge is closed, so the provider can withdraw the remaining stake.
+      // Challenge is closed and the bond released, so the provider can
+      // withdraw the remaining stake.
       expect(await manager.activeChallenges(provider.address)).to.equal(0n);
       await manager.connect(provider).withdrawStake(minStake - slashAmount);
       expect(await token.balanceOf(provider.address)).to.equal(
@@ -485,7 +577,6 @@ describe("ProofMarketChallengeManager", () => {
         resolver,
         treasury,
         provider,
-        challenger,
         evaluator,
         reasonHash
       } = await openChallengeFixture();
@@ -499,10 +590,11 @@ describe("ProofMarketChallengeManager", () => {
         [1n, ChallengeResult.ProviderNotFault, 0n, 0n, challengeDeposit]
       );
 
-      // Deposit forfeited; stake untouched.
+      // Deposit forfeited; stake untouched and still bonded to the live job.
       expect(await token.balanceOf(treasury.address)).to.equal(challengeDeposit);
-      expect(await token.balanceOf(challenger.address)).to.equal(0n);
+      expect(await token.balanceOf(evaluator.address)).to.equal(0n);
       expect(await manager.stake(provider.address)).to.equal(minStake);
+      expect(await manager.lockedStake(provider.address)).to.equal(minStake);
 
       // Job restored to Submitted, then completes normally.
       let job = await escrow.jobs(1);
@@ -512,6 +604,50 @@ describe("ProofMarketChallengeManager", () => {
       job = await escrow.jobs(1);
       expect(job.state).to.equal(JobState.Completed);
       expect(await token.balanceOf(provider.address)).to.equal(budget);
+      // Completion released the job bond.
+      expect(await manager.lockedStake(provider.address)).to.equal(0n);
+    });
+
+    it("restores a Funded job to Funded after a failed challenge (HIGH-3)", async () => {
+      const {
+        manager,
+        escrow,
+        token,
+        resolver,
+        client,
+        provider,
+        evaluator,
+        challengeHash,
+        deliverableHash,
+        reasonHash
+      } = await deployWithFundedJob();
+
+      // Challenge the job before any deliverable is submitted.
+      await manager
+        .connect(evaluator)
+        .openChallenge(1, ChallengeType.CoverageMiss, challengeHash);
+      let job = await escrow.jobs(1);
+      expect(job.state).to.equal(JobState.Challenged);
+
+      await manager.connect(resolver).resolve(1, ChallengeResult.ProviderNotFault);
+
+      // The job goes back to Funded, NOT Submitted.
+      job = await escrow.jobs(1);
+      expect(job.state).to.equal(JobState.Funded);
+
+      // No payout for an empty deliverable.
+      await expectRevert(
+        escrow.connect(evaluator).complete(1, reasonHash),
+        "not submitted"
+      );
+
+      // The normal flow still works afterwards.
+      await escrow.connect(provider).submit(1, deliverableHash);
+      await escrow.connect(evaluator).complete(1, reasonHash);
+      job = await escrow.jobs(1);
+      expect(job.state).to.equal(JobState.Completed);
+      expect(await token.balanceOf(provider.address)).to.equal(budget);
+      expect(await token.balanceOf(client.address)).to.equal(0n);
     });
 
     it("only the resolver can resolve, exactly once, with a non-pending result", async () => {
