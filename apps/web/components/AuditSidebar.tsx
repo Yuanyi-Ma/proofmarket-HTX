@@ -46,8 +46,26 @@ function formatTime(value: string): string {
   });
 }
 
-export function AuditSidebar({ task }: { task: Task | null }) {
-  const [expanded, setExpanded] = useState(true);
+type AuditSidebarProps = {
+  task: Task | null;
+  /** External control: when provided, overrides internal toggle state. */
+  expanded?: boolean;
+  onToggle?: (next: boolean) => void;
+};
+
+export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSidebarProps) {
+  const [internalExpanded, setInternalExpanded] = useState(true);
+  // Controlled if expandedProp is provided; uncontrolled otherwise.
+  const expanded = expandedProp !== undefined ? expandedProp : internalExpanded;
+
+  function handleToggle() {
+    const next = !expanded;
+    if (onToggle) {
+      onToggle(next);
+    } else {
+      setInternalExpanded(next);
+    }
+  }
   const events = task?.audit ?? [];
   const denial = task?.denial ?? null;
 
@@ -62,7 +80,7 @@ export function AuditSidebar({ task }: { task: Task | null }) {
           type="button"
           className="audit-toggle"
           aria-expanded={expanded}
-          onClick={() => setExpanded((value) => !value)}
+          onClick={handleToggle}
         >
           {expanded ? "收起" : "展开"}
         </button>

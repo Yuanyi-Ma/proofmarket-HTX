@@ -48,7 +48,7 @@ describe("stepFor", () => {
     DeniedByCobo: 3,
     JobFunded: 4,
     Delivered: 5,
-    Verified: 5,
+    Verified: 6,
     Challenged: 5,
     ChallengeWon: 5,
     ChallengeLost: 5,

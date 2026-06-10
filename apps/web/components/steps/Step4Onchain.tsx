@@ -1,7 +1,7 @@
 import React from "react";
 import type { TxRecord } from "@proofmarket/shared/src/realMode";
 import type { Task } from "@proofmarket/shared/src/types";
-import { isFullTxHash, sepoliaTxUrl } from "../../lib/links";
+import { isFullTxHash, sepoliaTxUrl, shortHash } from "../../lib/links";
 import { StepShell } from "../StepShell";
 
 type Step4OnchainProps = {
@@ -22,10 +22,6 @@ const TX_LABEL_MAP: Record<TxRecord["label"], string> = {
   submit: "提交证据",
   complete: "结算放款"
 };
-
-function shortHash(hash: string): string {
-  return `${hash.slice(0, 10)}…${hash.slice(-6)}`;
-}
 
 function TxRow({ record }: { record: TxRecord }) {
   const chineseLabel = TX_LABEL_MAP[record.label] ?? record.label;

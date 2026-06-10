@@ -920,6 +920,165 @@ a.hash {
   animation: tx-pulse 1.6s ease-in-out infinite;
 }
 
+/* ---- Step 5: Evidence & Verification ---- */
+
+.evidence-section,
+.onchain-consistency,
+.verification-result,
+.challenge-section {
+  display: grid;
+  gap: 0;
+}
+
+/* Expandable evidence item rows */
+.evidence-items-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.evidence-item-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.evidence-item-row[open] {
+  background: var(--surface);
+}
+
+.evidence-item-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 9px 12px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.evidence-item-summary::-webkit-details-marker {
+  display: none;
+}
+
+.evidence-item-summary::after {
+  content: "▶";
+  font-size: 10px;
+  color: var(--text-3);
+  margin-left: auto;
+  flex-shrink: 0;
+  transition: transform 0.15s ease;
+}
+
+details[open] .evidence-item-summary::after {
+  transform: rotate(90deg);
+}
+
+.evidence-item-index {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-2);
+  background: var(--surface-2);
+}
+
+.evidence-item-title {
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+
+.evidence-item-locator {
+  font-size: 11px;
+  color: var(--text-3);
+  flex-shrink: 0;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.evidence-item-body {
+  display: grid;
+  gap: 0;
+  padding: 0 12px 12px;
+  border-top: 1px solid var(--border);
+}
+
+.dot-inline-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.challenge-flow {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px 16px;
+  margin-top: 8px;
+}
+
+/* ---- Step 6: Done / Settlement Receipt ---- */
+
+.final-answer-section {
+  display: grid;
+  gap: 0;
+}
+
+/* Receipt — the auditable centerpiece. Clean key/value in mono. */
+.receipt-section {
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+
+.receipt-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.receipt-row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  align-items: baseline;
+}
+
+.receipt-row:last-child {
+  border-bottom: none;
+}
+
+.receipt-row dt {
+  font-size: 13px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.receipt-row dd {
+  margin: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.receipt-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 1080px) {

@@ -10,6 +10,8 @@ import { Step1Question } from "../components/steps/Step1Question";
 import { Step2Plan } from "../components/steps/Step2Plan";
 import { Step3Authorize } from "../components/steps/Step3Authorize";
 import { Step4Onchain } from "../components/steps/Step4Onchain";
+import { Step5Evidence } from "../components/steps/Step5Evidence";
+import { Step6Done } from "../components/steps/Step6Done";
 import { STEPS, stepFor } from "../lib/steps";
 
 type ActionName =
@@ -53,6 +55,8 @@ export default function Page() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   // A done step the user clicked to review read-only; null = follow the task.
   const [viewStep, setViewStep] = useState<number | null>(null);
+  // Whether to expand the audit sidebar (for the 「查看完整审计」button).
+  const [auditExpanded, setAuditExpanded] = useState(true);
   const isBusy = busyAction !== null;
   const taskId = task?.id ?? null;
 
@@ -162,6 +166,13 @@ export default function Page() {
     }
   }
 
+  function resetTask() {
+    setTask(null);
+    setError(null);
+    setBusyAction(null);
+    setViewStep(null);
+  }
+
   const currentStep = stepFor(task);
   // Review mode only goes backwards: a stale viewStep (>= current) is ignored.
   const displayStep =
@@ -207,6 +218,25 @@ export default function Page() {
                 providerId: task?.plan?.recommendedProviderId
               })
             }
+            isBusy={isBusy}
+          />
+        );
+      case 5:
+        return (
+          <Step5Evidence
+            task={task}
+            onVerify={() => runAction("verify")}
+            isBusy={isBusy}
+            readOnly={isReviewing}
+          />
+        );
+      case 6:
+        return (
+          <Step6Done
+            task={task}
+            onSettle={() => runAction("settle")}
+            onReset={resetTask}
+            onOpenAudit={() => setAuditExpanded(true)}
             isBusy={isBusy}
           />
         );
@@ -267,7 +297,11 @@ export default function Page() {
           {renderStep()}
         </section>
 
-        <AuditSidebar task={task} />
+        <AuditSidebar
+          task={task}
+          expanded={auditExpanded}
+          onToggle={setAuditExpanded}
+        />
       </div>
     </main>
   );
