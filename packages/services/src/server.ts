@@ -1,6 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { verifyPackage } from "@proofmarket/agents/src/verifierAgent";
 import { runProvider } from "@proofmarket/agents/src/providers";
+import { stableHash, type JsonValue } from "@proofmarket/shared/src/hash";
 import type { ProviderAnswerPackage, ProviderId } from "@proofmarket/shared/src/types";
 
 const VALID_PROVIDER_IDS = new Set<ProviderId>([
@@ -165,6 +166,44 @@ export async function startServicesServer(options: {
           voting: { mode: "not_triggered", voteId: null, onchainTxHash: null }
         };
         send(response, 200, verdict);
+        return;
+      }
+
+      if (request.method === "POST" && request.url === "/resolver/vote") {
+        // Deterministic challenge arbitration ("审判者确定性投票"): the vote is
+        // PRESET to ProviderFault by design — the demo validates the dispute
+        // protocol and fund movements, not AI arbitration quality. This is
+        // separate from /judge/verify, which is the success-path verification.
+        const jobId = String(body.jobId ?? "");
+        if (!JOB_ID_RE.test(jobId)) {
+          send(response, 400, { error: `jobId must be a numeric string, got: ${jobId}` });
+          return;
+        }
+        const challengeType = typeof body.challengeType === "string" ? body.challengeType : "";
+        if (!challengeType) {
+          send(response, 400, { error: "challengeType is required" });
+          return;
+        }
+        const counterEvidenceHash = String(body.counterEvidenceHash ?? "");
+        if (!DELIVERABLE_HASH_RE.test(counterEvidenceHash)) {
+          send(response, 400, {
+            error: `counterEvidenceHash must match /^0x[0-9a-fA-F]{64}$/, got: ${counterEvidenceHash}`
+          });
+          return;
+        }
+        const evidencePackage = (body.evidencePackage ?? null) as JsonValue;
+
+        const vote = "ProviderFault";
+        send(response, 200, {
+          voterId: "resolver-demo-001",
+          jobId,
+          vote,
+          reasonCode: "COVERAGE_MISS",
+          reason:
+            "Provider 声明覆盖 2021-2026 年区块链执行加速方向，却遗漏了 Block-STM——" +
+            "声明范围内直接相关的代表性来源。覆盖缺失成立，判 Provider 失职。",
+          resultHash: stableHash({ jobId, challengeType, counterEvidenceHash, evidencePackage, vote })
+        });
         return;
       }
 

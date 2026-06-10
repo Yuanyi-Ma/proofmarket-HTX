@@ -7,7 +7,7 @@ import {
   type TransactionReceipt
 } from "viem";
 import { sepolia } from "viem/chains";
-import { escrowAbi } from "./escrowAbi";
+import { challengeManagerAbi, escrowAbi } from "./escrowAbi";
 
 /**
  * A mined receipt is not a successful receipt: a reverted tx still mines.
@@ -25,6 +25,7 @@ export function assertReceiptSuccess(
 export type ChainReader = {
   waitForReceipt(txHash: Hash): Promise<TransactionReceipt>;
   extractJobId(receipt: TransactionReceipt, escrowAddress: string): bigint;
+  extractChallengeId(receipt: TransactionReceipt, challengeManagerAddress: string): bigint;
   readJobState(escrowAddress: `0x${string}`, jobId: bigint): Promise<{ state: number; budget: bigint; deliverableHash: `0x${string}` }>;
 };
 
@@ -54,6 +55,23 @@ export function createChainReader(rpcUrl: string): ChainReader {
         }
       }
       throw new Error(`No JobCreated event found in receipt ${receipt.transactionHash}`);
+    },
+
+    extractChallengeId(receipt, challengeManagerAddress) {
+      for (const log of receipt.logs) {
+        if (log.address.toLowerCase() !== challengeManagerAddress.toLowerCase()) continue;
+        try {
+          const event = decodeEventLog({ abi: challengeManagerAbi, data: log.data, topics: log.topics });
+          if (event.eventName === "ChallengeOpened") {
+            return (event.args as { challengeId: bigint }).challengeId;
+          }
+          // Known ChallengeManager event (e.g. StakeLocked) but not ChallengeOpened — skip
+        } catch (error) {
+          // Only swallow "topic0 not in ABI" — any other decode failure should surface
+          if (!(error instanceof AbiEventSignatureNotFoundError)) throw error;
+        }
+      }
+      throw new Error(`No ChallengeOpened event found in receipt ${receipt.transactionHash}`);
     },
 
     async readJobState(escrowAddress, jobId) {

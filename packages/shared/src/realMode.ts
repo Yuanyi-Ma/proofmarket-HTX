@@ -57,7 +57,18 @@ export type ResearchPlanOutput = {
 };
 
 export type TxRecord = {
-  label: "approve" | "createJob" | "setBudget" | "fund" | "submit" | "complete";
+  label:
+    | "approve"
+    | "createJob"
+    | "setBudget"
+    | "fund"
+    | "submit"
+    | "complete"
+    // Challenge path: deposit approval + openChallenge go through Cobo,
+    // resolve is signed directly by the resolver key.
+    | "approveDeposit"
+    | "openChallenge"
+    | "resolve";
   coboTxId: string | null;
   txHash: string;
   status: "pending" | "confirmed" | "failed";

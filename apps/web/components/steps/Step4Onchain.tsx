@@ -20,7 +20,10 @@ const TX_LABEL_MAP: Record<TxRecord["label"], string> = {
   setBudget: "设定预算",
   fund: "注入托管资金",
   submit: "提交证据",
-  complete: "结算放款"
+  complete: "结算放款",
+  approveDeposit: "授权挑战押金",
+  openChallenge: "发起挑战",
+  resolve: "执行裁决"
 };
 
 function TxRow({ record }: { record: TxRecord }) {

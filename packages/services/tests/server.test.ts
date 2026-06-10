@@ -171,6 +171,56 @@ describe("judge endpoint", () => {
   });
 });
 
+describe("resolver vote endpoint (deterministic challenge arbitration)", () => {
+  const voteInput = {
+    jobId: "7",
+    challengeType: "CoverageMiss",
+    evidencePackage: runProvider("task_001", "shallow-search-provider"),
+    counterEvidenceHash: "0x" + "e".repeat(64)
+  };
+
+  it("always votes ProviderFault with COVERAGE_MISS and a Chinese reason", async () => {
+    const response = await fetch(`${server.url}/resolver/vote`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(voteInput)
+    });
+    expect(response.status).toBe(200);
+    const body = await response.json() as Record<string, unknown>;
+    expect(body.voterId).toBe("resolver-demo-001");
+    expect(body.jobId).toBe("7");
+    expect(body.vote).toBe("ProviderFault");
+    expect(body.reasonCode).toBe("COVERAGE_MISS");
+    expect(body.reason as string).toContain("声明覆盖");
+    expect(body.resultHash).toMatch(/^0x[0-9a-f]{64}$/);
+  });
+
+  it("is deterministic: same input, same resultHash; different input, different hash", async () => {
+    const call = (input: unknown) =>
+      fetch(`${server.url}/resolver/vote`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      }).then((r) => r.json() as Promise<Record<string, unknown>>);
+    const [a, b] = await Promise.all([call(voteInput), call(voteInput)]);
+    expect(a.resultHash).toBe(b.resultHash);
+    const c = await call({ ...voteInput, jobId: "8" });
+    expect(c.resultHash).not.toBe(a.resultHash);
+  });
+
+  it("returns 400 for a non-numeric jobId, missing challengeType, or malformed counterEvidenceHash", async () => {
+    const call = (input: unknown) =>
+      fetch(`${server.url}/resolver/vote`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(input)
+      });
+    expect((await call({ ...voteInput, jobId: "abc" })).status).toBe(400);
+    expect((await call({ ...voteInput, challengeType: "" })).status).toBe(400);
+    expect((await call({ ...voteInput, counterEvidenceHash: "not-a-hash" })).status).toBe(400);
+  });
+});
+
 describe("input validation — /provider/run", () => {
   it("returns 400 for an unknown providerId", async () => {
     const response = await fetch(`${server.url}/provider/run`, {

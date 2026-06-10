@@ -2,6 +2,21 @@ import type { ProviderProfile } from "./types";
 
 export const defaultQuestion = "请调研近几年区块链交易执行加速的最新研究进展。";
 
+/**
+ * Preset counter-evidence for the deterministic challenge flow (P2-c).
+ * The challenge content is fixed by design — the protocol and fund movements
+ * are real, the arbitration content is preset. Only its stableHash goes
+ * on-chain; this object is the off-chain audit-layer original.
+ */
+export const presetCounterEvidence = {
+  challengeType: "CoverageMiss",
+  sourceLocator: "arXiv:2203.06871",
+  sourceTitle:
+    "Block-STM: Scaling Blockchain Execution via Parallelism and Optimistic Concurrency Control",
+  claim:
+    "Provider 声明覆盖 2021-2026 年区块链执行加速方向，但交付的证据包中遗漏了 Block-STM——该声明范围内公认的代表性工作。"
+} as const;
+
 export const providerProfiles: ProviderProfile[] = [
   {
     id: "execution-research-expert",

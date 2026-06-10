@@ -1,6 +1,12 @@
 export type RealPactSubmissionInput = {
   escrowAddress: string;
   tokenAddress: string;
+  /**
+   * ChallengeManager address for the dispute path (approve deposit +
+   * openChallenge). Optional: pre-P0-2 deployment artifacts lack the
+   * contract, in which case the pact only covers the success path.
+   */
+  challengeManagerAddress?: string;
   budgetAmount: string; // human units, e.g. "5"
   taskId: string;
 };
@@ -26,6 +32,13 @@ export type RealPactSubmission = {
 export function buildRealPactSubmission(
   input: RealPactSubmissionInput
 ): RealPactSubmission {
+  const targets = [
+    { chain_id: "SETH", contract_addr: input.escrowAddress },
+    { chain_id: "SETH", contract_addr: input.tokenAddress },
+    ...(input.challengeManagerAddress
+      ? [{ chain_id: "SETH", contract_addr: input.challengeManagerAddress }]
+      : [])
+  ];
   return {
     intent: `ProofMarket ${input.taskId}: fund one evidence procurement job, max ${input.budgetAmount} mUSDC, Sepolia escrow only.`,
     executionPlan: [
@@ -38,11 +51,19 @@ export function buildRealPactSubmission(
       `- ProofMarketEscrow.setBudget(jobId, ${input.budgetAmount} mUSDC)`,
       `- ProofMarketEscrow.fund(jobId, ${input.budgetAmount} mUSDC)`,
       "- ProofMarketEscrow.complete(jobId, verdictHash) after verifier acceptance",
+      ...(input.challengeManagerAddress
+        ? [
+            "- MockUSDC.approve(challengeManager, challengeDeposit) [dispute path]",
+            "- ProofMarketChallengeManager.openChallenge(jobId, challengeType, challengeHash) [dispute path]"
+          ]
+        : []),
       "",
       "# Risk Controls",
-      "- Contract allowlist: ProofMarketEscrow + MockUSDC on SETH only",
+      input.challengeManagerAddress
+        ? "- Contract allowlist: ProofMarketEscrow + MockUSDC + ProofMarketChallengeManager on SETH only"
+        : "- Contract allowlist: ProofMarketEscrow + MockUSDC on SETH only",
       "- No transfer policy: any direct transfer is denied by default",
-      "- Max 7 transactions, pact auto-expires after 90 minutes"
+      "- Max 10 transactions, pact auto-expires after 90 minutes"
     ].join("\n"),
     policies: [
       {
@@ -52,17 +73,16 @@ export function buildRealPactSubmission(
           effect: "allow",
           when: {
             chain_in: ["SETH"],
-            target_in: [
-              { chain_id: "SETH", contract_addr: input.escrowAddress },
-              { chain_id: "SETH", contract_addr: input.tokenAddress }
-            ]
+            target_in: targets
           },
-          deny_if: { usage_limits: { rolling_24h: { tx_count_gt: 7 } } }
+          // 10 = success path (~6: approve/createJob/setBudget/fund/complete +
+          // headroom) + challenge path (approveDeposit + openChallenge).
+          deny_if: { usage_limits: { rolling_24h: { tx_count_gt: 10 } } }
         }
       }
     ],
     completionConditions: [
-      { type: "tx_count", threshold: "7" },
+      { type: "tx_count", threshold: "10" },
       { type: "time_elapsed", threshold: "5400" }
     ]
   };

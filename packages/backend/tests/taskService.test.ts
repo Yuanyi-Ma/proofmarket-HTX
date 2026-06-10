@@ -114,6 +114,50 @@ describe("task service orchestration", () => {
     ).toBe(true);
   });
 
+  it("walks the explicit challenge path end to end: openChallenge → vote → refund/slash", async () => {
+    const service = createTaskService(createInMemoryStore());
+    const task = await service.createTask(researchQuestion, "5 test USDC");
+
+    await service.plan(task.id);
+    await service.submitPact(task.id);
+    await service.activatePact(task.id);
+    await service.executeEscrow(task.id);
+    await service.runProvider(task.id, "shallow-search-provider");
+
+    // 发起：Delivered → Challenged, preset CoverageMiss challenge recorded
+    const challenged = await service.openChallenge(task.id);
+    expect(challenged.status).toBe("Challenged");
+    expect(challenged.challenge?.type).toBe("CoverageMiss");
+    expect(challenged.challenge?.counterEvidenceHash).toMatch(/^0x[0-9a-f]{64}$/);
+    const openEvent = challenged.audit.find((event) => event.type === "challenge_opened");
+    expect(openEvent?.source).toBe("user");
+    expect(openEvent?.message).toContain("用户发起挑战");
+    expect(openEvent?.message).toContain("CoverageMiss");
+
+    // 投票：deterministic ProviderFault vote recorded on the challenge
+    const won = await service.winChallenge(task.id);
+    expect(won.status).toBe("ChallengeWon");
+    expect(won.challenge?.vote?.vote).toBe("ProviderFault");
+    expect(won.challenge?.vote?.reasonCode).toBe("COVERAGE_MISS");
+    expect(won.challenge?.vote?.resultHash).toMatch(/^0x[0-9a-f]{64}$/);
+    const voteEvent = won.audit.find((event) => event.type === "challenge_won");
+    expect(voteEvent?.message).toContain("ProviderFault");
+
+    // 资金动作：slash provider stake / refund buyer / return deposit
+    const refunded = await service.refundOrSlash(task.id);
+    expect(refunded.status).toBe("RefundedOrSlashed");
+    const fundEvent = refunded.audit.find((event) => event.type === "refund_or_slash");
+    expect(fundEvent?.message).toContain("扣除 Provider 质押");
+    expect(fundEvent?.message).toContain("退款买方");
+    expect(fundEvent?.message).toContain("押金退回");
+  });
+
+  it("rejects openChallenge before evidence delivery", async () => {
+    const service = createTaskService(createInMemoryStore());
+    const task = await service.createTask(researchQuestion, "5 test USDC");
+    await expect(service.openChallenge(task.id)).rejects.toThrow(/open a challenge/i);
+  });
+
   it("rejects verification before provider delivery", async () => {
     const service = createTaskService(createInMemoryStore());
     const task = await service.createTask(researchQuestion, "5 test USDC");

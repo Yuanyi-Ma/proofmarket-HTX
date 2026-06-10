@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { encodeEventTopics } from "viem";
-import { escrowAbi } from "../src/escrowAbi";
+import { encodeAbiParameters, encodeEventTopics } from "viem";
+import { challengeManagerAbi, escrowAbi } from "../src/escrowAbi";
 import { assertReceiptSuccess, createChainReader } from "../src/chainReader";
 import type { TransactionReceipt, Log } from "viem";
 
@@ -199,5 +199,46 @@ describe("extractJobId", () => {
 
     const receipt = makeReceipt([unknownLog, jobCreatedLog]);
     expect(reader.extractJobId(receipt, escrowAddr)).toBe(55n);
+  });
+});
+
+describe("extractChallengeId", () => {
+  const reader = createChainReader("http://localhost:8545");
+  const challengeManagerAddr = addr("c3");
+
+  function makeChallengeOpenedLog(challengeId: bigint, address: `0x${string}`): Log {
+    const topics = encodeEventTopics({
+      abi: challengeManagerAbi,
+      eventName: "ChallengeOpened",
+      args: { challengeId, jobId: 7n, challenger: clientAddr }
+    });
+    // Non-indexed fields (challengeType uint8, challengeHash bytes32, provider address)
+    const data = encodeAbiParameters(
+      [{ type: "uint8" }, { type: "bytes32" }, { type: "address" }],
+      [4, `0x${"e".repeat(64)}`, providerAddr]
+    );
+    return {
+      address,
+      data,
+      topics: topics as [`0x${string}`, ...`0x${string}`[]],
+      blockHash: "0x0" as `0x${string}`,
+      blockNumber: 1n,
+      logIndex: 0,
+      removed: false,
+      transactionHash: "0xabc" as `0x${string}`,
+      transactionIndex: 0
+    };
+  }
+
+  it("extracts the challengeId from a ChallengeOpened log", () => {
+    const receipt = makeReceipt([makeChallengeOpenedLog(42n, challengeManagerAddr)]);
+    expect(reader.extractChallengeId(receipt, challengeManagerAddr)).toBe(42n);
+  });
+
+  it("ignores ChallengeOpened logs from a different contract and throws when none match", () => {
+    const receipt = makeReceipt([makeChallengeOpenedLog(42n, otherAddr)]);
+    expect(() => reader.extractChallengeId(receipt, challengeManagerAddr)).toThrow(
+      /No ChallengeOpened/
+    );
   });
 });

@@ -104,6 +104,24 @@ export type AuditEvent = {
   createdAt: string;
 };
 
+export type ChallengeVote = {
+  voterId: string;
+  vote: "ProviderFault";
+  reasonCode: string;
+  reason: string;
+  resultHash: string;
+};
+
+export type TaskChallenge = {
+  type: "CoverageMiss";
+  counterEvidenceHash: string;
+  /** On-chain challenge id from ChallengeManager.openChallenge (real mode). */
+  challengeId?: number | null;
+  vote?: ChallengeVote | null;
+  /** Settlement tx of ChallengeManager.resolve (real mode). */
+  resolvedTxHash?: string | null;
+};
+
 export type Task = {
   id: string;
   userQuestion: string;
@@ -113,6 +131,8 @@ export type Task = {
   plan: ProcurementPlan | null;
   pact: PactSummary | null;
   providerPackage: ProviderAnswerPackage | null;
+  /** Optional for backwards compatibility: absent until a challenge is opened. */
+  challenge?: TaskChallenge | null;
   audit: AuditEvent[];
   jobId: number | null;
   mode: "fixture" | "real";

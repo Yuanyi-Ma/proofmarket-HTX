@@ -12,7 +12,9 @@ async function main(): Promise<void> {
   await service.activatePact(task.id);
   await service.executeEscrow(task.id);
   await service.runProvider(task.id, "shallow-search-provider");
-  await service.verify(task.id);
+  // Explicit deterministic challenge flow (spec 08): the user challenges the
+  // delivered package directly — 发起挑战 → 审判者确定性投票 → 资金动作.
+  await service.openChallenge(task.id);
   await service.winChallenge(task.id);
   await service.refundOrSlash(task.id);
   console.log(JSON.stringify(await service.getTask(task.id), null, 2));

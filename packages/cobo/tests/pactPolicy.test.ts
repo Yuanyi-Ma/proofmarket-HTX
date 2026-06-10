@@ -51,16 +51,27 @@ describe("buildRealPactSubmission", () => {
   const input = {
     escrowAddress: "0x" + "4".repeat(40),
     tokenAddress: "0x" + "3".repeat(40),
+    challengeManagerAddress: "0x" + "6".repeat(40),
     budgetAmount: "5",
     taskId: "task_001"
   };
 
-  it("whitelists exactly escrow and token contracts on SETH", () => {
+  it("whitelists exactly escrow, token and challenge manager contracts on SETH", () => {
     const submission = buildRealPactSubmission(input);
     const policy = submission.policies[0];
     expect(policy.type).toBe("contract_call");
     expect(policy.rules.when.chain_in).toEqual(["SETH"]);
     expect(policy.rules.when.target_in).toEqual([
+      { chain_id: "SETH", contract_addr: input.escrowAddress },
+      { chain_id: "SETH", contract_addr: input.tokenAddress },
+      { chain_id: "SETH", contract_addr: input.challengeManagerAddress }
+    ]);
+  });
+
+  it("omits the challenge manager target when no address is provided (pre-P0-2 artifacts)", () => {
+    const { challengeManagerAddress: _omit, ...withoutCm } = input;
+    const submission = buildRealPactSubmission(withoutCm);
+    expect(submission.policies[0].rules.when.target_in).toEqual([
       { chain_id: "SETH", contract_addr: input.escrowAddress },
       { chain_id: "SETH", contract_addr: input.tokenAddress }
     ]);
@@ -71,15 +82,15 @@ describe("buildRealPactSubmission", () => {
     expect(submission.policies.every((p) => p.type === "contract_call")).toBe(true);
   });
 
-  it("caps tx count and expires", () => {
+  it("caps tx count at 10 (success ~6 + challenge approve/openChallenge) and expires", () => {
     const submission = buildRealPactSubmission(input);
     expect(submission.completionConditions).toEqual([
-      { type: "tx_count", threshold: "7" },
+      { type: "tx_count", threshold: "10" },
       { type: "time_elapsed", threshold: "5400" }
     ]);
     expect(
       submission.policies[0].rules.deny_if.usage_limits.rolling_24h.tx_count_gt
-    ).toBe(7);
+    ).toBe(10);
   });
 
   it("mentions the budget in intent and execution plan", () => {

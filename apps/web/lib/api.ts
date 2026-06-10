@@ -8,6 +8,7 @@ import { createAuditFileLog } from "@proofmarket/backend/src/auditFileLog";
 import { parseDeploymentArtifact } from "@proofmarket/shared/src/realMode";
 import { createCliCoboClient } from "@proofmarket/cobo/src/coboClient";
 import { createChainReader } from "@proofmarket/chain/src/chainReader";
+import { createChallengeResolver } from "@proofmarket/chain/src/challengeResolver";
 import { runClaudeResearchAgent } from "@proofmarket/agents/src/claudeResearchAgent";
 
 type TaskService = ReturnType<typeof createTaskService>;
@@ -40,6 +41,31 @@ function buildRealService(): TaskService {
   const chain = createChainReader(process.env.SEPOLIA_RPC_URL ?? "");
   const cobo = createCliCoboClient({ srcAddress: deployment.coboWallet });
 
+  // resolveChallenge is only needed when a ChallengeManager is deployed AND the
+  // resolver key is available.  Neither is required for the success path, so we
+  // build a call-time-throwing stub when either is absent instead of failing at
+  // startup.
+  const resolverKey = process.env.RESOLVER_PRIVATE_KEY;
+  const challengeManagerAddress = deployment.contracts.ProofMarketChallengeManager;
+  const resolveChallenge =
+    challengeManagerAddress && resolverKey
+      ? createChallengeResolver({
+          rpcUrl: process.env.SEPOLIA_RPC_URL ?? "",
+          privateKey: resolverKey as `0x${string}`,
+          challengeManagerAddress: challengeManagerAddress as `0x${string}`
+        })
+      : async (): Promise<{ txHash: string }> => {
+          if (!resolverKey) {
+            throw new Error(
+              "RESOLVER_PRIVATE_KEY not set — required to resolve challenges"
+            );
+          }
+          throw new Error(
+            "deployment artifact has no contracts.ProofMarketChallengeManager — " +
+              "redeploy with the P0-2 script before resolving challenges"
+          );
+        };
+
   async function post<T>(path: string, body: unknown): Promise<T> {
     const response = await fetch(`${servicesUrl}${path}`, {
       method: "POST",
@@ -61,8 +87,10 @@ function buildRealService(): TaskService {
     services: {
       runProvider: (input) => post("/provider/run", input),
       submitDeliverable: (input) => post("/provider/submit", input),
-      judgeVerify: (input) => post("/judge/verify", input)
+      judgeVerify: (input) => post("/judge/verify", input),
+      resolverVote: (input) => post("/resolver/vote", input)
     },
+    resolveChallenge,
     audit: createAuditFileLog(root),
     now: () => new Date().toISOString()
   });

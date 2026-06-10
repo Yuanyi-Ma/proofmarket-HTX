@@ -1,13 +1,16 @@
 import {
+  ChallengeResult,
+  ChallengeType,
   encodeApprove,
   encodeComplete,
   encodeCreateJob,
   encodeFund,
+  encodeOpenChallenge,
   encodeSetBudget
 } from "@proofmarket/chain/src/calldata";
 import { buildRealPactSubmission } from "@proofmarket/cobo/src/pactPolicy";
 import { createAuditEvent } from "@proofmarket/shared/src/audit";
-import { providerProfiles } from "@proofmarket/shared/src/fixtures";
+import { presetCounterEvidence, providerProfiles } from "@proofmarket/shared/src/fixtures";
 import { stableHash } from "@proofmarket/shared/src/hash";
 import type {
   CoboDenialRecord,
@@ -67,11 +70,17 @@ export type RealDeps = {
       txHash: `0x${string}`
     ): Promise<{ logs: unknown[]; transactionHash: string }>;
     extractJobId(receipt: unknown, escrowAddress: string): bigint;
+    extractChallengeId(receipt: unknown, challengeManagerAddress: string): bigint;
     readJobState(
       escrowAddress: `0x${string}`,
       jobId: bigint
     ): Promise<{ state: number; budget: bigint; deliverableHash: `0x${string}` }>;
   };
+  /**
+   * Executes ChallengeManager.resolve with the backend's resolver key —
+   * resolve() is resolver-only on-chain and does NOT go through Cobo.
+   */
+  resolveChallenge(input: { challengeId: bigint; result: number }): Promise<{ txHash: string }>;
   services: {
     runProvider(input: {
       taskId: string;
@@ -96,6 +105,19 @@ export type RealDeps = {
       reasonCode: string;
       verdictHash: string;
       voting: { mode: string; voteId: string | null; onchainTxHash: string | null };
+    }>;
+    resolverVote(input: {
+      jobId: string;
+      challengeType: string;
+      evidencePackage: unknown;
+      counterEvidenceHash: string;
+    }): Promise<{
+      voterId: string;
+      jobId: string;
+      vote: "ProviderFault";
+      reasonCode: string;
+      reason: string;
+      resultHash: string;
     }>;
   };
   audit: { append(taskId: string, event: unknown): void };
@@ -392,9 +414,13 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         specialties: [profile.coverage],
         price: profile.price
       }));
-      const pactSummary =
-        "A Cobo pact restricts execution to the ProofMarketEscrow and MockUSDC contracts on Sepolia, " +
-        "with a cap of 7 transactions and a 90 minute expiry.";
+      const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
+      const pactSummary = challengeManagerAddress
+        ? "A Cobo pact restricts execution to the ProofMarketEscrow, MockUSDC and " +
+          "ProofMarketChallengeManager contracts on Sepolia, " +
+          "with a cap of 10 transactions and a 90 minute expiry."
+        : "A Cobo pact restricts execution to the ProofMarketEscrow and MockUSDC " +
+          "contracts on Sepolia, with a 90 minute expiry.";
 
       // On research agent failure: rethrow untouched — never fabricate a plan.
       const { plan, rawStdout } = await deps.runResearchAgent({
@@ -451,9 +477,11 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       const task = store.getTask(id);
       assertStatus(task, ["Planned"], "submit pact");
       const budgetAmount = leadingDecimal(task.budgetLimit);
+      const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
       const submission = buildRealPactSubmission({
         escrowAddress,
         tokenAddress,
+        challengeManagerAddress,
         budgetAmount,
         taskId: task.id
       });
@@ -463,11 +491,22 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         intent: submission.intent,
         totalBudget: `${budgetAmount} mUSDC`,
         perJobCap: `${budgetAmount} mUSDC`,
-        allowedTargets: [escrowAddress, tokenAddress],
-        allowedFunctions: ["approve", "createJob", "setBudget", "fund", "complete"],
+        allowedTargets: [
+          escrowAddress,
+          tokenAddress,
+          ...(challengeManagerAddress ? [challengeManagerAddress] : [])
+        ],
+        allowedFunctions: [
+          "approve",
+          "createJob",
+          "setBudget",
+          "fund",
+          "complete",
+          "openChallenge"
+        ],
         denyRules: [
           "direct transfers denied by default (no transfer policy)",
-          "max 7 txs",
+          "max 10 txs",
           "expires 90 min"
         ],
         expiresInMinutes: 90,
@@ -853,12 +892,248 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       }
     },
 
-    async winChallenge(): Promise<Task> {
-      throw new Error("challenge path is fixture-mode only in this demo");
+    // ── Deterministic challenge flow (P2-c): real protocol + funds, preset
+    //    content & vote. openChallenge/resolve move real money on Sepolia. ──
+
+    async openChallenge(id: string): Promise<Task> {
+      const task = store.getTask(id);
+      // Delivered-only by design: the user challenge targets the freshly
+      // delivered package (spec 08 step 1); after Verified the demo settles.
+      assertStatus(task, ["Delivered"], "open challenge");
+      if (inFlight.has(id)) {
+        throw new Error("operation already in progress for this task");
+      }
+      inFlight.add(id);
+      try {
+        const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
+        if (!challengeManagerAddress) {
+          throw new Error(
+            "deployment artifact has no contracts.ProofMarketChallengeManager — " +
+              "redeploy with the P0-2 script before running the challenge path"
+          );
+        }
+        const depositRaw = deps.deployment.challengeManagerParams?.challengeDeposit;
+        if (!depositRaw) {
+          throw new Error(
+            "deployment artifact has no challengeManagerParams.challengeDeposit — " +
+              "cannot size the challenge deposit approval"
+          );
+        }
+        if (task.jobId === null) {
+          throw new Error("Cannot open a challenge before the job is funded");
+        }
+
+        // Preset counter-evidence: only its hash goes on-chain (spec 08 step 2).
+        const counterEvidenceHash = stableHash(presetCounterEvidence) as `0x${string}`;
+        const opened = save(
+          withAudit(
+            {
+              ...task,
+              challenge: { type: "CoverageMiss" as const, counterEvidenceHash },
+              updatedAt: deps.now()
+            },
+            audit({
+              taskId: id,
+              source: "user",
+              type: "challenge_opened",
+              result: "success",
+              message:
+                `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
+                "挑战者为 Cobo 钱包（订单 client），将锁定挑战押金并冻结托管订单。",
+              jobId: task.jobId
+            })
+          )
+        );
+
+        // Both calls are Cobo-routed (Pact-bounded): the Cobo wallet is the job
+        // client, satisfying the contract's challenger ∈ {client, evaluator}.
+        const taskRef = { task: opened };
+        await coboCall(
+          taskRef,
+          "approveDeposit",
+          tokenAddress,
+          encodeApprove(challengeManagerAddress as `0x${string}`, BigInt(depositRaw))
+        );
+        // One call: the contract's openChallenge locks the deposit AND calls
+        // escrow.markChallenged itself, freezing the job.
+        const receipt = await coboCall(
+          taskRef,
+          "openChallenge",
+          challengeManagerAddress,
+          encodeOpenChallenge(BigInt(task.jobId), ChallengeType.CoverageMiss, counterEvidenceHash)
+        );
+
+        // challengeId comes from the ChallengeOpened event — needed by resolve().
+        const challengeId = deps.chain.extractChallengeId(receipt, challengeManagerAddress);
+        taskRef.task = save({
+          ...taskRef.task,
+          challenge: { ...taskRef.task.challenge!, challengeId: Number(challengeId) },
+          updatedAt: deps.now()
+        });
+
+        const challenged = transition(taskRef.task, "Challenged");
+        return save(
+          withAudit(
+            challenged,
+            audit({
+              taskId: id,
+              source: "chain",
+              type: "challenge_onchain_opened",
+              result: "success",
+              message:
+                `挑战已上链：ChallengeManager 已锁定挑战押金并冻结订单 ${task.jobId}` +
+                `（challengeId ${challengeId}）。`,
+              jobId: task.jobId
+            })
+          )
+        );
+      } finally {
+        inFlight.delete(id);
+      }
     },
 
-    async refundOrSlash(): Promise<Task> {
-      throw new Error("challenge path is fixture-mode only in this demo");
+    async winChallenge(id: string): Promise<Task> {
+      const task = store.getTask(id);
+      assertStatus(task, ["Challenged"], "win challenge");
+      if (inFlight.has(id)) {
+        throw new Error("operation already in progress for this task");
+      }
+      inFlight.add(id);
+      try {
+      if (!task.challenge || task.challenge.challengeId == null) {
+        throw new Error(
+          "no on-chain challenge recorded for this task — open the challenge first"
+        );
+      }
+
+      // Deterministic resolver vote (审判者确定性投票): preset ProviderFault.
+      const vote = await deps.services.resolverVote({
+        jobId: String(task.jobId),
+        challengeType: task.challenge.type,
+        evidencePackage: task.providerPackage,
+        counterEvidenceHash: task.challenge.counterEvidenceHash
+      });
+      if (vote.vote !== "ProviderFault") {
+        throw new Error(`unexpected resolver vote: ${String(vote.vote)}`);
+      }
+
+      const won = transition(
+        {
+          ...task,
+          challenge: {
+            ...task.challenge,
+            vote: {
+              voterId: vote.voterId,
+              vote: vote.vote,
+              reasonCode: vote.reasonCode,
+              reason: vote.reason,
+              resultHash: vote.resultHash
+            }
+          }
+        },
+        "ChallengeWon"
+      );
+
+      return save(
+        withAudit(
+          won,
+          audit({
+            taskId: id,
+            source: "verifier",
+            type: "challenge_won",
+            result: "success",
+            message:
+              `审判者 ${vote.voterId} 确定性投票 ProviderFault（${vote.reasonCode}）：` +
+              `${vote.reason} resultHash=${vote.resultHash}`,
+            jobId: task.jobId
+          })
+        )
+      );
+      } finally {
+        inFlight.delete(id);
+      }
+    },
+
+    async refundOrSlash(id: string): Promise<Task> {
+      const task = store.getTask(id);
+      assertStatus(task, ["ChallengeWon"], "refund or slash");
+      if (inFlight.has(id)) {
+        throw new Error("operation already in progress for this task");
+      }
+      inFlight.add(id);
+      try {
+        const challenge = task.challenge;
+        if (!challenge || challenge.challengeId == null) {
+          throw new Error("no on-chain challenge recorded for this task");
+        }
+
+        // resolve() is resolver-only: signed by the backend's resolver key,
+        // not Cobo. On-chain it slashes the provider stake (split between
+        // challenger reward and treasury), refunds the buyer through escrow
+        // and returns the challenger deposit.
+        let resolved: { txHash: string };
+        try {
+          resolved = await deps.resolveChallenge({
+            challengeId: BigInt(challenge.challengeId),
+            result: ChallengeResult.ProviderFault
+          });
+        } catch (error) {
+          // No fabrication: surface the failure with a failed record + audit.
+          const failedRecord: TxRecord = {
+            label: "resolve",
+            coboTxId: null,
+            txHash: "",
+            status: "failed"
+          };
+          save(
+            withAudit(
+              { ...task, txRecords: [...task.txRecords, failedRecord], updatedAt: deps.now() },
+              audit({
+                taskId: id,
+                source: "chain",
+                type: "chain_tx_failed",
+                result: "failed",
+                message: `resolve 执行失败：${error instanceof Error ? error.message : String(error)}`,
+                jobId: task.jobId
+              })
+            )
+          );
+          throw error;
+        }
+
+        const resolveRecord: TxRecord = {
+          label: "resolve",
+          coboTxId: null,
+          txHash: resolved.txHash,
+          status: "confirmed"
+        };
+        const updated = save({
+          ...task,
+          txRecords: [...task.txRecords, resolveRecord],
+          challenge: { ...challenge, resolvedTxHash: resolved.txHash },
+          updatedAt: deps.now()
+        });
+
+        const refunded = transition(updated, "RefundedOrSlashed");
+        return save(
+          withAudit(
+            refunded,
+            audit({
+              taskId: id,
+              source: "settlement",
+              type: "refund_or_slash",
+              result: "success",
+              message:
+                "链上裁决已执行：扣除 Provider 质押 50%（一半奖励挑战者，其余归入金库），" +
+                "托管资金退款买方，挑战者押金退回。",
+              txHash: resolved.txHash,
+              jobId: task.jobId
+            })
+          )
+        );
+      } finally {
+        inFlight.delete(id);
+      }
     }
   };
 }

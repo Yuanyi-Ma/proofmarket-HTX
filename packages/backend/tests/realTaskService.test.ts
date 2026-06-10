@@ -18,10 +18,19 @@ function makeDeps(
       coboWallet: `0x${"2".repeat(40)}`,
       contracts: {
         MockUSDC: `0x${"3".repeat(40)}`,
-        ProofMarketEscrow: `0x${"4".repeat(40)}`
+        ProofMarketEscrow: `0x${"4".repeat(40)}`,
+        ProofMarketChallengeManager: `0x${"6".repeat(40)}`
       },
       mint: { to: `0x${"2".repeat(40)}`, rawAmount: "100000000", txHash: HASH64 },
-      deployedAt: "2026-06-10T00:00:00.000Z"
+      deployedAt: "2026-06-10T00:00:00.000Z",
+      challengeManagerParams: {
+        minStake: "2000000",
+        challengeDeposit: "500000",
+        slashBps: "5000",
+        slashRewardBps: "5000"
+      },
+      resolver: `0x${"7".repeat(40)}`,
+      treasury: `0x${"8".repeat(40)}`
     },
     providerAddress: `0x${"5".repeat(40)}`,
     runResearchAgent: async (context) => ({
@@ -61,9 +70,16 @@ function makeDeps(
     chain: {
       waitForReceipt: async () => ({ logs: [], transactionHash: `0x${"b".repeat(64)}` }) as never,
       extractJobId: () => 7n,
+      // Stubs the ChallengeOpened-event decoding: the fake openChallenge receipt
+      // yields challengeId 42.
+      extractChallengeId: () => 42n,
       // state 1 = Funded: satisfies the post-fund readback; deliverableHash HASH64
       // satisfies the runProvider integrity check (which only compares the hash).
       readJobState: async () => ({ state: 1, budget: 5_000_000n, deliverableHash: HASH64 as `0x${string}` })
+    },
+    resolveChallenge: async ({ challengeId, result }) => {
+      calls.push(`resolveChallenge:${challengeId}:${result}`);
+      return { txHash: `0x${"d".repeat(64)}` };
     },
     services: {
       runProvider: async () => ({
@@ -92,7 +108,18 @@ function makeDeps(
         reasonCode: "PRESET_SUCCESS_PATH",
         verdictHash: HASH64,
         voting: { mode: "not_triggered", voteId: null, onchainTxHash: null }
-      })
+      }),
+      resolverVote: async (input) => {
+        calls.push("services:resolverVote");
+        return {
+          voterId: "resolver-demo-001",
+          jobId: input.jobId,
+          vote: "ProviderFault" as const,
+          reasonCode: "COVERAGE_MISS",
+          reason: "Provider 声明覆盖却漏检 Block-STM。",
+          resultHash: `0x${"e".repeat(64)}`
+        };
+      }
     },
     audit: { append: () => {} },
     now: () => "2026-06-10T12:00:00.000Z",
@@ -351,11 +378,107 @@ describe("real task service", () => {
     await expect(service.plan(created.id)).rejects.toThrow(/after retry/);
   });
 
-  it("challenge actions are fixture-mode only", async () => {
-    const service = createRealTaskService(createInMemoryStore(), makeDeps());
+  it("walks the real challenge path: openChallenge → resolver vote → on-chain resolve", async () => {
+    const deps = makeDeps();
+    const service = createRealTaskService(createInMemoryStore(), deps);
+    const active = await driveToPactActive(service);
+    await service.executeEscrow(active.id);
+    await service.runProvider(active.id, "shallow-search-provider");
+
+    // 发起：approve(deposit→CM) + openChallenge through Cobo, challengeId captured
+    const challenged = await service.openChallenge(active.id);
+    expect(challenged.status).toBe("Challenged");
+    expect(deps.calls).toContain("cobo:approveDeposit");
+    expect(deps.calls).toContain("cobo:openChallenge");
+    expect(
+      deps.calls.indexOf("cobo:approveDeposit")
+    ).toBeLessThan(deps.calls.indexOf("cobo:openChallenge"));
+    expect(challenged.challenge?.type).toBe("CoverageMiss");
+    expect(challenged.challenge?.counterEvidenceHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(challenged.challenge?.challengeId).toBe(42);
+    // Cobo-routed challenge txs carry real hashes from the fake chain
+    const challengeRecords = challenged.txRecords.filter(
+      (r) => r.label === "approveDeposit" || r.label === "openChallenge"
+    );
+    expect(challengeRecords).toHaveLength(2);
+    expect(challengeRecords.every((r) => r.status === "confirmed")).toBe(true);
+    expect(challengeRecords.every((r) => r.txHash === `0x${"b".repeat(64)}`)).toBe(true);
+    expect(challenged.audit.some((e) => e.type === "challenge_opened" && e.source === "user")).toBe(true);
+    expect(
+      challenged.audit.find((e) => e.type === "challenge_onchain_opened")?.message
+    ).toContain("challengeId 42");
+
+    // 投票：deterministic resolver vote, ProviderFault recorded
+    const won = await service.winChallenge(active.id);
+    expect(won.status).toBe("ChallengeWon");
+    expect(deps.calls).toContain("services:resolverVote");
+    expect(won.challenge?.vote?.vote).toBe("ProviderFault");
+    expect(won.challenge?.vote?.reasonCode).toBe("COVERAGE_MISS");
+    expect(won.challenge?.vote?.resultHash).toBe(`0x${"e".repeat(64)}`);
+    expect(
+      won.audit.find((e) => e.type === "challenge_won")?.message
+    ).toContain("ProviderFault");
+
+    // 资金动作：resolver key executes resolve(challengeId, ProviderFault)
+    const refunded = await service.refundOrSlash(active.id);
+    expect(refunded.status).toBe("RefundedOrSlashed");
+    expect(deps.calls).toContain("resolveChallenge:42:1"); // ChallengeResult.ProviderFault = 1
+    const resolveRecord = refunded.txRecords.find((r) => r.label === "resolve");
+    expect(resolveRecord?.status).toBe("confirmed");
+    expect(resolveRecord?.txHash).toBe(`0x${"d".repeat(64)}`);
+    expect(refunded.challenge?.resolvedTxHash).toBe(`0x${"d".repeat(64)}`);
+    const fundEvent = refunded.audit.find((e) => e.type === "refund_or_slash");
+    expect(fundEvent?.txHash).toBe(`0x${"d".repeat(64)}`);
+    expect(fundEvent?.message).toContain("扣除 Provider 质押");
+    expect(fundEvent?.message).toContain("退款买方");
+    expect(fundEvent?.message).toContain("押金退回");
+    // No fabrication: every recorded hash came from the fakes
+    expect(
+      refunded.txRecords.every((r) => /^0x[0-9a-f]{64}$/.test(r.txHash))
+    ).toBe(true);
+  });
+
+  it("rejects openChallenge before delivery and winChallenge without an on-chain challenge", async () => {
+    const deps = makeDeps();
+    const service = createRealTaskService(createInMemoryStore(), deps);
     const created = await service.createTask("q", "5 test USDC");
-    await expect(service.winChallenge(created.id)).rejects.toThrow(/fixture/i);
-    await expect(service.refundOrSlash(created.id)).rejects.toThrow(/fixture/i);
+    await expect(service.openChallenge(created.id)).rejects.toThrow(/open challenge/);
+    expect(deps.calls).not.toContain("cobo:approveDeposit");
+  });
+
+  it("refuses openChallenge when the artifact lacks the challenge manager", async () => {
+    const deps = makeDeps();
+    delete deps.deployment.contracts.ProofMarketChallengeManager;
+    const service = createRealTaskService(createInMemoryStore(), deps);
+    const active = await driveToPactActive(service);
+    await service.executeEscrow(active.id);
+    await service.runProvider(active.id, "shallow-search-provider");
+    await expect(service.openChallenge(active.id)).rejects.toThrow(/ProofMarketChallengeManager/);
+    expect(deps.calls).not.toContain("cobo:approveDeposit");
+  });
+
+  it("surfaces a failed resolve with a failed record and audit, never a fake hash", async () => {
+    const store = createInMemoryStore();
+    const deps = makeDeps({
+      resolveChallenge: async () => {
+        throw new Error("resolver tx reverted on-chain");
+      }
+    });
+    const service = createRealTaskService(store, deps);
+    const active = await driveToPactActive(service);
+    await service.executeEscrow(active.id);
+    await service.runProvider(active.id, "shallow-search-provider");
+    await service.openChallenge(active.id);
+    await service.winChallenge(active.id);
+    await expect(service.refundOrSlash(active.id)).rejects.toThrow(/reverted/);
+    const stored = store.getTask(active.id);
+    expect(stored.status).toBe("ChallengeWon"); // no transition on failure
+    const resolveRecord = stored.txRecords.find((r) => r.label === "resolve");
+    expect(resolveRecord?.status).toBe("failed");
+    expect(resolveRecord?.txHash).toBe("");
+    expect(
+      stored.audit.some((e) => e.type === "chain_tx_failed" && e.message.includes("resolve"))
+    ).toBe(true);
   });
 
   it("rejects a second executeEscrow after success without touching cobo again", async () => {

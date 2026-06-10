@@ -5,7 +5,8 @@ import {
 } from "@proofmarket/agents/src";
 import { buildPactPolicy } from "@proofmarket/cobo/src";
 import { createAuditEvent } from "@proofmarket/shared/src/audit";
-import { providerProfiles } from "@proofmarket/shared/src/fixtures";
+import { presetCounterEvidence, providerProfiles } from "@proofmarket/shared/src/fixtures";
+import { stableHash } from "@proofmarket/shared/src/hash";
 import { assertTransition } from "@proofmarket/shared/src/stateMachine";
 import type {
   AuditEvent,
@@ -31,6 +32,7 @@ export type TaskService = {
   runProvider(id: string, providerId: ProviderId): Promise<Task>;
   verify(id: string): Promise<Task>;
   settle(id: string): Promise<Task>;
+  openChallenge(id: string): Promise<Task>;
   winChallenge(id: string): Promise<Task>;
   refundOrSlash(id: string): Promise<Task>;
 };
@@ -377,9 +379,64 @@ export function createTaskService(store: InMemoryStore): TaskService {
       );
     },
 
+    // Explicit user-initiated challenge: Delivered → Challenged only. Verified
+    // is deliberately NOT a legal entry point — once the verifier accepted the
+    // package, the demo settles; the user challenge targets the freshly
+    // delivered package (spec 08 "确定性挑战流程" step 1).
+    async openChallenge(id: string): Promise<Task> {
+      const task = store.getTask(id);
+      if (task.status !== "Delivered") {
+        throw new Error("Cannot open a challenge before evidence delivery");
+      }
+
+      const counterEvidenceHash = stableHash(presetCounterEvidence);
+      const challenged = transition(
+        {
+          ...task,
+          challenge: { type: "CoverageMiss", counterEvidenceHash }
+        },
+        "Challenged"
+      );
+
+      return save(
+        withAudit(
+          challenged,
+          audit({
+            taskId: id,
+            source: "user",
+            type: "challenge_opened",
+            result: "success",
+            message:
+              `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
+              "挑战押金已锁定，托管订单已冻结。",
+            jobId: task.jobId
+          })
+        )
+      );
+    },
+
     async winChallenge(id: string): Promise<Task> {
       const task = store.getTask(id);
-      const won = transition(task, "ChallengeWon");
+      // Deterministic preset vote (审判者确定性投票): always ProviderFault.
+      const vote = {
+        voterId: "resolver-demo-001",
+        vote: "ProviderFault" as const,
+        reasonCode: "COVERAGE_MISS",
+        reason:
+          "Provider 声明覆盖 2021-2026 年区块链执行加速方向，却遗漏了 Block-STM，覆盖缺失成立。",
+        resultHash: stableHash({
+          taskId: task.id,
+          vote: "ProviderFault",
+          reasonCode: "COVERAGE_MISS",
+          counterEvidenceHash: task.challenge?.counterEvidenceHash ?? null
+        })
+      };
+      const won = transition(
+        // The verify() fault auto-route reaches Challenged without an explicit
+        // challenge record; only attach the vote when a challenge exists.
+        task.challenge ? { ...task, challenge: { ...task.challenge, vote } } : task,
+        "ChallengeWon"
+      );
 
       return save(
         withAudit(
@@ -389,7 +446,9 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "verifier",
             type: "challenge_won",
             result: "success",
-            message: "验证者判定 Provider 失职，挑战成立。",
+            message:
+              `审判者 ${vote.voterId} 确定性投票 ProviderFault（${vote.reasonCode}）：` +
+              `${vote.reason} 挑战成立。`,
             jobId: task.jobId
           })
         )
@@ -408,7 +467,9 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "settlement",
             type: "refund_or_slash",
             result: "success",
-            message: "已执行退款或对 Provider 的罚没。",
+            message:
+              "已执行裁决资金动作：扣除 Provider 质押 50%（一半奖励挑战者，其余归入金库），" +
+              "托管资金退款买方，挑战者押金退回。",
             jobId: task.jobId
           })
         )
