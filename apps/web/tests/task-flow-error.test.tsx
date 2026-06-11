@@ -101,15 +101,15 @@ describe("error surfacing after a failed action", () => {
     render(<Page />);
 
     // Step 1 → auto plan-chain → step 2.
-    fireEvent.click(screen.getByRole("button", { name: "生成采购方案" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成委托方案" }));
     await waitFor(() => {
       const confirm = screen.getByRole("button", {
-        name: "确认方案，去授权"
+        name: "确认委托，去授权"
       }) as HTMLButtonElement;
       expect(confirm.disabled).toBe(false);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "确认方案，去授权" }));
+    fireEvent.click(screen.getByRole("button", { name: "确认委托，去授权" }));
 
     // Error strip surfaces the JSON error from the 500 response.
     await waitFor(() =>

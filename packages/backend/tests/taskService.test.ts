@@ -158,7 +158,7 @@ describe("task service orchestration", () => {
     const refunded = await service.refundOrSlash(task.id);
     expect(refunded.status).toBe("RefundedOrSlashed");
     const fundEvent = refunded.audit.find((event) => event.type === "refund_or_slash");
-    expect(fundEvent?.message).toContain("扣除 Provider 质押");
+    expect(fundEvent?.message).toContain("扣除专家质押");
     expect(fundEvent?.message).toContain("退款买方");
     expect(fundEvent?.message).toContain("审判费");
   });

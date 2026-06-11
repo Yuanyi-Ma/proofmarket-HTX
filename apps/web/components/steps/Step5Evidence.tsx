@@ -22,10 +22,10 @@ function ChallengeMaterials({
         挑战书（提交给审判团的材料）
       </p>
       <div className="data-row">
-        <span className="data-label">Provider 证据包</span>
+        <span className="data-label">专家交付简报</span>
         <div className="data-value">
           {task.providerPackage
-            ? `${task.providerPackage.providerName} · ${task.providerPackage.answers.length} 条证据`
+            ? `${task.providerPackage.providerName} · ${task.providerPackage.answers.length} 条来源支撑`
             : "—"}
         </div>
       </div>
@@ -73,7 +73,7 @@ function DefenseCard({ challenge }: { challenge: TaskChallenge }) {
   return (
     <div className="challenge-materials" style={{ marginTop: 14 }} data-testid="defense-card">
       <p className="section-kicker" style={{ margin: "0 0 8px" }}>
-        Provider 应辩书（应辩窗口内提交）
+        专家应辩书（应辩窗口内提交）
       </p>
       {defense ? (
         <>
@@ -104,7 +104,7 @@ function DefenseCard({ challenge }: { challenge: TaskChallenge }) {
           </p>
         </>
       ) : (
-        <div className="info-strip">Provider 未在应辩窗口内提交应辩书（视同放弃应辩）。</div>
+        <div className="info-strip">专家未在应辩窗口内提交应辩书（视同放弃应辩）。</div>
       )}
     </div>
   );
@@ -254,7 +254,7 @@ function EvidenceItem({
       </summary>
       <div className="evidence-item-body">
         <div className="data-row">
-          <span className="data-label">Provider 回答</span>
+          <span className="data-label">专家结论</span>
           <div className="data-value">{answer.providerAnswer}</div>
         </div>
         <div className="data-row">
@@ -515,7 +515,7 @@ function ChallengeStage3({
         <div className="challenge-fund-actions">
           <div className="challenge-fund-row">
             <span className="challenge-fund-icon" aria-hidden="true">—</span>
-            <span>扣除 Provider 质押 50%（5 mUSDC，一半奖励挑战者）</span>
+            <span>扣除专家质押 50%（5 mUSDC，一半奖励挑战者）</span>
           </div>
           <div className="challenge-fund-row">
             <span className="challenge-fund-icon" aria-hidden="true">—</span>
@@ -609,7 +609,7 @@ export function Step5Evidence({
 
   if (!readOnly && isDelivered) {
     primary = {
-      label: "核验证据",
+      label: "核验简报",
       onClick: onVerify,
       disabled: isBusy,
       busy: isBusy,
@@ -626,11 +626,11 @@ export function Step5Evidence({
   return (
     <StepShell
       stepNo={5}
-      title="证据与核验"
+      title="研究简报与核验"
       subtitle={
         isInChallengeFlow
           ? "挑战流程进行中——查看挑战状态与资金动作。"
-          : "Provider 已交付带证据包的回答。核验通过后即可结算；若发现问题可发起挑战。"
+          : "专家已交付定制研究简报。核验通过后即可结算；若发现问题可发起挑战。"
       }
       primary={primary}
       secondary={secondary}
@@ -639,12 +639,12 @@ export function Step5Evidence({
       {providerPackage ? (
         <div className="evidence-section">
           <p className="section-kicker" style={{ margin: "0 0 8px" }}>
-            证据包
+            研究简报
           </p>
 
           {/* Provider header */}
           <div className="data-row" style={{ marginBottom: 8 }}>
-            <span className="data-label">Provider</span>
+            <span className="data-label">领域专家</span>
             <div className="data-value">
               <strong>{providerPackage.providerName}</strong>
             </div>
@@ -662,11 +662,11 @@ export function Step5Evidence({
               ))}
             </div>
           ) : (
-            <div className="info-strip">证据包中暂无具体条目。</div>
+            <div className="info-strip">简报中暂无具体条目。</div>
           )}
         </div>
       ) : (
-        <div className="info-strip">等待 Provider 交付证据包…</div>
+        <div className="info-strip">等待专家交付研究简报…</div>
       )}
 
       {/* ── 链上一致性 ───────────────────────────────── */}
@@ -676,7 +676,7 @@ export function Step5Evidence({
             链上一致性
           </p>
           <div className="data-row">
-            <span className="data-label">证据包哈希</span>
+            <span className="data-label">简报哈希</span>
             <div className="data-value">
               {submitTxLink ? (
                 <a
@@ -684,7 +684,7 @@ export function Step5Evidence({
                   href={submitTxLink}
                   target="_blank"
                   rel="noreferrer"
-                  aria-label="在 Etherscan 查看证据包提交交易"
+                  aria-label="在 Etherscan 查看简报提交交易"
                 >
                   {providerPackage.packageHash}
                 </a>
@@ -694,7 +694,7 @@ export function Step5Evidence({
             </div>
           </div>
           <p className="small muted tight" style={{ marginTop: 6 }}>
-            证据包哈希已写入链上，任何人均可核对。
+            简报哈希已写入链上，任何人均可核对。
           </p>
         </div>
       )}
@@ -795,7 +795,7 @@ export function Step5Evidence({
             ) : task?.challengeWindowEndsAt ? (
               <>挑战窗口已结束，订单可正常结算。</>
             ) : null}
-            {" "}若对证据有异议，可发起挑战：锁定押金 + 审判费 → Provider 应辩 →
+            {" "}若对简报有异议，可发起挑战：锁定押金 + 审判费 → 专家应辩 →
             审判团（3 个异构模型运营方）多数决 → 链上扣罚 / 退款，全过程上链可查。
           </span>
         </div>

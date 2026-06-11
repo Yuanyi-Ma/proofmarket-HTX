@@ -127,19 +127,19 @@ describe("Step5Evidence — evidence package rendering", () => {
 });
 
 describe("Step5Evidence — verify action state", () => {
-  it("shows 核验证据 button when status is Delivered", () => {
+  it("shows 核验简报 button when status is Delivered", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} />);
-    expect(screen.getByRole("button", { name: /核验证据/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /核验简报/ })).toBeTruthy();
   });
 
-  it("does not show 核验证据 button in readOnly mode", () => {
+  it("does not show 核验简报 button in readOnly mode", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} readOnly={true} />);
-    expect(screen.queryByRole("button", { name: /核验证据/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /核验简报/ })).toBeNull();
   });
 
-  it("disables 核验证据 when isBusy", () => {
+  it("disables 核验简报 when isBusy", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} isBusy={true} />);
-    const btn = screen.getByRole("button", { name: /核验证据/ });
+    const btn = screen.getByRole("button", { name: /核验简报/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
@@ -150,10 +150,10 @@ describe("Step5Evidence — verify action state", () => {
 });
 
 describe("Step5Evidence — challenge entry at Delivered", () => {
-  it("shows 发起挑战 button at Delivered alongside 核验证据", () => {
+  it("shows 发起挑战 button at Delivered alongside 核验简报", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} />);
     // Both the primary and secondary actions should be present
-    expect(screen.getByRole("button", { name: /核验证据/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /核验简报/ })).toBeTruthy();
     expect(screen.getByRole("button", { name: /发起挑战/ })).toBeTruthy();
   });
 
@@ -231,7 +231,7 @@ describe("Step5Evidence — Challenged stage", () => {
 
   it("shows the provider defense card with plaintext and hash", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
-    expect(screen.getByText(/Provider 应辩书/)).toBeTruthy();
+    expect(screen.getByText(/专家应辩书/)).toBeTruthy();
     expect(screen.getByText(presetDefense.statement)).toBeTruthy();
     expect(screen.getByText(presetDefense.defenseHash)).toBeTruthy();
   });
@@ -341,7 +341,7 @@ describe("Step5Evidence — RefundedOrSlashed stage", () => {
 
   it("shows the fund action lines including the jury fee", () => {
     render(<Step5Evidence task={resolvedTask} {...defaultProps} />);
-    expect(screen.getByText(/扣除 Provider 质押 50%/)).toBeTruthy();
+    expect(screen.getByText(/扣除专家质押 50%/)).toBeTruthy();
     expect(screen.getByText(/托管资金退款买方/)).toBeTruthy();
     expect(screen.getByText(/挑战者押金 \+ 审判费全额退回/)).toBeTruthy();
     expect(screen.getByText(/三位审判方均分/)).toBeTruthy();
@@ -396,7 +396,7 @@ describe("Step5Evidence — real-mode challenge explainer", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getByText(/若对证据有异议，可发起挑战/)).toBeTruthy();
+    expect(screen.getByText(/若对简报有异议，可发起挑战/)).toBeTruthy();
   });
 
   it("does not show the challenge explainer in fixture mode", () => {
@@ -406,7 +406,7 @@ describe("Step5Evidence — real-mode challenge explainer", () => {
         {...defaultProps}
       />
     );
-    expect(screen.queryByText(/若对证据有异议，可发起挑战/)).toBeNull();
+    expect(screen.queryByText(/若对简报有异议，可发起挑战/)).toBeNull();
   });
 });
 
@@ -418,7 +418,7 @@ describe("Step5Evidence — no package", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getByText(/等待 Provider 交付证据包/)).toBeTruthy();
+    expect(screen.getByText(/等待专家交付研究简报/)).toBeTruthy();
   });
 });
 

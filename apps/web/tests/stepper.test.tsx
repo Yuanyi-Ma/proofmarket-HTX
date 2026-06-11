@@ -45,7 +45,7 @@ describe("Stepper", () => {
     render(<Stepper task={task("JobFunded")} />); // step 4
 
     const current = document.querySelector('[aria-current="step"]');
-    expect(current?.textContent).toContain("链上采购");
+    expect(current?.textContent).toContain("链上委托");
   });
 
   it("makes done steps clickable and current/upcoming not", () => {
@@ -53,12 +53,12 @@ describe("Stepper", () => {
     render(<Stepper task={task("JobFunded")} onSelectStep={onSelectStep} />);
 
     // Done steps (1-3) render as buttons.
-    fireEvent.click(screen.getByRole("button", { name: /采购方案/ }));
+    fireEvent.click(screen.getByRole("button", { name: /委托方案/ }));
     expect(onSelectStep).toHaveBeenCalledWith(2);
 
     // Current (4) and upcoming (5, 6) are not buttons.
-    expect(screen.queryByRole("button", { name: /链上采购/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /证据核验/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /链上委托/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /简报核验/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /完成结算/ })).toBeNull();
   });
 

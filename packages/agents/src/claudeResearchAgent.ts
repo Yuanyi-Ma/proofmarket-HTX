@@ -33,9 +33,11 @@ export type ResearchRun = {
 
 export function buildResearchPrompt(context: ResearchContext): string {
   return [
-    "You are the ProofMarket Research Agent. Produce a procurement plan for buying",
-    "verifiable evidence from one provider. Respond with ONLY a JSON object matching",
-    "this schema (no markdown fences, no commentary):",
+    "You are the ProofMarket Research Agent. The user needs a deep answer grounded in",
+    "professional sources (peer-reviewed papers, industry research reports) — generic",
+    "knowledge would be too shallow. Produce a commissioning plan for buying a tailored,",
+    "verifiable research briefing from ONE domain-expert agent. Respond with ONLY a JSON",
+    "object matching this schema (no markdown fences, no commentary):",
     JSON.stringify(
       {
         taskId: context.taskId,
@@ -68,9 +70,9 @@ export function buildResearchPrompt(context: ResearchContext): string {
     JSON.stringify(context.providerCatalog, null, 2),
     "",
     "Rules: never output a contract address, calldata, or key material.",
-    "You are choosing BEFORE any evidence is purchased. The ONLY things you know about each provider are: its self-DECLARED coverage (an advertisement, not verified), its price, and its on-chain reputation / challenge history (a probabilistic prior).",
-    "Therefore you MUST NOT assert what a provider's delivered evidence will actually contain or omit. NEVER write claims like 'misses Block-STM' / '遗漏了 X' / 'lacks the corpus' as if they were facts — you have not seen the deliverable. Whether anything is missing is only known after purchase + Judge verification.",
-    "Frame every `reason` as a probabilistic judgment grounded in declared coverage + price + on-chain reputation (e.g. '自报覆盖与问题吻合，且链上信誉最高，命中完整证据的概率最高' / '链上有覆盖类挑战成立记录，交付完整性先验风险较高').",
+    "You are choosing BEFORE any briefing is commissioned. The ONLY things you know about each expert are: its self-DECLARED coverage (an advertisement, not verified), its price, and its on-chain reputation / challenge history (a probabilistic prior).",
+    "Therefore you MUST NOT assert what an expert's delivered briefing will actually contain or omit. NEVER write claims like 'misses Block-STM' / '遗漏了 X' / 'lacks the corpus' as if they were facts — you have not seen the deliverable. Whether anything is missing is only known after delivery + Judge verification.",
+    "Frame every `reason` as a probabilistic judgment grounded in declared coverage + price + on-chain reputation (e.g. '自报资料覆盖与问题吻合，且链上信誉最高，交付完整简报的概率最高' / '链上有覆盖类挑战成立记录，交付完整性先验风险较高').",
     "Rank EVERY provider in the catalog best-first in `ranking` (one entry per catalog provider). `recommendedProviderId` MUST equal ranking[0].providerId.",
     "Every `reason` value (top-level and each ranking entry) MUST be written in Simplified Chinese (简体中文); keep all JSON field names and every other value exactly as specified by the schema."
   ].join("\n");

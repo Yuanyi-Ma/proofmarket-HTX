@@ -123,7 +123,7 @@ describe("Step6Done — final answer (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText(/共 2 条证据/)).toBeTruthy();
+    expect(screen.getByText(/共 2 条来源支撑/)).toBeTruthy();
   });
 
   it("renders source title in evidence summary", () => {
@@ -150,10 +150,10 @@ describe("Step6Done — 凭证清单 (settled)", () => {
       />
     );
     expect(screen.getByText(/授权代币/)).toBeTruthy();
-    expect(screen.getByText(/创建订单/)).toBeTruthy();
+    expect(screen.getByText(/创建委托订单/)).toBeTruthy();
     expect(screen.getByText(/设定预算/)).toBeTruthy();
     expect(screen.getByText(/注入托管资金/)).toBeTruthy();
-    expect(screen.getByText(/提交证据/)).toBeTruthy();
+    expect(screen.getByText(/提交简报/)).toBeTruthy();
     expect(screen.getByText(/结算放款/)).toBeTruthy();
   });
 
@@ -302,7 +302,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText(/证据已通过核验/)).toBeTruthy();
+    expect(screen.getByText(/简报已通过核验/)).toBeTruthy();
   });
 
   it("does NOT show receipt when Verified (not yet settled)", () => {

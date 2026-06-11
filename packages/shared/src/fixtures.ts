@@ -15,7 +15,7 @@ export const presetCounterEvidence = {
   sourceTitle:
     "Block-STM: Scaling Blockchain Execution via Parallelism and Optimistic Concurrency Control",
   claim:
-    "Provider 声明覆盖 2021-2026 年区块链执行加速方向，但交付的证据包中遗漏了 Block-STM——该声明范围内公认的代表性工作。"
+    "专家声明覆盖 2021-2026 年区块链执行加速方向，但交付的研究简报中遗漏了 Block-STM——该声明范围内公认的代表性工作。"
 } as const;
 
 /**
@@ -25,8 +25,8 @@ export const presetCounterEvidence = {
  */
 export const presetChallengeDocument = {
   statement:
-    "交付的证据包未包含 Block-STM（arXiv:2203.06871）——区块链并行执行方向被广泛引用的代表性工作，" +
-    "且 Provider 未在覆盖声明中排除该子方向。属于承诺范围内漏检（CoverageMiss）。",
+    "交付的研究简报未包含 Block-STM（arXiv:2203.06871）——区块链并行执行方向被广泛引用的代表性工作，" +
+    "且该专家未在覆盖声明中排除该子方向。属于承诺范围内漏检（CoverageMiss）。",
   hitCoverageClause: "覆盖声明：『2021-2026 年区块链执行加速方向（IEEE / Elsevier）』"
 } as const;
 
@@ -85,7 +85,7 @@ export function presetJuryVotes(jurorAddresses: readonly string[]): JuryVote[] {
         hitsDeclaredQuery:
           "是。『并行执行 / 投机执行』与声明检索词在语义上直接命中。",
         notReturnedNotExcluded:
-          "是。交付包未含该文，覆盖声明也未排除并行执行子方向。",
+          "是。交付简报未含该文，覆盖声明也未排除并行执行子方向。",
         conclusion: "三问皆成立，构成承诺范围内漏检，判 ProviderFault。"
       }
     },
@@ -130,10 +130,10 @@ export const providerProfiles: ProviderProfile[] = [
     id: "execution-research-expert",
     agentId: 6388,
     address: "0x0866e2b066d1D04e4a5A4Cccc380E7Da2c1c2f3a",
-    name: "论文证据专家 Agent",
+    name: "区块链系统专家 Agent",
     role: "recommended",
     coverage:
-      "接入 IEEE Xplore 与 Elsevier（爱思唯尔）论文库，覆盖区块链性能优化方向的同行评审论文（交易执行、并行/投机执行、共识优化等），并自建带来源定位与摘录的精炼证据沉淀。",
+      "持有 IEEE Xplore 与 Elsevier（爱思唯尔）论文库授权，并沉淀行业技术研报；深耕区块链执行层（交易执行、并行/投机执行、共识优化），回答附来源定位与摘录，逐条可核验。",
     price: "1 mUSDC",
     stake: "10 mUSDC",
     reputationScore: 970,
@@ -144,10 +144,10 @@ export const providerProfiles: ProviderProfile[] = [
     id: "shallow-search-provider",
     agentId: 6389,
     address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
-    name: "论文聚合检索 Agent",
+    name: "文献速查 Agent",
     role: "risky",
     coverage:
-      "自报同样接入 IEEE / Elsevier 论文库、覆盖区块链性能方向，但仅做原始关键词检索、无精炼沉淀；覆盖声明较泛，未对代表性工作单独承诺。",
+      "自报同样接入 IEEE / Elsevier 论文库、覆盖区块链性能方向，但仅做通用关键词检索、无领域沉淀；覆盖声明较泛，未对代表性工作单独承诺。",
     price: "0.2 mUSDC",
     stake: "2 mUSDC",
     reputationScore: 620,
@@ -158,10 +158,10 @@ export const providerProfiles: ProviderProfile[] = [
     id: "general-web-summary",
     agentId: 6390,
     address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
-    name: "IEEE 文献检索 Agent",
+    name: "共识层研究专家 Agent",
     role: "comparison",
     coverage:
-      "仅接入 IEEE Xplore 单一论文库；对区块链执行加速方向只能部分覆盖（偏共识 / 网络层，执行与并行方向资料有限）。",
+      "仅持有 IEEE Xplore 单库授权，专长共识与网络层；对执行加速方向只能部分覆盖（执行与并行方向资料有限），覆盖边界声明诚实。",
     price: "0.1 mUSDC",
     stake: "1 mUSDC",
     reputationScore: 800,

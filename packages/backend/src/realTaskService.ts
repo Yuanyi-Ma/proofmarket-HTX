@@ -624,7 +624,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         perJobCap: `${plan.maxPayment} mUSDC`,
         recommendedProviderId: plan.recommendedProviderId as ProviderId,
         providerCount: 3,
-        coverage: recommendedProfile?.coverage ?? "专项证据覆盖",
+        coverage: recommendedProfile?.coverage ?? "专项资料覆盖",
         returnType: "provider-answer-package",
         verificationMethod: "确定性 Judge 校验端点",
         providerReputations,
@@ -992,7 +992,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "provider",
             type: "provider_package_delivered",
             result: "success",
-            message: `Provider ${providerId} 交付证据包 ${providerPackage.packageHash}。`,
+            message: `专家 ${providerId} 交付研究简报 ${providerPackage.packageHash}。`,
             jobId: task.jobId
           })
         )
@@ -1020,7 +1020,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "chain",
             type: "deliverable_submitted",
             result: "success",
-            message: `Provider 已将交付物哈希 ${providerPackage.packageHash} 提交上链。`,
+            message: `专家已将简报哈希 ${providerPackage.packageHash} 提交上链。`,
             txHash: submitted.txHash,
             jobId: task.jobId
           })
@@ -1061,7 +1061,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "challenge_window_opened",
               result: "success",
               message:
-                `挑战窗口开启：${Math.round(challengeWindowMs / 60000)} 分钟内可对证据发起挑战，` +
+                `挑战窗口开启：${Math.round(challengeWindowMs / 60000)} 分钟内可对简报发起挑战，` +
                 "窗口结束前合约拒绝放款（complete 被链上门禁拦截）。",
               jobId: task.jobId
             })
@@ -1157,7 +1157,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               source: "settlement",
               type: "settled",
               result: "success",
-              message: `已向 Provider 结算付款，verdict 哈希 ${verdictHash}。`,
+              message: `已向专家结算付款，verdict 哈希 ${verdictHash}。`,
               jobId: task.jobId
             })
           )
@@ -1274,7 +1274,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               result: "success",
               message:
                 `挑战已上链：ChallengeManager 已锁定押金与审判费并冻结订单 ${task.jobId}` +
-                `（challengeId ${challengeId}）。Provider 应辩窗口开启。`,
+                `（challengeId ${challengeId}）。专家应辩窗口开启。`,
               jobId: task.jobId
             })
           )
@@ -1314,7 +1314,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
                 type: "defense_submitted",
                 result: "success",
                 message:
-                  `Provider 已在应辩窗口内提交应辩书（哈希 ${defense.defenseHash}）：` +
+                  `专家已在应辩窗口内提交应辩书（哈希 ${defense.defenseHash}）：` +
                   `${defense.statement}`,
                 txHash: defense.txHash,
                 jobId: task.jobId
@@ -1331,7 +1331,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
                 type: "defense_skipped",
                 result: "failed",
                 message:
-                  `Provider 应辩提交失败（视同放弃应辩，裁决照常进行）：` +
+                  `专家应辩提交失败（视同放弃应辩，裁决照常进行）：` +
                   `${error instanceof Error ? error.message : String(error)}`,
                 jobId: task.jobId
               })
@@ -1501,7 +1501,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "refund_or_slash",
               result: "success",
               message:
-                "链上裁决已执行：扣除 Provider 质押 50%（挑战者得一半作奖励），" +
+                "链上裁决已执行：扣除专家质押 50%（挑战者得一半作奖励），" +
                 "托管资金退款买方，挑战者押金与审判费全额退回，" +
                 "审判费由扣罚承担、三位审判方均分，余额归入金库。",
               txHash: resolved.txHash,

@@ -14,7 +14,7 @@ type Step3AuthorizeProps = {
 // Resolve a contract address/name to a readable Chinese label.
 function resolveTargetLabel(target: string): string {
   const lower = target.toLowerCase();
-  if (lower.includes("escrow")) return "采购托管合约";
+  if (lower.includes("escrow")) return "委托托管合约";
   if (lower.includes("usdc") || lower.includes("token") || lower.includes("mockusdc")) return "代币合约（USDC）";
   if (lower.includes("challenge")) return "挑战仲裁合约";
   // If it looks like a hex address, keep it mono but truncated.
@@ -27,9 +27,9 @@ function resolveTargetLabel(target: string): string {
 // Resolve raw function names to Chinese descriptions.
 function resolveFunctionLabel(fn: string): string {
   const map: Record<string, string> = {
-    createJob: "创建订单",
+    createJob: "创建委托订单",
     fund: "注入托管资金",
-    submit: "提交证据",
+    submit: "提交简报",
     complete: "结算放款",
     reject: "拒绝订单",
     approve: "授权代币",
@@ -74,7 +74,7 @@ export function Step3Authorize({
       primary={
         pact
           ? {
-              label: "执行链上采购",
+              label: "执行链上委托",
               onClick: onExecute,
               disabled: isBusy || !canExecute,
               busy: isBusy

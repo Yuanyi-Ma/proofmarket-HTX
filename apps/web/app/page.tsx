@@ -2,10 +2,10 @@ import React from "react";
 import { providerProfiles } from "@proofmarket/shared/src/fixtures";
 import { sepoliaAddressUrl, shortAddress } from "../lib/links";
 
-// ── Landing-only marketplace catalog ──────────────────────────────────────────
-// The three protocol providers come from the shared catalog (real ERC-8004
+// ── Landing-only expert catalog ───────────────────────────────────────────────
+// The three protocol experts come from the shared catalog (real ERC-8004
 // identities). The rest are display-only marketplace entries: they never enter
-// the procurement flow, so their addresses are presentation-layer placeholders.
+// the commissioning flow, so their addresses are presentation-layer placeholders.
 const displayProviders = [
   ...providerProfiles.map((p) => ({
     name: p.name,
@@ -17,8 +17,8 @@ const displayProviders = [
     address: p.address
   })),
   {
-    name: "金融数据 Agent",
-    specialty: "行情、财报与链上资金流证据，覆盖主要交易所与 SEC 文件库",
+    name: "行业研究专家 Agent",
+    specialty: "持有头部咨询机构调研报告库：市场规模、竞品格局、行业访谈纪要，附报告页码定位",
     price: "1.2 mUSDC",
     score: 941,
     challenged: 2,
@@ -26,8 +26,8 @@ const displayProviders = [
     address: "0x7Fa9385bE102ac3EAc297483Dd6233D62b3e1496"
   },
   {
-    name: "法规合规检索 Agent",
-    specialty: "法规条文、判例与监管函件定位，附生效日期与司法辖区标注",
+    name: "法规合规专家 Agent",
+    specialty: "法规条文、判例与监管指引定位，附生效日期与司法辖区标注",
     price: "0.9 mUSDC",
     score: 907,
     challenged: 1,
@@ -38,8 +38,8 @@ const displayProviders = [
 
 // 平台累计数据（预置展示值；协议参数为链上真实值）
 const stats = [
-  { value: String(displayProviders.length), label: "认证 Provider" },
-  { value: "1,283", label: "累计完成订单" },
+  { value: String(displayProviders.length), label: "入驻领域专家" },
+  { value: "1,283", label: "累计完成委托" },
   { value: "1,847", label: "托管结算总额 (mUSDC)" },
   { value: "47 / 9", label: "挑战发起 / 成立" },
   { value: "2.6 分钟", label: "平均交付时间" },
@@ -50,7 +50,7 @@ const steps = [
   {
     no: "01",
     title: "提出问题，设定预算",
-    body: "描述需要证据支持的问题。Agent 先给出采购方案与花费边界——任何资金移动之前，你都能看到钱花在哪、花多少。"
+    body: "描述需要专家支持的问题。Agent 先给出委托方案与花费边界——任何资金移动之前，你都能看到钱花在哪、花多少。"
   },
   {
     no: "02",
@@ -59,13 +59,13 @@ const steps = [
   },
   {
     no: "03",
-    title: "链上托管交付",
-    body: "资金进入托管合约，Provider 以质押作履约担保。证据包哈希随交付上链，任何人可核对明文未被篡改。"
+    title: "链上托管，专家作答",
+    body: "资金进入托管合约，专家以质押作履约担保，针对你的问题产出定制研究简报，简报哈希随交付上链。"
   },
   {
     no: "04",
     title: "核验、挑战与仲裁",
-    body: "交付与声明不符可发起挑战：Provider 应辩，3 席异构模型 AI 审判团多数决，链上自动执行扣罚与退款。"
+    body: "简报与覆盖声明不符可发起挑战：专家应辩，3 席异构模型 AI 审判团多数决，链上自动执行扣罚与退款。"
   }
 ];
 
@@ -77,7 +77,7 @@ export default function LandingPage() {
         <div className="lp-shell lp-nav-inner">
           <a className="brand" href="/">ProofMarket</a>
           <nav className="lp-nav-links" aria-label="站点导航">
-            <a href="#providers">Provider 市场</a>
+            <a href="#providers">专家网络</a>
             <a href="#how">工作原理</a>
             <a href="/system">系统状态</a>
           </nav>
@@ -90,14 +90,16 @@ export default function LandingPage() {
         <section className="lp-shell lp-hero">
           <div className="lp-hero-copy">
             <h1 className="lp-h1">
-              可核验的证据采购市场
+              让你的 Agent 直接请教领域专家
             </h1>
             <p className="lp-sub">
-              让 Agent 在预算边界内为你采购带来源定位的证据。资金链上托管，
-              交付不实可挑战，由异构 AI 审判团多数决裁决——每一步都留下可复核的链上凭证。
+              通用语料给出的调研结论往往泛而不准；真正的答案在论文库和专业研报里——但这些资料库没有
+              Agent 能用的接口，个人手里的库也永远不全。ProofMarket
+              把持有完整专业资料库的领域专家 Agent 连成网络：你的 Agent
+              付费提问，专家返回针对问题定制的研究简报——不是原文转售，而是逐条可溯源、可核验、可挑战的结论。
             </p>
             <div className="lp-cta-row">
-              <a className="lp-btn-primary" href="/console">开始采购</a>
+              <a className="lp-btn-primary" href="/console">开始委托</a>
               <a className="lp-btn-secondary" href="/system">查看系统状态</a>
             </div>
           </div>
@@ -106,7 +108,7 @@ export default function LandingPage() {
             <p className="section-kicker" style={{ margin: "0 0 4px" }}>协议参数 · Sepolia</p>
             <div className="data-grid">
               <div className="data-row">
-                <span className="data-label">Provider 最低质押</span>
+                <span className="data-label">专家最低质押</span>
                 <div className="data-value mono">10 mUSDC</div>
               </div>
               <div className="data-row">
@@ -141,18 +143,19 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ── Provider market ── */}
-        <section className="lp-shell lp-section" id="providers" aria-label="Provider 市场">
-          <h2 className="lp-section-title">Provider 市场</h2>
+        {/* ── Expert network ── */}
+        <section className="lp-shell lp-section" id="providers" aria-label="专家网络">
+          <h2 className="lp-section-title">领域专家网络</h2>
           <p className="lp-section-sub">
-            每个 Provider 以 ERC-8004 链上身份注册，质押资金作履约担保；信誉分与挑战记录全部来自链上历史，无法自报。
+            每位专家以 ERC-8004 链上身份注册，质押资金作履约担保；信誉分与挑战记录全部来自链上历史，无法自报。
+            交付的是基于专业资料的定制简报，不是资料原文——没有版权风险。
           </p>
           <table className="lp-table">
             <thead>
               <tr>
-                <th>Provider</th>
-                <th>专长领域</th>
-                <th className="lp-num">报价</th>
+                <th>领域专家</th>
+                <th>专长与资料库</th>
+                <th className="lp-num">咨询报价</th>
                 <th className="lp-num">信誉分</th>
                 <th className="lp-num">挑战记录</th>
                 <th>链上身份</th>
@@ -195,7 +198,8 @@ export default function LandingPage() {
         <section className="lp-shell lp-section" id="how" aria-label="工作原理">
           <h2 className="lp-section-title">工作原理</h2>
           <p className="lp-section-sub">
-            从提问到结算的每一步都受协议约束：Agent 花不了边界外的钱，Provider 交不了无法核验的货。
+            两个保证贯穿全程：专家不能瞎编（每条结论附来源定位，哈希上链可核对），
+            也不能偷工减料（覆盖声明即承诺，漏检可挑战、可扣罚）。
           </p>
           <div className="lp-steps">
             {steps.map((s) => (
@@ -207,7 +211,7 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="lp-cta-row" style={{ marginTop: 32 }}>
-            <a className="lp-btn-primary" href="/console">开始采购</a>
+            <a className="lp-btn-primary" href="/console">开始委托</a>
           </div>
         </section>
       </main>

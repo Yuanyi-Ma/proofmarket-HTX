@@ -144,7 +144,7 @@ export default async function SystemPage() {
         />
         <CheckRow
           ok={stakeOk}
-          label={`Provider 质押达标：可用质押 ${mUSDC(expert.free)} ≥ minStake ${mUSDC(params.minStake)}（总质押 ${mUSDC(expert.stake)}，在途锁定 ${mUSDC(expert.lockedStake)}）`}
+          label={`专家质押达标：可用质押 ${mUSDC(expert.free)} ≥ minStake ${mUSDC(params.minStake)}（总质押 ${mUSDC(expert.stake)}，在途锁定 ${mUSDC(expert.lockedStake)}）`}
         />
         <CheckRow ok={coboOk} label={`Cobo 钱包持有预算资产：${mUSDC(coboBalance)}`} />
       </section>
@@ -232,8 +232,8 @@ export default async function SystemPage() {
       </section>
 
       {/* Provider 市场 */}
-      <section style={{ marginTop: 24 }} aria-label="Provider 市场">
-        <p className="section-kicker">Provider 市场（ERC-8004 身份 + 链上信誉）</p>
+      <section style={{ marginTop: 24 }} aria-label="领域专家网络">
+        <p className="section-kicker">领域专家网络（ERC-8004 身份 + 链上信誉）</p>
         <div className="data-grid">
           {providerProfiles.map((profile) => {
             const rep = reputations.find((r) => r.id === profile.id);
@@ -263,7 +263,7 @@ export default async function SystemPage() {
                 </a>
               </span>
               <span className="muted small">
-                {" "}· 统一 Provider 签名地址：质押 {mUSDC(expert.stake)}，每单锁定 {mUSDC(params.minStake)} 作履约 bond
+                {" "}· 专家统一签名地址：质押 {mUSDC(expert.stake)}，每单锁定 {mUSDC(params.minStake)} 作履约 bond
               </span>
             </div>
           </div>

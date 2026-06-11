@@ -492,7 +492,7 @@ describe("real task service", () => {
     expect(refunded.challenge?.resolvedTxHash).toBe(`0x${"d".repeat(64)}`);
     const fundEvent = refunded.audit.find((e) => e.type === "refund_or_slash");
     expect(fundEvent?.txHash).toBe(`0x${"d".repeat(64)}`);
-    expect(fundEvent?.message).toContain("扣除 Provider 质押");
+    expect(fundEvent?.message).toContain("扣除专家质押");
     expect(fundEvent?.message).toContain("退款买方");
     expect(fundEvent?.message).toContain("审判费");
     // No fabrication: every recorded hash came from the fakes

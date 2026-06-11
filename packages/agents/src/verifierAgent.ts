@@ -88,7 +88,7 @@ export function verifyPackage(
 
   const verdict = "valid";
   const reason =
-    "证据在声明的执行加速覆盖范围内支持该 Provider 回答。";
+    "简报内容在声明的执行加速覆盖范围内支持该专家结论。";
 
   return {
     verdict,

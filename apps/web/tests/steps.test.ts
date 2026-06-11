@@ -29,10 +29,10 @@ describe("STEPS", () => {
     expect(STEPS.map((s) => s.no)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(STEPS.map((s) => s.title)).toEqual([
       "提出问题",
-      "采购方案",
+      "委托方案",
       "授权支付",
-      "链上采购",
-      "证据核验",
+      "链上委托",
+      "简报核验",
       "完成结算"
     ]);
   });

@@ -60,7 +60,7 @@ describe("wizard step 1 → 2 flow", () => {
     render(<Page />);
 
     expect(screen.getByText("提出你的研究问题")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "生成采购方案" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "生成委托方案" })).toBeTruthy();
     expect(screen.getByText("审计日志")).toBeTruthy();
     expect(screen.getByText("尚无审计记录")).toBeTruthy();
   });
@@ -81,14 +81,14 @@ describe("wizard step 1 → 2 flow", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<Page />);
-    fireEvent.click(screen.getByRole("button", { name: "生成采购方案" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成委托方案" }));
 
     // Step 2 renders the recommendation, the real Claude reason, and the
     // confirm action.
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "确认方案，去授权" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "确认委托，去授权" })).toBeTruthy();
     });
-    expect(screen.getAllByText("论文证据专家 Agent").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("区块链系统专家 Agent").length).toBeGreaterThan(0);
     expect(screen.getByText(plan.evidenceNeed)).toBeTruthy();
 
     // Both POSTs happened without further clicks (auto-chain).
@@ -112,19 +112,19 @@ describe("wizard step 1 → 2 flow", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<Page />);
-    fireEvent.click(screen.getByRole("button", { name: "生成采购方案" }));
+    fireEvent.click(screen.getByRole("button", { name: "生成委托方案" }));
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "确认方案，去授权" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "确认委托，去授权" })).toBeTruthy();
     });
 
     // Click the done step 1 in the stepper → read-only review.
     fireEvent.click(screen.getByRole("button", { name: /提出问题/ }));
     expect(screen.getByText("提出你的研究问题")).toBeTruthy();
-    expect(screen.queryByRole("button", { name: "生成采购方案" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "生成委托方案" })).toBeNull();
     expect(screen.getByText(/正在回看第 1 步/)).toBeTruthy();
 
     // Return to the current step.
     fireEvent.click(screen.getByRole("button", { name: "回到当前步骤" }));
-    expect(screen.getByRole("button", { name: "确认方案，去授权" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "确认委托，去授权" })).toBeTruthy();
   });
 });

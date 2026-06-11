@@ -5,8 +5,8 @@ import { isFullTxHash, sepoliaTxUrl } from "../lib/links";
 const sourceLabels: Record<AuditSource, string> = {
   user: "用户",
   "research-agent": "研究 Agent",
-  provider: "Provider",
-  verifier: "验证",
+  provider: "专家",
+  verifier: "核验",
   cobo: "Cobo",
   chain: "链上",
   settlement: "结算"

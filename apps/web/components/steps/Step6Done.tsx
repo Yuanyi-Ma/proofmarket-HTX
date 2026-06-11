@@ -15,10 +15,10 @@ type Step6DoneProps = {
 // Chinese labels for each tx record label.
 const TX_LABEL_ZH: Record<string, string> = {
   approve: "授权代币",
-  createJob: "创建订单",
+  createJob: "创建委托订单",
   setBudget: "设定预算",
   fund: "注入托管资金",
-  submit: "提交证据",
+  submit: "提交简报",
   complete: "结算放款",
   feedback: "信誉反馈",
 };
@@ -63,9 +63,9 @@ function buildFinalAnswer(task: Task | null): {
   const pkg = task?.providerPackage;
   if (!pkg || !pkg.answers.length) {
     return {
-      conclusion: "证据包为空，无法得出结论。",
-      evidenceSummary: "无证据条目。",
-      cannotConclude: "无法在缺少证据的情况下得出结论。",
+      conclusion: "研究简报为空，无法得出结论。",
+      evidenceSummary: "无来源条目。",
+      cannotConclude: "无法在缺少来源支撑的情况下得出结论。",
     };
   }
 
@@ -80,8 +80,8 @@ function buildFinalAnswer(task: Task | null): {
     .join("、");
   const evidenceSummary =
     count === 1
-      ? `共 1 条证据：${titles}`
-      : `共 ${count} 条证据，包括：${titles}${count > 3 ? " 等" : ""}。`;
+      ? `共 1 条来源支撑：${titles}`
+      : `共 ${count} 条来源支撑，包括：${titles}${count > 3 ? " 等" : ""}。`;
 
   // Cannot conclude: synthesize from relevanceExplanation caveats.
   // Look for any answer that has a qualification or caveat phrasing.
@@ -90,7 +90,7 @@ function buildFinalAnswer(task: Task | null): {
     .find((r) => /不能|无法|局限|但|however|cannot|does not/i.test(r));
   const cannotConclude =
     caveat ||
-    "证据包不能证明全局完整性、普遍加速，或每种工作负载都能从并行执行中受益。";
+    "简报不能证明全局完整性、普遍加速，或每种工作负载都能从并行执行中受益。";
 
   return { conclusion, evidenceSummary, cannotConclude };
 }
@@ -143,7 +143,7 @@ export function Step6Done({
     <StepShell
       stepNo={6}
       title="完成"
-      subtitle="付款已在链上结算，整条采购链路可复盘。"
+      subtitle="付款已在链上结算，整条委托链路可复盘。"
       primary={primary}
       secondary={
         isSettled
@@ -160,14 +160,14 @@ export function Step6Done({
           {windowOpen ? (
             <>
               <span className="dot pending" aria-hidden="true" />
-              {" "}证据已通过核验。挑战窗口剩余{" "}
+              {" "}简报已通过核验。挑战窗口剩余{" "}
               <span className="mono">{formatCountdown(windowRemaining)}</span>
               ，窗口内仍可回到第 5 步发起挑战；窗口结束前合约拒绝放款。
             </>
           ) : (
             <>
               <span className="dot ok" aria-hidden="true" />
-              {" "}证据已通过核验，挑战窗口已结束。点击「确认结算」在链上完成付款。
+              {" "}简报已通过核验，挑战窗口已结束。点击「确认结算」在链上完成付款。
             </>
           )}
         </div>
@@ -189,7 +189,7 @@ export function Step6Done({
             </div>
 
             <div className="data-row" style={{ marginBottom: 10 }}>
-              <span className="data-label">证据摘要</span>
+              <span className="data-label">来源摘要</span>
               <div className="data-value">{evidenceSummary}</div>
             </div>
 
@@ -229,7 +229,7 @@ export function Step6Done({
               {/* Package hash */}
               {task?.providerPackage?.packageHash && (
                 <div className="receipt-row">
-                  <dt>证据包哈希</dt>
+                  <dt>简报哈希</dt>
                   <dd>
                     <span className="mono">{task.providerPackage.packageHash}</span>
                   </dd>

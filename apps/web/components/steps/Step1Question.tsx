@@ -28,12 +28,12 @@ export function Step1Question({
     <StepShell
       stepNo={1}
       title="提出你的研究问题"
-      subtitle="描述你需要证据支持的问题，并设定预算上限。Agent 会在预算内采购可核验的证据。"
+      subtitle="描述你需要专家支持的问题，并设定预算上限。Agent 会在预算内委托领域专家，产出可核验的研究简报。"
       primary={
         readOnly
           ? undefined
           : {
-              label: "生成采购方案",
+              label: "生成委托方案",
               onClick: () => onCreate(question, budget),
               disabled: isBusy || question.trim() === "",
               busy: isBusy
@@ -65,7 +65,7 @@ export function Step1Question({
         <div className="info-strip">该问题已提交，此处为只读回看。</div>
       ) : (
         <div className="info-strip">
-          提交后，Agent 会先给出一份有边界的采购方案——在任何资金移动之前，你都能看到钱花在哪、花多少。
+          提交后，Agent 会先给出一份有边界的委托方案——在任何资金移动之前，你都能看到钱花在哪、花多少。
         </div>
       )}
     </StepShell>

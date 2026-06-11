@@ -16,10 +16,10 @@ const ESCROW_LABELS: TxRecord["label"][] = ["approve", "createJob", "setBudget",
 // Human-readable Chinese labels for each transaction step.
 const TX_LABEL_MAP: Record<TxRecord["label"], string> = {
   approve: "授权代币",
-  createJob: "创建订单",
+  createJob: "创建委托订单",
   setBudget: "设定预算",
   fund: "注入托管资金",
-  submit: "提交证据",
+  submit: "提交简报",
   complete: "结算放款",
   approveDeposit: "授权押金 + 审判费",
   openChallenge: "发起挑战",
@@ -96,12 +96,12 @@ export function Step4Onchain({
   return (
     <StepShell
       stepNo={4}
-      title="链上采购进行中"
-      subtitle="资金正在 Sepolia 测试网上按 Cobo 边界托管。每一步都是真实交易，可点开核验。"
+      title="链上委托进行中"
+      subtitle="资金正在 Sepolia 测试网上按 Cobo 边界托管给专家订单。每一步都是真实交易，可点开核验。"
       primary={
         isJobFunded
           ? {
-              label: "获取证据",
+              label: "获取研究简报",
               onClick: onGetEvidence,
               disabled: isBusy,
               busy: isBusy
@@ -126,7 +126,7 @@ export function Step4Onchain({
 
       {!isJobFunded && records.length > 0 && (
         <div className="info-strip">
-          托管交易确认中，完成后可获取证据。
+          托管交易确认中，完成后可获取研究简报。
         </div>
       )}
     </StepShell>

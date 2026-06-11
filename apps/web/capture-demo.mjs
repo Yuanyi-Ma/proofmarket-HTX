@@ -35,7 +35,7 @@ async function main() {
   if (only !== "challenge" && only !== "success") {
   log("=== LANDING ===");
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await waitText("可核验的证据采购市场", 30_000);
+  await waitText("让你的 Agent 直接请教领域专家", 30_000);
   await page.waitForTimeout(400);
   await shot("00-landing");
 
@@ -50,41 +50,41 @@ async function main() {
   if (only !== "challenge") {
   log("=== SUCCESS PATH ===");
   await page.goto(`${BASE}/console`, { waitUntil: "networkidle" });
-  await waitBtn("生成采购方案", 30_000);
+  await waitBtn("生成委托方案", 30_000);
   await shot("01-step1-question");
 
   log("plan (real Claude call)…");
-  await clickBtn("生成采购方案");
-  await waitBtn("确认方案，去授权", 200_000); // Claude + on-chain reputation reads
+  await clickBtn("生成委托方案");
+  await waitBtn("确认委托，去授权", 200_000); // Claude + on-chain reputation reads
   await page.waitForTimeout(800);
   await shot("02-step2-plan-candidates");
 
   log("confirm expert → pact…");
-  await clickBtn("确认方案，去授权");
-  await waitBtn("执行链上采购", 90_000);
+  await clickBtn("确认委托，去授权");
+  await waitBtn("执行链上委托", 90_000);
   await page.waitForTimeout(500);
   await shot("03-step3-pact-active");
 
   log("denial demo…");
-  await clickBtn("演示越权拦截");
+  await clickBtn("测试越权防护");
   await waitText("越权操作已被 Cobo 拦截", 90_000);
   await page.waitForTimeout(500);
   await shot("04-step3-denial");
 
   log("execute escrow (4 on-chain txs)…");
-  await clickBtn("执行链上采购");
-  await waitBtn("获取证据", 360_000);
+  await clickBtn("执行链上委托");
+  await waitBtn("获取研究简报", 360_000);
   await page.waitForTimeout(800);
   await shot("05-step4-onchain-funded");
 
   log("run provider (submit on-chain)…");
-  await clickBtn("获取证据");
-  await waitBtn("核验证据", 200_000);
+  await clickBtn("获取研究简报");
+  await waitBtn("核验简报", 200_000);
   await page.waitForTimeout(800);
   await shot("06-step5-evidence");
 
   log("verify…");
-  await clickBtn("核验证据");
+  await clickBtn("核验简报");
   // W_c gate: the settle button is disabled with a countdown until the
   // challenge window (300s after submit) passes. Shoot the gated state first.
   await page.getByTestId("settle-window-note").waitFor({ state: "visible", timeout: 90_000 });
@@ -119,11 +119,11 @@ async function main() {
   if (only !== "success") {
   log("=== CHALLENGE PATH ===");
   await page.goto(`${BASE}/console`, { waitUntil: "networkidle" });
-  await waitBtn("生成采购方案", 30_000);
+  await waitBtn("生成委托方案", 30_000);
 
   log("plan…");
-  await clickBtn("生成采购方案");
-  await waitBtn("确认方案，去授权", 200_000);
+  await clickBtn("生成委托方案");
+  await waitBtn("确认委托，去授权", 200_000);
   await page.waitForTimeout(500);
 
   log("select shallow provider (faulty package → real coverage miss)…");
@@ -134,14 +134,14 @@ async function main() {
   await shot("10-challenge-step2-select-shallow");
 
   log("confirm → pact → execute…");
-  await clickBtn("确认方案，去授权");
-  await waitBtn("执行链上采购", 90_000);
-  await clickBtn("执行链上采购");
-  await waitBtn("获取证据", 360_000);
-  await clickBtn("获取证据");
-  await waitBtn("核验证据", 200_000);
+  await clickBtn("确认委托，去授权");
+  await waitBtn("执行链上委托", 90_000);
+  await clickBtn("执行链上委托");
+  await waitBtn("获取研究简报", 360_000);
+  await clickBtn("获取研究简报");
+  await waitBtn("核验简报", 200_000);
   // The branch point of the challenge flowchart: evidence delivered inside the
-  // challenge window, 核验证据 and 发起挑战 both on screen.
+  // challenge window, 核验简报 and 发起挑战 both on screen.
   await page.waitForTimeout(800);
   await shot("10b-challenge-branch-point");
 

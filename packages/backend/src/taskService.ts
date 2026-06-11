@@ -188,7 +188,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "research-agent",
             type: "procurement_plan_created",
             result: "success",
-            message: `已选定候选 Provider：${selectedProviderIds.join("、")}。`
+            message: `已选定候选专家：${selectedProviderIds.join("、")}。`
           })
         )
       );
@@ -329,7 +329,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "provider",
             type: "provider_package_delivered",
             result: "success",
-            message: `Provider ${providerId} 交付证据包 ${providerPackage.packageHash}。`,
+            message: `专家 ${providerId} 交付研究简报 ${providerPackage.packageHash}。`,
             jobId: task.jobId
           })
         )
@@ -378,7 +378,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             source: "settlement",
             type: "settled",
             result: "success",
-            message: "已向 Provider 结算付款。",
+            message: "已向专家结算付款。",
             jobId: task.jobId
           })
         )
@@ -418,7 +418,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
           result: "success",
           message:
             `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
-            "挑战押金与审判费已锁定，托管订单已冻结，Provider 应辩窗口开启。",
+            "挑战押金与审判费已锁定，托管订单已冻结，专家应辩窗口开启。",
           jobId: task.jobId
         })
       );
@@ -436,7 +436,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "defense_submitted",
             result: "success",
             message:
-              `Provider 已在应辩窗口内提交应辩书（哈希 ${presetDefense.defenseHash}）：` +
+              `专家已在应辩窗口内提交应辩书（哈希 ${presetDefense.defenseHash}）：` +
               `${presetDefense.statement}`,
             jobId: task.jobId
           })
@@ -507,7 +507,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "refund_or_slash",
             result: "success",
             message:
-              "已执行裁决资金动作：扣除 Provider 质押 50%（挑战者得一半作奖励），" +
+              "已执行裁决资金动作：扣除专家质押 50%（挑战者得一半作奖励），" +
               "托管资金退款买方，挑战者押金与审判费退回，审判费由扣罚承担、审判团均分，余额归入金库。",
             jobId: task.jobId
           })

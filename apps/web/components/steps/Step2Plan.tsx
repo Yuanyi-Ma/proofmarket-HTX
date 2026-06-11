@@ -48,13 +48,13 @@ export function Step2Plan({
   return (
     <StepShell
       stepNo={2}
-      title="采购方案"
-      subtitle="Agent 已分析你的问题，给出候选证据来源排序。选择一个后进入授权。"
+      title="委托方案"
+      subtitle="Agent 已分析你的问题，给出候选领域专家排序。选择一位后进入授权。"
       primary={
         readOnly || !plan
           ? undefined
           : {
-              label: "确认方案，去授权",
+              label: "确认委托，去授权",
               onClick: () => onConfirm(selected),
               disabled: isBusy || !selected,
               busy: isBusy
@@ -67,17 +67,17 @@ export function Step2Plan({
             <div className="badge-row">
               <StatusBadge tone="success">Agent 分析</StatusBadge>
             </div>
-            <DataRow label="判断依据" value={plan.evidenceNeed} />
+            <DataRow label="需求分析" value={plan.evidenceNeed} />
           </article>
 
           <p className="small muted tight" style={{ marginTop: 16 }}>
-            Agent 推荐排序（共 {candidates.length} 个候选，默认选中第一名，可改选）
+            Agent 推荐排序（共 {candidates.length} 位候选专家，默认选中第一名，可改选）
           </p>
           <p className="small muted tight" style={{ marginTop: 4 }}>
-            推荐基于各来源的【自报覆盖】【报价】【链上信誉 / 历史挑战记录】做的概率性判断；具体交付质量要等第 5 步由 Judge 核验后才能确定。
+            推荐基于各专家的【自报资料覆盖】【报价】【链上信誉 / 历史挑战记录】做的概率性判断；具体交付质量要等第 5 步由 Judge 核验后才能确定。
           </p>
 
-          <div className="candidate-list" role="radiogroup" aria-label="选择 Provider">
+          <div className="candidate-list" role="radiogroup" aria-label="选择专家">
             {candidates.map((candidate) => {
               const profile = providerProfiles.find((p) => p.id === candidate.providerId);
               if (!profile) return null;
@@ -163,16 +163,16 @@ export function Step2Plan({
 
           {!readOnly && selected !== plan.recommendedProviderId ? (
             <div className="info-strip" style={{ marginTop: 12 }}>
-              你选择的不是 Agent 的推荐项。该来源在"自报覆盖 + 链上信誉"上属于较低概率的选择，交付完整性的先验风险更高——若交付有缺口，可在第 5 步发起挑战。
+              你选择的不是 Agent 的推荐项。该专家在"自报资料覆盖 + 链上信誉"上属于较低概率的选择，交付完整性的先验风险更高——若简报有缺口，可在第 5 步发起挑战。
             </div>
           ) : null}
 
           <div style={{ marginTop: 20 }}>
-            <p className="section-kicker" style={{ margin: "0 0 8px" }}>采购条款</p>
+            <p className="section-kicker" style={{ margin: "0 0 8px" }}>委托条款</p>
             <div className="data-grid">
               <DataRow
                 label="交付物"
-                value="证据包：每条结论附来源定位与核验线索，逐条可独立核验。"
+                value="定制研究简报：基于专业资料针对你的问题总结，每条结论附来源定位与核验线索；不交付资料原文，无版权风险。"
               />
               <DataRow label="核验方式" value={plan.verificationMethod} />
               <DataRow
@@ -185,22 +185,22 @@ export function Step2Plan({
               />
               <DataRow
                 label="结算条件"
-                value="资金先入链上托管；证据通过核验、且挑战窗口结束后，才放款给 Provider。"
+                value="资金先入链上托管；简报通过核验、且挑战窗口结束后，才放款给专家。"
               />
               <DataRow
                 label="违约保障"
-                value="交付与声明不符可发起挑战；挑战成立即全额退款，并从 Provider 质押中扣罚赔付。"
+                value="交付与声明不符可发起挑战；挑战成立即全额退款，并从专家质押中扣罚赔付。"
               />
             </div>
           </div>
 
           {readOnly ? (
-            <div className="info-strip">方案已确认，此处为只读回看。</div>
+            <div className="info-strip">委托已确认，此处为只读回看。</div>
           ) : null}
         </>
       ) : (
         <div className="info-strip">
-          采购方案尚未生成。请回到第 1 步提交研究问题。
+          委托方案尚未生成。请回到第 1 步提交研究问题。
         </div>
       )}
     </StepShell>
