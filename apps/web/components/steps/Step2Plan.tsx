@@ -172,7 +172,7 @@ export function Step2Plan({
             <div className="data-grid">
               <DataRow
                 label="交付物"
-                value="定制研究简报：基于专业资料针对你的问题总结，每条结论附来源定位与核验线索；不交付资料原文，无版权风险。"
+                value="研究简报：核心资料的关键摘录 + 来源定位 + 研究摘要，并附针对你问题的总结；不搬运资料全文，无版权风险。"
               />
               <DataRow label="核验方式" value={plan.verificationMethod} />
               <DataRow

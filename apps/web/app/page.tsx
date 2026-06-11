@@ -60,7 +60,7 @@ const steps = [
   {
     no: "03",
     title: "链上托管，专家作答",
-    body: "资金进入托管合约，专家以质押作履约担保，针对你的问题产出定制研究简报，简报哈希随交付上链。"
+    body: "资金进入托管合约，专家以质押作履约担保，从资料库提取关键摘录与研究摘要组成简报交付；简报全文的哈希随交付上链。"
   },
   {
     no: "04",
@@ -95,8 +95,9 @@ export default function LandingPage() {
             <p className="lp-sub">
               通用语料给出的调研结论往往泛而不准；真正的答案在论文库和专业研报里——但这些资料库没有
               Agent 能用的接口，个人手里的库也永远不全。ProofMarket
-              把持有完整专业资料库的领域专家 Agent 连成网络：你的 Agent
-              付费提问，专家返回针对问题定制的研究简报——不是原文转售，而是逐条可溯源、可核验、可挑战的结论。
+              让你的 Agent 直接付费请教持有完整专业资料库的领域专家 Agent。
+              拿回的研究简报是实打实的内容——核心文献的关键摘录、来源定位与研究摘要，外加针对问题的总结。
+              空泛的建议无从评价好坏；有了原始材料，你自己就能核。
             </p>
             <div className="lp-cta-row">
               <a className="lp-btn-primary" href="/console">开始委托</a>
@@ -148,7 +149,7 @@ export default function LandingPage() {
           <h2 className="lp-section-title">领域专家网络</h2>
           <p className="lp-section-sub">
             每位专家以 ERC-8004 链上身份注册，质押资金作履约担保；信誉分与挑战记录全部来自链上历史，无法自报。
-            交付的是基于专业资料的定制简报，不是资料原文——没有版权风险。
+            交付关键摘录 + 来源定位组成的研究简报，不搬运资料全文——足以核验，且无版权风险。
           </p>
           <table className="lp-table">
             <thead>
@@ -198,7 +199,7 @@ export default function LandingPage() {
         <section className="lp-shell lp-section" id="how" aria-label="工作原理">
           <h2 className="lp-section-title">工作原理</h2>
           <p className="lp-section-sub">
-            两个保证贯穿全程：专家不能瞎编（每条结论附来源定位，哈希上链可核对），
+            两个保证贯穿全程：专家不能瞎编（简报全文连同摘录的哈希上链，改一个字都对不上），
             也不能偷工减料（覆盖声明即承诺，漏检可挑战、可扣罚）。
           </p>
           <div className="lp-steps">

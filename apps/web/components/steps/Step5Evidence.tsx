@@ -630,7 +630,7 @@ export function Step5Evidence({
       subtitle={
         isInChallengeFlow
           ? "挑战流程进行中——查看挑战状态与资金动作。"
-          : "专家已交付定制研究简报。核验通过后即可结算；若发现问题可发起挑战。"
+          : "专家已交付研究简报：关键摘录、来源定位与研究摘要。核验通过后即可结算；若发现问题可发起挑战。"
       }
       primary={primary}
       secondary={secondary}
@@ -694,7 +694,7 @@ export function Step5Evidence({
             </div>
           </div>
           <p className="small muted tight" style={{ marginTop: 6 }}>
-            简报哈希已写入链上，任何人均可核对。
+            简报全文（含摘录）的哈希已写入链上——拿到明文即可重算比对，改动任何一个字都会对不上。
           </p>
         </div>
       )}
