@@ -1,6 +1,6 @@
 # ProofMarket Demo
 
-ProofMarket demonstrates one Cobo-bounded evidence procurement loop: a user asks a research question, the Research Agent proposes a bounded plan, Cobo constrains spending, escrow funds the provider job, evidence is verified, and settlement or challenge outcomes are replayable in the audit trail.
+ProofMarket demonstrates one Cobo-bounded evidence procurement loop: a user asks a research question, the Research Agent proposes a bounded plan, Cobo constrains spending, escrow funds the provider job, evidence is verified, and settlement waits out an on-chain challenge window. Disputes go to a 3-seat AI jury (heterogeneous model families, registered on-chain with model/prompt hash commitments): the provider files a defense within its window, each juror casts a reasoned on-chain vote, and a permissionless resolve executes the majority — slash, refunds, and jury fees conserve to the wei. All outcomes are replayable in the audit trail.
 
 The demo uses deterministic providers and a mock corpus. It does not perform real paid database retrieval, sell full documents, or give an agent unrestricted wallet access.
 
@@ -132,6 +132,6 @@ pnpm demo:real
 5. Fund the escrow job and point to the transaction hash rather than a direct provider payment.
 6. Run the expert provider and show the evidence-backed answer package.
 7. Verify the evidence and settle payment only after the verifier accepts it.
-8. Start a fresh shallow-provider path, show the `CoverageMiss`, then show challenge win plus refund or slash.
+8. Start a fresh shallow-provider path, show the `CoverageMiss` challenge document and the provider's defense, then the 2:1 jury verdict (per-vote reason books on-chain) and the permissionless resolve with slash, refunds, and jury-fee split.
 9. Start a fresh denial path, trigger the blocked Cobo action, and show that funds did not move.
 10. Open the audit log and replay the plan, Pact, allowed transaction, delivery hash, verifier result, settlement, challenge result, and denial.

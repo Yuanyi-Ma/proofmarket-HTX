@@ -1,4 +1,8 @@
-import { createHash } from "node:crypto";
+// Pure-JS sha256 (no node:crypto): this module is imported by client
+// components via fixtures.ts, so it must bundle for the browser too.
+// Same algorithm, same hex output as the previous createHash("sha256").
+import { sha256 } from "@noble/hashes/sha256";
+import { bytesToHex } from "@noble/hashes/utils";
 
 export type JsonValue =
   | string
@@ -32,5 +36,5 @@ function stableStringify(input: JsonValue): string {
 }
 
 export function stableHash(input: JsonValue): string {
-  return `0x${createHash("sha256").update(stableStringify(input)).digest("hex")}`;
+  return `0x${bytesToHex(sha256(new TextEncoder().encode(stableStringify(input))))}`;
 }

@@ -70,9 +70,16 @@ async function main() {
 
   log("verify…");
   await clickBtn("核验证据");
-  await waitBtn("确认结算", 90_000);
+  // W_c gate: the settle button is disabled with a countdown until the
+  // challenge window (300s after submit) passes. Shoot the gated state first.
+  await page.getByTestId("settle-window-note").waitFor({ state: "visible", timeout: 90_000 });
   await page.waitForTimeout(500);
   await shot("07-step6-verified");
+
+  log("waiting out the challenge window W_c (up to 6 min)…");
+  await waitBtn("确认结算", 360_000);
+  await page.waitForTimeout(500);
+  await shot("07b-step6-window-closed");
 
   log("settle (on-chain)…");
   await clickBtn("确认结算");
@@ -107,20 +114,22 @@ async function main() {
   await clickBtn("获取证据");
   await waitBtn("核验证据", 200_000);
 
-  log("open challenge (deposit + openChallenge on-chain)…");
+  log("open challenge (deposit + fee + openChallenge + defense on-chain)…");
   await clickBtn("发起挑战");
-  await waitBtn("请求审判", 240_000);
+  await waitBtn("请求审判团裁决", 300_000);
+  // Defense card is filed automatically right after the challenge opens.
+  await page.getByTestId("defense-card").waitFor({ state: "visible", timeout: 30_000 });
   await page.waitForTimeout(800);
   await shot("11-challenge-opened-materials");
 
-  log("request vote (deterministic ProviderFault)…");
-  await clickBtn("请求审判");
-  await waitBtn("执行裁决", 90_000);
+  log("request jury verdict (waits out R_w 120s, then 3 castVote txs)…");
+  await clickBtn("请求审判团裁决");
+  await page.getByText("审判团投票 2 : 1", { exact: false }).waitFor({ state: "visible", timeout: 600_000 });
   await page.waitForTimeout(500);
   await shot("12-challenge-vote");
 
-  log("resolve (slash + refund + return deposit on-chain)…");
-  await clickBtn("执行裁决");
+  log("resolve (permissionless majority execution on-chain)…");
+  await page.getByRole("button", { name: /执行裁决/ }).click();
   await waitText("裁决已执行", 240_000);
   await page.waitForTimeout(800);
   await shot("13-challenge-resolved");
