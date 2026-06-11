@@ -134,22 +134,33 @@ describe("task service orchestration", () => {
     expect(openEvent?.message).toContain("用户发起挑战");
     expect(openEvent?.message).toContain("CoverageMiss");
 
-    // 投票：deterministic ProviderFault vote recorded on the challenge
+    // 应辩：preset defense recorded alongside the challenge
+    expect(challenged.challenge?.statement).toContain("Block-STM");
+    expect(challenged.challenge?.defense?.defenseHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(challenged.audit.some((event) => event.type === "defense_submitted")).toBe(true);
+
+    // 审判：preset jury votes (2:1 ProviderFault) recorded on the challenge
     const won = await service.winChallenge(task.id);
     expect(won.status).toBe("ChallengeWon");
-    expect(won.challenge?.vote?.vote).toBe("ProviderFault");
-    expect(won.challenge?.vote?.reasonCode).toBe("COVERAGE_MISS");
-    expect(won.challenge?.vote?.resultHash).toMatch(/^0x[0-9a-f]{64}$/);
+    expect(won.challenge?.votes).toHaveLength(3);
+    expect(won.challenge?.votes?.map((v) => v.vote)).toEqual([
+      "ProviderFault",
+      "ProviderFault",
+      "ProviderNotFault"
+    ]);
+    expect(won.challenge?.votes?.every((v) => /^0x[0-9a-f]{64}$/.test(v.reasonHash))).toBe(true);
+    expect(won.audit.filter((event) => event.type === "jury_vote")).toHaveLength(3);
     const voteEvent = won.audit.find((event) => event.type === "challenge_won");
     expect(voteEvent?.message).toContain("ProviderFault");
+    expect(voteEvent?.message).toContain("2:1");
 
-    // 资金动作：slash provider stake / refund buyer / return deposit
+    // 资金动作：slash provider stake / refund buyer / return deposit + fee
     const refunded = await service.refundOrSlash(task.id);
     expect(refunded.status).toBe("RefundedOrSlashed");
     const fundEvent = refunded.audit.find((event) => event.type === "refund_or_slash");
     expect(fundEvent?.message).toContain("扣除 Provider 质押");
     expect(fundEvent?.message).toContain("退款买方");
-    expect(fundEvent?.message).toContain("押金退回");
+    expect(fundEvent?.message).toContain("审判费");
   });
 
   it("rejects openChallenge before evidence delivery", async () => {

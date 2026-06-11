@@ -151,7 +151,8 @@ function buildRealService(): TaskService {
       runProvider: (input) => post("/provider/run", input),
       submitDeliverable: (input) => post("/provider/submit", input),
       judgeVerify: (input) => post("/judge/verify", input),
-      resolverVote: (input) => post("/resolver/vote", input)
+      providerDefend: (input) => post("/provider/defend", input),
+      juryVote: (input) => post("/jury/vote", input)
     },
     resolveChallenge,
     publishFeedback,

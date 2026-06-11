@@ -1,5 +1,4 @@
 import {
-  ChallengeResult,
   ChallengeType,
   encodeApprove,
   encodeComplete,
@@ -10,7 +9,11 @@ import {
 } from "@proofmarket/chain/src/calldata";
 import { buildRealPactSubmission } from "@proofmarket/cobo/src/pactPolicy";
 import { createAuditEvent } from "@proofmarket/shared/src/audit";
-import { presetCounterEvidence, providerProfiles } from "@proofmarket/shared/src/fixtures";
+import {
+  presetChallengeDocument,
+  presetCounterEvidence,
+  providerProfiles
+} from "@proofmarket/shared/src/fixtures";
 import { stableHash } from "@proofmarket/shared/src/hash";
 import type {
   CoboDenialRecord,
@@ -23,6 +26,7 @@ import type {
   AuditEvent,
   AuditResult,
   AuditSource,
+  JuryVote,
   PactSummary,
   ProcurementPlan,
   ProviderAnswerPackage,
@@ -78,10 +82,11 @@ export type RealDeps = {
     ): Promise<{ state: number; budget: bigint; deliverableHash: `0x${string}` }>;
   };
   /**
-   * Executes ChallengeManager.resolve with the backend's resolver key —
-   * resolve() is resolver-only on-chain and does NOT go through Cobo.
+   * Executes ChallengeManager.resolve(challengeId) with the backend's resolver
+   * key. v2: permissionless majority execution — the outcome comes from the
+   * on-chain juror votes, not from this call. Does NOT go through Cobo.
    */
-  resolveChallenge(input: { challengeId: bigint; result: number }): Promise<{ txHash: string }>;
+  resolveChallenge(input: { challengeId: bigint }): Promise<{ txHash: string }>;
   /**
    * Publishes ERC-8004 reputation feedback signed directly by the rater key
    * (PROVIDER_SIGNER — must NOT be the agent owner), not Cobo. `value` is on
@@ -123,18 +128,22 @@ export type RealDeps = {
       verdictHash: string;
       voting: { mode: string; voteId: string | null; onchainTxHash: string | null };
     }>;
-    resolverVote(input: {
-      jobId: string;
-      challengeType: string;
-      evidencePackage: unknown;
-      counterEvidenceHash: string;
-    }): Promise<{
-      voterId: string;
-      jobId: string;
-      vote: "ProviderFault";
-      reasonCode: string;
-      reason: string;
-      resultHash: string;
+    /**
+     * Provider's defense filing (preset content, real provider-signed
+     * submitDefense tx). Returns the plaintext for the audit/UI layer.
+     */
+    providerDefend(input: { challengeId: string }): Promise<{
+      statement: string;
+      defenseHash: string;
+      txHash: string;
+    }>;
+    /**
+     * The jury panel: waits out the defense window R_w, then casts three real
+     * castVote transactions (preset 2:1 verdict) and returns the reasoned
+     * votes in casting order.
+     */
+    juryVote(input: { challengeId: string; openedAtMs: number }): Promise<{
+      votes: (JuryVote & { txHash: string })[];
     }>;
   };
   audit: { append(taskId: string, event: unknown): void };
@@ -176,12 +185,19 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
   const instanceSuffix = Date.now().toString(36);
   // Judge verdict hashes live only between verify() and settle() in one process.
   const verdicts = new Map<string, string>();
+  // Wall-clock time openChallenge confirmed, per task — the jury service uses
+  // it to sleep out the defense window R_w before casting votes.
+  const challengeOpenedAt = new Map<string, number>();
   // Re-entry guard: task ids with a money-moving operation currently in flight.
   const inFlight = new Set<string>();
 
   const escrowAddress = deps.deployment.contracts.ProofMarketEscrow as `0x${string}`;
   const tokenAddress = deps.deployment.contracts.MockUSDC as `0x${string}`;
   const pollDelayMs = deps.pollDelayMs ?? 5000;
+  // Challenge window W_c (escrow complete gate), in ms. 0 when the artifact
+  // predates v2 — then no gating is applied client-side either.
+  const challengeWindowMs =
+    Number(deps.deployment.escrowParams?.challengeWindow ?? 0) * 1000;
 
   function nextId(prefix: string, counter: number): string {
     return `${prefix}_${counter.toString().padStart(3, "0")}`;
@@ -1008,6 +1024,27 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         );
       }
 
+      // Challenge window W_c starts at submit: settlement is blocked (by the
+      // escrow contract and by the UI) until it passes.
+      if (challengeWindowMs > 0) {
+        const endsAt = new Date(Date.parse(deps.now()) + challengeWindowMs).toISOString();
+        current = save(
+          withAudit(
+            { ...current, challengeWindowEndsAt: endsAt, updatedAt: deps.now() },
+            audit({
+              taskId: id,
+              source: "chain",
+              type: "challenge_window_opened",
+              result: "success",
+              message:
+                `挑战窗口开启：${Math.round(challengeWindowMs / 60000)} 分钟内可对证据发起挑战，` +
+                "窗口结束前合约拒绝放款（complete 被链上门禁拦截）。",
+              jobId: task.jobId
+            })
+          )
+        );
+      }
+
       return save(transition(current, "Delivered"));
     },
 
@@ -1062,6 +1099,16 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       try {
         if (task.jobId === null) {
           throw new Error("Cannot settle before verification");
+        }
+        // Client-side W_c guard: the escrow would revert anyway ("challenge
+        // window open"); failing early gives a readable countdown message.
+        if (task.challengeWindowEndsAt) {
+          const remainingMs = Date.parse(task.challengeWindowEndsAt) - Date.parse(deps.now());
+          if (remainingMs > 0) {
+            throw new Error(
+              `挑战窗口未结束，剩余 ${Math.ceil(remainingMs / 1000)} 秒后才可结算`
+            );
+          }
         }
         const verdictHash = verdicts.get(task.id);
         if (!verdictHash) {
@@ -1131,6 +1178,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               "cannot size the challenge deposit approval"
           );
         }
+        // Jury fee F is collected together with the deposit at openChallenge.
+        const juryFeeRaw = deps.deployment.challengeManagerParams?.juryFee ?? "0";
+        const approveAmount = BigInt(depositRaw) + BigInt(juryFeeRaw);
         if (task.jobId === null) {
           throw new Error("Cannot open a challenge before the job is funded");
         }
@@ -1141,7 +1191,12 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           withAudit(
             {
               ...task,
-              challenge: { type: "CoverageMiss" as const, counterEvidenceHash },
+              challenge: {
+                type: "CoverageMiss" as const,
+                statement: presetChallengeDocument.statement,
+                hitCoverageClause: presetChallengeDocument.hitCoverageClause,
+                counterEvidenceHash
+              },
               updatedAt: deps.now()
             },
             audit({
@@ -1151,7 +1206,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               result: "success",
               message:
                 `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
-                "挑战者为 Cobo 钱包（订单 client），将锁定挑战押金并冻结托管订单。",
+                `挑战者为 Cobo 钱包（订单 client），将锁定挑战押金 ${Number(depositRaw) / 1e6} mUSDC + ` +
+                `审判费 ${Number(juryFeeRaw) / 1e6} mUSDC 并冻结托管订单。`,
               jobId: task.jobId
             })
           )
@@ -1164,16 +1220,17 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           taskRef,
           "approveDeposit",
           tokenAddress,
-          encodeApprove(challengeManagerAddress as `0x${string}`, BigInt(depositRaw))
+          encodeApprove(challengeManagerAddress as `0x${string}`, approveAmount)
         );
-        // One call: the contract's openChallenge locks the deposit AND calls
-        // escrow.markChallenged itself, freezing the job.
+        // One call: the contract's openChallenge locks deposit + jury fee AND
+        // calls escrow.markChallenged itself, freezing the job.
         const receipt = await coboCall(
           taskRef,
           "openChallenge",
           challengeManagerAddress,
           encodeOpenChallenge(BigInt(task.jobId), ChallengeType.CoverageMiss, counterEvidenceHash)
         );
+        challengeOpenedAt.set(id, Date.parse(deps.now()));
 
         // challengeId comes from the ChallengeOpened event — needed by resolve().
         const challengeId = deps.chain.extractChallengeId(receipt, challengeManagerAddress);
@@ -1183,22 +1240,80 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           updatedAt: deps.now()
         });
 
-        const challenged = transition(taskRef.task, "Challenged");
-        return save(
+        const challenged = save(
           withAudit(
-            challenged,
+            transition(taskRef.task, "Challenged"),
             audit({
               taskId: id,
               source: "chain",
               type: "challenge_onchain_opened",
               result: "success",
               message:
-                `挑战已上链：ChallengeManager 已锁定挑战押金并冻结订单 ${task.jobId}` +
-                `（challengeId ${challengeId}）。`,
+                `挑战已上链：ChallengeManager 已锁定押金与审判费并冻结订单 ${task.jobId}` +
+                `（challengeId ${challengeId}）。Provider 应辩窗口开启。`,
               jobId: task.jobId
             })
           )
         );
+
+        // Provider defense (应辩书): preset content, real provider-signed tx.
+        // Non-fatal on failure — skipping the defense forfeits it (合约语义),
+        // the jury still waits out R_w before voting.
+        try {
+          const defense = await deps.services.providerDefend({
+            challengeId: String(challengeId)
+          });
+          const defenseRecord: TxRecord = {
+            label: "defense",
+            coboTxId: null,
+            txHash: defense.txHash,
+            status: "confirmed"
+          };
+          return save(
+            withAudit(
+              {
+                ...challenged,
+                challenge: {
+                  ...challenged.challenge!,
+                  defense: {
+                    statement: defense.statement,
+                    defenseHash: defense.defenseHash,
+                    txHash: defense.txHash
+                  }
+                },
+                txRecords: [...challenged.txRecords, defenseRecord],
+                updatedAt: deps.now()
+              },
+              audit({
+                taskId: id,
+                source: "provider",
+                type: "defense_submitted",
+                result: "success",
+                message:
+                  `Provider 已在应辩窗口内提交应辩书（哈希 ${defense.defenseHash}）：` +
+                  `${defense.statement}`,
+                txHash: defense.txHash,
+                jobId: task.jobId
+              })
+            )
+          );
+        } catch (error) {
+          return save(
+            withAudit(
+              challenged,
+              audit({
+                taskId: id,
+                source: "provider",
+                type: "defense_skipped",
+                result: "failed",
+                message:
+                  `Provider 应辩提交失败（视同放弃应辩，裁决照常进行）：` +
+                  `${error instanceof Error ? error.message : String(error)}`,
+                jobId: task.jobId
+              })
+            )
+          );
+        }
       } finally {
         inFlight.delete(id);
       }
@@ -1218,33 +1333,59 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         );
       }
 
-      // Deterministic resolver vote (审判者确定性投票): preset ProviderFault.
-      const vote = await deps.services.resolverVote({
-        jobId: String(task.jobId),
-        challengeType: task.challenge.type,
-        evidencePackage: task.providerPackage,
-        counterEvidenceHash: task.challenge.counterEvidenceHash
+      // The jury panel (审判团确定性裁决): three real castVote transactions,
+      // preset 2:1 ProviderFault. The contract rejects votes before
+      // openedAt + R_w, so wait the window out HERE (a long sleep inside the
+      // services HTTP call would trip undici's headers timeout instead).
+      const openedAtMs = challengeOpenedAt.get(id) ?? Date.parse(task.updatedAt);
+      const defenseWindowMs =
+        Number(deps.deployment.challengeManagerParams?.defenseWindow ?? 0) * 1000;
+      if (defenseWindowMs > 0) {
+        const remainingWindowMs =
+          openedAtMs + defenseWindowMs + 5_000 - Date.parse(deps.now());
+        if (remainingWindowMs > 0) {
+          await delay(remainingWindowMs);
+        }
+      }
+      const { votes } = await deps.services.juryVote({
+        challengeId: String(task.challenge.challengeId),
+        openedAtMs
       });
-      if (vote.vote !== "ProviderFault") {
-        throw new Error(`unexpected resolver vote: ${String(vote.vote)}`);
+      const faultVotes = votes.filter((vote) => vote.vote === "ProviderFault").length;
+      const majority = Math.floor(votes.length / 2) + 1;
+      if (faultVotes < majority) {
+        throw new Error(
+          `unexpected jury outcome: ${faultVotes}/${votes.length} ProviderFault votes (need ${majority})`
+        );
       }
 
-      const won = transition(
-        {
-          ...task,
-          challenge: {
-            ...task.challenge,
-            vote: {
-              voterId: vote.voterId,
-              vote: vote.vote,
-              reasonCode: vote.reasonCode,
-              reason: vote.reason,
-              resultHash: vote.resultHash
-            }
-          }
-        },
-        "ChallengeWon"
-      );
+      let current: Task = { ...task, challenge: { ...task.challenge, votes } };
+      const voteRecords: TxRecord[] = votes.map((vote) => ({
+        label: "castVote" as const,
+        coboTxId: null,
+        txHash: vote.txHash ?? "",
+        status: "confirmed" as const
+      }));
+      current = { ...current, txRecords: [...current.txRecords, ...voteRecords] };
+      for (const vote of votes) {
+        current = withAudit(
+          current,
+          audit({
+            taskId: id,
+            source: "verifier",
+            type: "jury_vote",
+            result: "success",
+            message:
+              `审判方 ${vote.jurorId}（${vote.modelFamily}）投票 ${vote.vote}` +
+              `（${vote.reasonCode}），理由书哈希 ${vote.reasonHash} 已随票上链。` +
+              `结论：${vote.reasonBook.conclusion}`,
+            txHash: vote.txHash ?? null,
+            jobId: task.jobId
+          })
+        );
+      }
+
+      const won = transition(current, "ChallengeWon");
 
       return save(
         withAudit(
@@ -1255,8 +1396,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "challenge_won",
             result: "success",
             message:
-              `审判者 ${vote.voterId} 确定性投票 ProviderFault（${vote.reasonCode}）：` +
-              `${vote.reason} resultHash=${vote.resultHash}`,
+              `审判团多数决 ${faultVotes}:${votes.length - faultVotes} 判 ProviderFault，挑战成立。` +
+              "多数已达成，任何人可执行链上裁决。",
             jobId: task.jobId
           })
         )
@@ -1279,15 +1420,15 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           throw new Error("no on-chain challenge recorded for this task");
         }
 
-        // resolve() is resolver-only: signed by the backend's resolver key,
-        // not Cobo. On-chain it slashes the provider stake (split between
-        // challenger reward and treasury), refunds the buyer through escrow
-        // and returns the challenger deposit.
+        // resolve(challengeId) executes the on-chain vote majority — it is
+        // permissionless, signed here by the backend's resolver key (not
+        // Cobo). On-chain it slashes the provider stake, pays the challenger
+        // (deposit + fee refund + reward), pays the jury fee out of the slash,
+        // sends the remainder to the treasury and refunds the buyer.
         let resolved: { txHash: string };
         try {
           resolved = await deps.resolveChallenge({
-            challengeId: BigInt(challenge.challengeId),
-            result: ChallengeResult.ProviderFault
+            challengeId: BigInt(challenge.challengeId)
           });
         } catch (error) {
           // No fabrication: surface the failure with a failed record + audit.
@@ -1336,8 +1477,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "refund_or_slash",
               result: "success",
               message:
-                "链上裁决已执行：扣除 Provider 质押 50%（一半奖励挑战者，其余归入金库），" +
-                "托管资金退款买方，挑战者押金退回。",
+                "链上裁决已执行：扣除 Provider 质押 50%（挑战者得一半作奖励），" +
+                "托管资金退款买方，挑战者押金与审判费全额退回，" +
+                "审判费由扣罚承担、三位审判方均分，余额归入金库。",
               txHash: resolved.txHash,
               jobId: task.jobId
             })

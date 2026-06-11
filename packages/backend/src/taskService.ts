@@ -5,7 +5,13 @@ import {
 } from "@proofmarket/agents/src";
 import { buildPactPolicy } from "@proofmarket/cobo/src";
 import { createAuditEvent } from "@proofmarket/shared/src/audit";
-import { presetCounterEvidence, providerProfiles } from "@proofmarket/shared/src/fixtures";
+import {
+  presetChallengeDocument,
+  presetCounterEvidence,
+  presetDefense,
+  presetJuryVotes,
+  providerProfiles
+} from "@proofmarket/shared/src/fixtures";
 import { stableHash } from "@proofmarket/shared/src/hash";
 import { assertTransition } from "@proofmarket/shared/src/stateMachine";
 import type {
@@ -390,25 +396,48 @@ export function createTaskService(store: InMemoryStore): TaskService {
       }
 
       const counterEvidenceHash = stableHash(presetCounterEvidence);
-      const challenged = transition(
+      let challenged = transition(
         {
           ...task,
-          challenge: { type: "CoverageMiss", counterEvidenceHash }
+          challenge: {
+            type: "CoverageMiss" as const,
+            statement: presetChallengeDocument.statement,
+            hitCoverageClause: presetChallengeDocument.hitCoverageClause,
+            counterEvidenceHash
+          }
         },
         "Challenged"
       );
 
+      challenged = withAudit(
+        challenged,
+        audit({
+          taskId: id,
+          source: "user",
+          type: "challenge_opened",
+          result: "success",
+          message:
+            `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
+            "挑战押金与审判费已锁定，托管订单已冻结，Provider 应辩窗口开启。",
+          jobId: task.jobId
+        })
+      );
+
+      // Preset defense, mirroring the real flow's auto-filed 应辩书.
       return save(
         withAudit(
-          challenged,
+          {
+            ...challenged,
+            challenge: { ...challenged.challenge!, defense: { ...presetDefense } }
+          },
           audit({
             taskId: id,
-            source: "user",
-            type: "challenge_opened",
+            source: "provider",
+            type: "defense_submitted",
             result: "success",
             message:
-              `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
-              "挑战押金已锁定，托管订单已冻结。",
+              `Provider 已在应辩窗口内提交应辩书（哈希 ${presetDefense.defenseHash}）：` +
+              `${presetDefense.statement}`,
             jobId: task.jobId
           })
         )
@@ -417,26 +446,37 @@ export function createTaskService(store: InMemoryStore): TaskService {
 
     async winChallenge(id: string): Promise<Task> {
       const task = store.getTask(id);
-      // Deterministic preset vote (审判者确定性投票): always ProviderFault.
-      const vote = {
-        voterId: "resolver-demo-001",
-        vote: "ProviderFault" as const,
-        reasonCode: "COVERAGE_MISS",
-        reason:
-          "Provider 声明覆盖 2021-2026 年区块链执行加速方向，却遗漏了 Block-STM，覆盖缺失成立。",
-        resultHash: stableHash({
-          taskId: task.id,
-          vote: "ProviderFault",
-          reasonCode: "COVERAGE_MISS",
-          counterEvidenceHash: task.challenge?.counterEvidenceHash ?? null
-        })
-      };
-      const won = transition(
-        // The verify() fault auto-route reaches Challenged without an explicit
-        // challenge record; only attach the vote when a challenge exists.
-        task.challenge ? { ...task, challenge: { ...task.challenge, vote } } : task,
-        "ChallengeWon"
-      );
+      // Preset jury verdict (审判团确定性裁决): 2:1 ProviderFault, fixture
+      // juror addresses (no chain in fixture mode).
+      const votes = presetJuryVotes([
+        "0x0000000000000000000000000000000000000a01",
+        "0x0000000000000000000000000000000000000a02",
+        "0x0000000000000000000000000000000000000a03"
+      ]);
+      const faultVotes = votes.filter((vote) => vote.vote === "ProviderFault").length;
+
+      let current = task.challenge
+        ? // The verify() fault auto-route reaches Challenged without an explicit
+          // challenge record; only attach the votes when a challenge exists.
+          { ...task, challenge: { ...task.challenge, votes } }
+        : task;
+      for (const vote of votes) {
+        current = withAudit(
+          current,
+          audit({
+            taskId: id,
+            source: "verifier",
+            type: "jury_vote",
+            result: "success",
+            message:
+              `审判方 ${vote.jurorId}（${vote.modelFamily}）投票 ${vote.vote}` +
+              `（${vote.reasonCode}），理由书哈希 ${vote.reasonHash}。` +
+              `结论：${vote.reasonBook.conclusion}`,
+            jobId: task.jobId
+          })
+        );
+      }
+      const won = transition(current, "ChallengeWon");
 
       return save(
         withAudit(
@@ -447,8 +487,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "challenge_won",
             result: "success",
             message:
-              `审判者 ${vote.voterId} 确定性投票 ProviderFault（${vote.reasonCode}）：` +
-              `${vote.reason} 挑战成立。`,
+              `审判团多数决 ${faultVotes}:${votes.length - faultVotes} 判 ProviderFault，挑战成立。`,
             jobId: task.jobId
           })
         )
@@ -468,8 +507,8 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "refund_or_slash",
             result: "success",
             message:
-              "已执行裁决资金动作：扣除 Provider 质押 50%（一半奖励挑战者，其余归入金库），" +
-              "托管资金退款买方，挑战者押金退回。",
+              "已执行裁决资金动作：扣除 Provider 质押 50%（挑战者得一半作奖励），" +
+              "托管资金退款买方，挑战者押金与审判费退回，审判费由扣罚承担、审判团均分，余额归入金库。",
             jobId: task.jobId
           })
         )
