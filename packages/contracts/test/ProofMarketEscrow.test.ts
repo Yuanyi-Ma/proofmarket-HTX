@@ -45,6 +45,8 @@ describe("ProofMarketEscrow", () => {
   const budget = 1_000_000n;
   const minStake = 10_000_000n;
   const challengeDeposit = 2_000_000n;
+  const juryFee = 500_000n;
+  const defenseWindow = 120n;
   const JobState = {
     Open: 0n,
     Funded: 1n,
@@ -56,7 +58,7 @@ describe("ProofMarketEscrow", () => {
   } as const;
 
   async function deployFixture() {
-    const [client, provider, evaluator, other, resolver, treasury] =
+    const [client, provider, evaluator, other, resolver, treasury, juror1, juror2, juror3] =
       await ethers.getSigners();
 
     const Token = await ethers.getContractFactory("MockUSDC");
@@ -64,23 +66,38 @@ describe("ProofMarketEscrow", () => {
     await token.mint(client.address, budget);
 
     const Escrow = await ethers.getContractFactory("ProofMarketEscrow");
-    const escrow = await Escrow.deploy();
+    // Escrow flow tests are not about the W_c gate: zero window so complete()
+    // works without time warps. The gate has its own describe block below.
+    const escrow = await Escrow.deploy(0);
 
     const Manager = await ethers.getContractFactory(
       "ProofMarketChallengeManager"
     );
     const manager = await Manager.deploy(
       await token.getAddress(),
-      resolver.address,
       treasury.address,
       minStake,
       challengeDeposit,
       5_000n,
-      5_000n
+      5_000n,
+      juryFee,
+      defenseWindow,
+      3n
     );
 
     await escrow.connect(client).setChallengeManager(await manager.getAddress());
     await manager.connect(client).setEscrow(await escrow.getAddress());
+
+    const jurorSigners = [juror1, juror2, juror3];
+    for (const [i, juror] of jurorSigners.entries()) {
+      await manager
+        .connect(client)
+        .registerJuror(
+          juror.address,
+          ethers.keccak256(ethers.toUtf8Bytes(`model-${i}`)),
+          ethers.keccak256(ethers.toUtf8Bytes(`prompt-${i}`))
+        );
+    }
 
     // Stake the provider so createJob passes the min-stake gate.
     await token.mint(provider.address, minStake);
@@ -101,6 +118,9 @@ describe("ProofMarketEscrow", () => {
       other,
       resolver,
       treasury,
+      juror1,
+      juror2,
+      juror3,
       token,
       escrow,
       manager,
@@ -334,7 +354,7 @@ describe("ProofMarketEscrow", () => {
     const fixture = await deployFixture();
 
     const Escrow = await ethers.getContractFactory("ProofMarketEscrow");
-    const bareEscrow = await Escrow.deploy();
+    const bareEscrow = await Escrow.deploy(0);
 
     await expectRevert(
       bareEscrow.createJob(
@@ -355,7 +375,7 @@ describe("ProofMarketEscrow", () => {
     const fixture = await deployFixture();
 
     const Escrow = await ethers.getContractFactory("ProofMarketEscrow");
-    const bareEscrow = await Escrow.deploy();
+    const bareEscrow = await Escrow.deploy(0);
 
     await expectRevert(
       bareEscrow
@@ -425,24 +445,31 @@ describe("ProofMarketEscrow", () => {
       token,
       provider,
       evaluator,
-      resolver,
+      other,
+      juror1,
+      juror2,
       reasonHash
     } = await createAndFundJob();
 
     const challengeHash = ethers.keccak256(
       ethers.toUtf8Bytes("premature challenge")
     );
-    await token.mint(evaluator.address, challengeDeposit);
+    await token.mint(evaluator.address, challengeDeposit + juryFee);
     await token
       .connect(evaluator)
-      .approve(await manager.getAddress(), challengeDeposit);
+      .approve(await manager.getAddress(), challengeDeposit + juryFee);
 
     await manager.connect(evaluator).openChallenge(1, 4, challengeHash);
     let job = await escrow.jobs(1);
     expect(job.state).to.equal(JobState.Challenged);
 
-    // ProviderNotFault unfreezes back to the pre-challenge state.
-    await manager.connect(resolver).resolve(1, 2);
+    // ProviderNotFault majority unfreezes back to the pre-challenge state.
+    await ethers.provider.send("evm_increaseTime", [Number(defenseWindow) + 1]);
+    await ethers.provider.send("evm_mine", []);
+    const reasonBookHash = ethers.keccak256(ethers.toUtf8Bytes("reason book"));
+    await manager.connect(juror1).castVote(1, 2, reasonBookHash);
+    await manager.connect(juror2).castVote(1, 2, reasonBookHash);
+    await manager.connect(other).resolve(1);
     job = await escrow.jobs(1);
     expect(job.state).to.equal(JobState.Funded);
 
@@ -486,6 +513,74 @@ describe("ProofMarketEscrow", () => {
       escrow.connect(other).complete(1, reasonHash),
       "only evaluator"
     );
+  });
+
+  describe("challenge window gate (W_c)", () => {
+    const challengeWindow = 300n;
+
+    it("blocks complete until the window after submit has fully passed", async () => {
+      const fixture = await deployFixture();
+      const { token, manager, client, provider, evaluator, deliverableHash, reasonHash } =
+        fixture;
+
+      const Escrow = await ethers.getContractFactory("ProofMarketEscrow");
+      const gated = await Escrow.deploy(challengeWindow);
+      expect(await gated.challengeWindow()).to.equal(challengeWindow);
+
+      // Wire a fresh manager (the fixture manager is bound to the other escrow).
+      const Manager = await ethers.getContractFactory("ProofMarketChallengeManager");
+      const gatedManager = await Manager.deploy(
+        await token.getAddress(),
+        evaluator.address,
+        minStake,
+        challengeDeposit,
+        5_000n,
+        5_000n,
+        juryFee,
+        defenseWindow,
+        3n
+      );
+      await gated.setChallengeManager(await gatedManager.getAddress());
+      await gatedManager.setEscrow(await gated.getAddress());
+      await token.mint(provider.address, minStake);
+      await token.connect(provider).approve(await gatedManager.getAddress(), minStake);
+      await gatedManager.connect(provider).depositStake(minStake);
+
+      const latestBlock = await ethers.provider.getBlock("latest");
+      const expiredAt = BigInt((latestBlock?.timestamp ?? 0) + 360000);
+      await gated
+        .connect(client)
+        .createJob(
+          1,
+          provider.address,
+          4,
+          evaluator.address,
+          await token.getAddress(),
+          expiredAt,
+          fixture.descriptionHash,
+          fixture.coverageHash
+        );
+      await gated.connect(client).setBudget(1, budget);
+      await token.mint(client.address, budget);
+      await token.connect(client).approve(await gated.getAddress(), budget);
+      await gated.connect(client).fund(1, budget);
+      await gated.connect(provider).submit(1, deliverableHash);
+      expect(await gated.submittedAt(1)).to.be.greaterThan(0n);
+
+      // Inside the window: payout blocked, the challenge right is protected.
+      await expectRevert(
+        gated.connect(evaluator).complete(1, reasonHash),
+        "challenge window open"
+      );
+
+      await ethers.provider.send("evm_increaseTime", [Number(challengeWindow) + 1]);
+      await ethers.provider.send("evm_mine", []);
+
+      await gated.connect(evaluator).complete(1, reasonHash);
+      const job = await gated.jobs(1);
+      expect(job.state).to.equal(JobState.Completed);
+      expect(await token.balanceOf(provider.address)).to.equal(budget);
+    });
   });
 });
 

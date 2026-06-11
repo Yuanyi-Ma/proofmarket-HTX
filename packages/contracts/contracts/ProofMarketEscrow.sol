@@ -41,7 +41,12 @@ contract ProofMarketEscrow {
     uint256 public nextJobId = 1;
     address public owner;
     address public challengeManager;
+    // Challenge window W_c: complete() may not pay out until this many seconds
+    // have passed since submit(). Without the gate, a provider could settle
+    // immediately after submitting and a challenge could never be filed in time.
+    uint256 public challengeWindow;
     mapping(uint256 => Job) public jobs;
+    mapping(uint256 => uint256) public submittedAt;
     // State a job held immediately before it was frozen by markChallenged, so a
     // failed challenge restores it exactly (Funded stays Funded, Submitted stays
     // Submitted) instead of promoting an empty deliverable to Submitted.
@@ -58,8 +63,9 @@ contract ProofMarketEscrow {
     event JobUnfrozenForChallenge(uint256 indexed jobId);
     event ChallengeManagerSet(address indexed challengeManager);
 
-    constructor() {
+    constructor(uint256 challengeWindow_) {
         owner = msg.sender;
+        challengeWindow = challengeWindow_;
     }
 
     modifier onlyChallengeManager() {
@@ -163,6 +169,7 @@ contract ProofMarketEscrow {
 
         job.deliverableHash = deliverableHash;
         job.state = JobState.Submitted;
+        submittedAt[jobId] = block.timestamp;
 
         emit DeliverableSubmitted(jobId, deliverableHash);
     }
@@ -172,6 +179,10 @@ contract ProofMarketEscrow {
         require(job.client != address(0), "job not found");
         require(msg.sender == job.evaluator, "only evaluator");
         require(job.state == JobState.Submitted, "not submitted");
+        require(
+            block.timestamp >= submittedAt[jobId] + challengeWindow,
+            "challenge window open"
+        );
 
         job.state = JobState.Completed;
         require(IERC20Like(job.token).transfer(job.provider, job.budget), "transfer failed");
