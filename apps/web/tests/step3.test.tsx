@@ -83,7 +83,7 @@ describe("Step3Authorize — pact boundary values", () => {
       />
     );
     // The misleading per-tx amount cap is gone; budget is attributed to escrow.
-    expect(screen.getByText(/放款金额由托管合约按订单预算约束/)).toBeTruthy();
+    expect(screen.getByText(/实际放款金额另受托管合约按订单预算约束/)).toBeTruthy();
   });
 
   it("renders expiry time", () => {
@@ -147,7 +147,7 @@ describe("Step3Authorize — authorization state", () => {
         onTriggerDenial={noop}
       />
     );
-    expect(screen.getByText(/已授权（演示钱包自动批准）/)).toBeTruthy();
+    expect(screen.getByText("授权已生效")).toBeTruthy();
   });
 
   it("shows 执行链上采购 button when pact is active", () => {

@@ -530,9 +530,6 @@ function ChallengeStage3({
             <span>审判费 0.5 mUSDC 由扣罚承担，三位审判方均分，余额归入金库</span>
           </div>
         </div>
-        <p className="small muted tight" style={{ marginTop: 8 }}>
-          上诉窗口与扩编重审（3 → 5 席）：后续可做。
-        </p>
 
         {/* Real mode: resolve tx */}
         {resolvedTxHash && (

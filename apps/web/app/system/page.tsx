@@ -129,14 +129,14 @@ export default async function SystemPage() {
 
   return (
     <main className="wizard-shell" style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 24px" }}>
-      <h1 style={{ marginBottom: 4 }}>系统初始化状态</h1>
+      <h1 style={{ marginBottom: 4 }}>系统状态</h1>
       <p className="muted small" style={{ marginTop: 0 }}>
-        以下全部为 Sepolia 链上实时读数（设计文档 §二「初始化完成判定」）。地址均可点击在 Etherscan 复核。
+        以下数据全部来自 Sepolia 链上实时读取，地址均可点击在 Etherscan 复核。
       </p>
 
       {/* 判定清单 */}
-      <section className="recommend-card" style={{ marginTop: 20 }} aria-label="初始化完成判定">
-        <p className="section-kicker" style={{ margin: "0 0 8px" }}>初始化完成判定</p>
+      <section className="recommend-card" style={{ marginTop: 20 }} aria-label="就绪检查">
+        <p className="section-kicker" style={{ margin: "0 0 8px" }}>就绪检查</p>
         <CheckRow ok label={`三合约已部署并完成双向 wire（Escrow / ChallengeManager / MockUSDC）`} />
         <CheckRow
           ok={jurySeated}
@@ -227,7 +227,7 @@ export default async function SystemPage() {
           ))}
         </div>
         <p className="small muted tight" style={{ marginTop: 8 }}>
-          注册承诺 + 温度 0 声明使任何裁决可离线重跑复核；审判方质押与错判扣罚为后续可做。
+          注册承诺 + 温度 0 声明，使任何一票裁决都可按链上承诺参数离线重跑复核。
         </p>
       </section>
 
@@ -271,7 +271,7 @@ export default async function SystemPage() {
       </section>
 
       <p className="small muted" style={{ marginTop: 28 }}>
-        <a href="/">← 返回演示向导</a>
+        <a href="/">← 返回采购工作台</a>
       </p>
     </main>
   );

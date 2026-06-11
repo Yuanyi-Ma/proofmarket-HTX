@@ -1,41 +1,44 @@
 :root {
-  color-scheme: dark;
+  color-scheme: light;
 
-  /* 交易所暗色三层底（Binance 设计语言：近黑页面 / 炭灰面板 / 浮起表面） */
-  --bg: #0b0e11;            /* 页面底 */
-  --surface: #181a20;       /* 卡片 */
-  --surface-2: #1e2329;     /* 次级面/代码块底/悬浮 */
-  --surface-3: #2b3139;     /* 强调面/hover */
-  --border: #2b3139;        /* 描边 */
-  --border-strong: #474d57;
-  --text: #eaecef;          /* 主文字 */
-  --text-2: #b7bdc6;        /* 次文字 */
-  --text-3: #848e9c;        /* 弱化/未来步 */
+  /* OKX 式白底设计语言：白色页面 + 白卡片 + 发丝级描边分层，不用阴影 */
+  --bg: #ffffff;            /* 页面底 */
+  --surface: #ffffff;       /* 卡片 */
+  --surface-2: #f7f8fa;     /* 次级填充/代码块底/提示条 */
+  --surface-3: #eef0f4;     /* hover/强调填充 */
+  --border: #e9eaee;        /* 发丝描边 */
+  --border-strong: #cfd4dc;
+  --text: #16181c;          /* 主文字（近黑） */
+  --text-2: #585f6b;        /* 次文字 */
+  --text-3: #8a909c;        /* 弱化/标签/未来步 */
 
-  /* 主强调：交易所金。仅用于主行动、当前态、关键链接，不做大面积铺色 */
-  --accent: #f0b90b;
-  --accent-hover: #fcd535;
-  --accent-text: #181a20;   /* 金底上用近黑文字 */
-  --accent-dim: rgba(240, 185, 11, 0.08);
+  /* 主强调：OKX 近黑。主按钮、当前步、选中态，不做彩色铺面 */
+  --accent: #16181c;
+  --accent-hover: #2e333b;
+  --accent-text: #ffffff;
+  --accent-dim: rgba(22, 24, 28, 0.04);
 
-  /* 状态色：涨跌绿红 + 警示金，语义点缀，不做大面积背景 */
-  --ok: #0ecb81;            /* 确认/链上成功 */
-  --ok-bg: rgba(14, 203, 129, 0.08);
-  --pending: #f0b90b;       /* 进行中/待批准 */
-  --pending-bg: rgba(240, 185, 11, 0.08);
-  --danger: #f6465d;        /* 失败/拒绝/挑战 */
-  --danger-bg: rgba(246, 70, 93, 0.08);
+  /* 链接（哈希/地址等可点元素）：克制的蓝 */
+  --link: #155eef;
+  --link-hover: #0e4cd1;
+
+  /* 状态色：语义点缀，白底上保证可读性 */
+  --ok: #079455;            /* 确认/链上成功 */
+  --ok-bg: rgba(7, 148, 85, 0.07);
+  --pending: #b54708;       /* 进行中/待批准 */
+  --pending-bg: rgba(247, 144, 9, 0.10);
+  --danger: #d92d20;        /* 失败/拒绝/挑战 */
+  --danger-bg: rgba(217, 45, 32, 0.06);
 
   /* 排版 */
   --font-sans: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Menlo", monospace;  /* 哈希/地址/金额 */
 
-  /* 节奏：交易所风格小圆角，靠分层与描边而非阴影 */
+  /* 节奏：小圆角 + 发丝线分层；大卡片 12px，行内元素 8/4px */
+  --radius-lg: 12px;
   --radius: 8px;
   --radius-sm: 4px;
   --space: 4px;             /* 4px 基准间距 scale: 4/8/12/16/24/32/48 */
-  --shadow-sm: 0 0 0 0 transparent;
-  --shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -57,17 +60,17 @@ body {
 }
 
 ::selection {
-  background: rgba(240, 185, 11, 0.28);
+  background: rgba(21, 94, 239, 0.16);
 }
 
-/* 暗色细滚动条（审计侧栏等内部滚动区） */
+/* 浅色细滚动条（审计侧栏等内部滚动区） */
 *::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 *::-webkit-scrollbar-thumb {
-  background: var(--surface-3);
+  background: var(--border-strong);
   border-radius: 4px;
 }
 
@@ -82,14 +85,14 @@ textarea {
 }
 
 button {
-  min-height: 36px;
+  min-height: 38px;
   border: 1px solid var(--accent);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   background: var(--accent);
   color: var(--accent-text);
   cursor: pointer;
   font-weight: 600;
-  padding: 7px 16px;
+  padding: 8px 18px;
   transition: background 0.12s ease, border-color 0.12s ease;
 }
 
@@ -100,13 +103,13 @@ button:hover:not(:disabled) {
 
 button.secondary {
   border-color: var(--border-strong);
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text);
 }
 
 button.secondary:hover:not(:disabled) {
   border-color: var(--border-strong);
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 
 button.danger {
@@ -117,7 +120,7 @@ button.danger {
 
 button:disabled {
   border-color: var(--border);
-  background: var(--surface-2);
+  background: var(--surface-3);
   color: var(--text-3);
   cursor: not-allowed;
 }
@@ -125,7 +128,7 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--link);
   outline-offset: 2px;
 }
 
@@ -145,7 +148,12 @@ code {
 }
 
 a {
-  color: var(--text);
+  color: var(--link);
+  text-decoration-color: rgba(21, 94, 239, 0.35);
+}
+
+a:hover {
+  color: var(--link-hover);
 }
 
 /* ---- Wizard shell ---- */
@@ -153,20 +161,20 @@ a {
 .wizard-shell {
   margin: 0 auto;
   max-width: 1240px;
-  padding: 20px 24px 48px;
+  padding: 20px 24px 56px;
 }
 
 .wizard-header {
   display: grid;
-  gap: 14px;
-  margin-bottom: 20px;
-  padding-bottom: 14px;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
   border-bottom: 1px solid var(--border);
 }
 
 .brand-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 12px;
 }
 
@@ -179,14 +187,13 @@ a {
   letter-spacing: -0.01em;
 }
 
-/* 交易所式品牌标：金色菱形，功能性识别而非装饰 */
+/* 品牌标：近黑方块，功能性识别而非装饰 */
 .brand::before {
   content: "";
   width: 12px;
   height: 12px;
   flex: none;
   background: var(--accent);
-  transform: rotate(45deg);
   border-radius: 2px;
 }
 
@@ -277,6 +284,7 @@ button.stepper-link:hover {
   font-weight: 600;
   line-height: 1;
   color: var(--text-3);
+  background: var(--surface);
 }
 
 .stepper-item.done .stepper-link {
@@ -284,7 +292,7 @@ button.stepper-link:hover {
 }
 
 .stepper-item.done .stepper-marker {
-  border-color: var(--border-strong);
+  border-color: rgba(7, 148, 85, 0.45);
   color: var(--ok);
 }
 
@@ -307,31 +315,32 @@ button.stepper-link:hover {
 
 .step-shell {
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface);
-  padding: 28px 32px 24px;
+  padding: 28px 32px 26px;
   display: grid;
   gap: 20px;
 }
 
 .step-kicker {
   margin: 0 0 6px;
-  color: var(--accent);
+  color: var(--text-3);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .step-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 700;
   line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 
 .step-subtitle {
-  margin: 6px 0 0;
-  max-width: 640px;
+  margin: 8px 0 0;
+  max-width: 680px;
   color: var(--text-2);
   font-size: 14px;
 }
@@ -345,13 +354,14 @@ button.stepper-link:hover {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  padding-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
 }
 
 /* ---- Step 2: plan ---- */
 
 .recommend-card {
-  border: 1px solid var(--border-strong);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-2);
   padding: 16px;
@@ -363,6 +373,12 @@ button.stepper-link:hover {
   margin: 0;
   font-size: 15px;
   font-weight: 600;
+}
+
+/* recommend-card 内的 key/value 行使用透明底，与填充底融合 */
+.recommend-card .data-row {
+  padding-left: 0;
+  padding-right: 0;
 }
 
 /* ---- Step 2: selectable candidate shortlist ---- */
@@ -379,8 +395,8 @@ button.stepper-link:hover {
   align-items: flex-start;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
-  padding: 14px;
+  background: var(--surface);
+  padding: 16px;
   cursor: pointer;
   transition: border-color 0.12s ease, background 0.12s ease;
 }
@@ -422,7 +438,7 @@ button.stepper-link:hover {
 .candidate-rank {
   font-size: 12px;
   font-weight: 600;
-  color: var(--accent);
+  color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
 
@@ -433,10 +449,18 @@ button.stepper-link:hover {
   color: var(--text-2);
 }
 
+/* 四列等宽事实栏：价格/信誉/挑战记录/链上身份对齐成一行 */
 .candidate-facts {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.candidate-card.selected .candidate-facts {
+  background: var(--surface-3);
 }
 
 .candidate-fact {
@@ -444,6 +468,11 @@ button.stepper-link:hover {
   flex-direction: column;
   gap: 2px;
   font-size: 13px;
+  min-width: 0;
+}
+
+.candidate-fact .mono {
+  overflow-wrap: anywhere;
 }
 
 .candidate-coverage {
@@ -455,7 +484,7 @@ button.stepper-link:hover {
 .audit-sidebar {
   width: 340px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--surface);
   position: sticky;
   top: 16px;
@@ -473,7 +502,7 @@ button.stepper-link:hover {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 12px 16px;
+  padding: 14px 16px;
 }
 
 .audit-sidebar:not(.collapsed) .audit-sidebar-header {
@@ -542,14 +571,14 @@ button.stepper-link:hover {
 }
 
 .dot.pending {
-  background: var(--pending);
+  background: #f79009;
 }
 
 .dot.danger {
   background: var(--danger);
 }
 
-/* Neutral, collapsed-by-default record of the (intentional) Cobo denial demo —
+/* Neutral, collapsed-by-default record of the (intentional) Cobo denial —
    it should read as "the guard worked", not as a live error bleeding through
    the rest of the happy path. */
 .audit-denial-note {
@@ -641,7 +670,7 @@ button.stepper-link:hover {
   color: var(--text-3);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
 }
 
 .section-title {
@@ -671,8 +700,8 @@ button.stepper-link:hover {
 
 .form-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(160px, 220px);
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(180px, 240px);
+  gap: 16px;
   align-items: start;
 }
 
@@ -692,10 +721,10 @@ button.stepper-link:hover {
 .field textarea {
   width: 100%;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  border-radius: var(--radius);
+  background: var(--surface);
   color: var(--text);
-  padding: 10px;
+  padding: 10px 12px;
 }
 
 .field input:hover,
@@ -711,12 +740,12 @@ button.stepper-link:hover {
 
 .field input:disabled,
 .field textarea:disabled {
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text-2);
 }
 
 .field textarea {
-  min-height: 92px;
+  min-height: 96px;
   resize: vertical;
 }
 
@@ -727,44 +756,65 @@ button.stepper-link:hover {
 }
 
 .info-strip {
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
+  border: none;
+  border-radius: var(--radius);
   background: var(--surface-2);
   color: var(--text-2);
-  padding: 10px 12px;
+  padding: 10px 14px;
   font-size: 13px;
 }
 
 .error-strip {
-  border: 1px solid var(--danger);
-  border-radius: var(--radius-sm);
+  border: none;
+  border-radius: var(--radius);
   background: var(--danger-bg);
   color: var(--danger);
-  padding: 10px 12px;
+  padding: 10px 14px;
   font-size: 13px;
 }
 
+/* ---- Key/value 数据表 ----
+   data-grid = 一张带描边的对齐表：每行 label 左 / value 右，发丝线分隔。
+   裸 data-row（不在 data-grid 内）= 无框对齐行，用于卡片/材料区内部。 */
+
 .data-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr;
+  gap: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
 }
 
 .data-row,
 .money-row {
   display: grid;
-  gap: 4px;
+  grid-template-columns: 148px minmax(0, 1fr);
+  gap: 16px;
+  align-items: baseline;
   min-width: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  padding: 10px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: transparent;
+  padding: 10px 0;
+}
+
+.data-grid > .data-row,
+.data-grid > .money-row {
+  padding: 11px 14px;
+}
+
+.data-row:last-child,
+.money-row:last-child {
+  border-bottom: none;
 }
 
 .data-label {
   color: var(--text-3);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.6;
 }
 
 .data-value {
@@ -790,7 +840,7 @@ button.stepper-link:hover {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: var(--surface);
   padding: 12px;
 }
 
@@ -823,7 +873,7 @@ button.stepper-link:hover {
   max-width: 100%;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text-2);
   font-size: 12px;
   font-weight: 600;
@@ -833,19 +883,19 @@ button.stepper-link:hover {
 }
 
 .status-badge.success {
-  border-color: rgba(14, 203, 129, 0.45);
+  border-color: rgba(7, 148, 85, 0.35);
   background: var(--ok-bg);
   color: var(--ok);
 }
 
 .status-badge.danger {
-  border-color: rgba(246, 70, 93, 0.45);
+  border-color: rgba(217, 45, 32, 0.35);
   background: var(--danger-bg);
   color: var(--danger);
 }
 
 .status-badge.warning {
-  border-color: rgba(240, 185, 11, 0.45);
+  border-color: rgba(247, 144, 9, 0.45);
   background: var(--pending-bg);
   color: var(--pending);
 }
@@ -855,8 +905,8 @@ button.stepper-link:hover {
   display: inline;
   font-size: 11px;
   font-weight: 500;
-  color: var(--accent);
-  border: 1px solid rgba(240, 185, 11, 0.45);
+  color: var(--link);
+  border: 1px solid rgba(21, 94, 239, 0.35);
   border-radius: var(--radius-sm);
   padding: 1px 5px;
   white-space: nowrap;
@@ -913,7 +963,7 @@ button.stepper-link:hover {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: var(--surface);
   padding: 10px;
 }
 
@@ -931,14 +981,14 @@ button.stepper-link:hover {
   font-variant-numeric: tabular-nums;
 }
 
-/* 哈希/地址链接：交易所金，可点性一目了然 */
+/* 哈希/地址链接：克制蓝，可点性一目了然 */
 a.hash {
-  color: var(--accent);
-  text-decoration-color: rgba(240, 185, 11, 0.4);
+  color: var(--link);
+  text-decoration-color: rgba(21, 94, 239, 0.35);
 }
 
 a.hash:hover {
-  color: var(--accent-hover);
+  color: var(--link-hover);
 }
 
 .denial-output {
@@ -969,8 +1019,9 @@ a.hash:hover {
 /* ---- Step 3: authorize ---- */
 
 .pact-list {
-  margin: 6px 0 0;
-  padding: 0 0 0 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
   display: grid;
   gap: 4px;
   font-size: 13px;
@@ -990,8 +1041,8 @@ a.hash:hover {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid rgba(14, 203, 129, 0.45);
-  border-radius: var(--radius-sm);
+  border: none;
+  border-radius: var(--radius);
   background: var(--ok-bg);
   color: var(--ok);
   font-size: 14px;
@@ -999,13 +1050,21 @@ a.hash:hover {
   width: fit-content;
 }
 
+.pact-awaiting {
+  border: none;
+}
+
 .denial-card {
-  border: 1px solid rgba(246, 70, 93, 0.45);
+  border: 1px solid rgba(217, 45, 32, 0.25);
   border-radius: var(--radius);
   background: var(--danger-bg);
   padding: 16px;
   display: grid;
   gap: 4px;
+}
+
+.denial-card .data-row {
+  border-bottom: none;
 }
 
 .denial-card-header {
@@ -1035,7 +1094,7 @@ a.hash:hover {
   align-items: center;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface-2);
+  background: var(--surface);
 }
 
 .tx-progress-row:last-child {
@@ -1043,7 +1102,7 @@ a.hash:hover {
 }
 
 .tx-progress-row.confirmed {
-  background: var(--surface-2);
+  background: var(--surface);
 }
 
 .tx-progress-row.pending {
@@ -1101,12 +1160,11 @@ a.hash:hover {
 
 .evidence-item-row {
   border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
 .evidence-item-row[open] {
-  background: var(--surface-2);
   border-color: var(--border-strong);
 }
 
@@ -1114,12 +1172,17 @@ a.hash:hover {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   cursor: pointer;
   user-select: none;
   list-style: none;
   font-size: 14px;
   line-height: 1.4;
+}
+
+.evidence-item-summary:hover {
+  background: var(--surface-2);
+  border-radius: var(--radius);
 }
 
 .evidence-item-summary::-webkit-details-marker {
@@ -1151,7 +1214,7 @@ details[open] .evidence-item-summary::after {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-2);
-  background: var(--surface-3);
+  background: var(--surface-2);
 }
 
 .evidence-item-title {
@@ -1174,8 +1237,12 @@ details[open] .evidence-item-summary::after {
 .evidence-item-body {
   display: grid;
   gap: 0;
-  padding: 0 12px 12px;
+  padding: 2px 12px 10px;
   border-top: 1px solid var(--border);
+}
+
+.evidence-item-body .data-row:last-child {
+  border-bottom: none;
 }
 
 .dot-inline-wrap {
@@ -1187,7 +1254,7 @@ details[open] .evidence-item-summary::after {
 .challenge-flow {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: var(--surface);
   padding: 14px 16px;
   margin-top: 8px;
 }
@@ -1197,7 +1264,7 @@ details[open] .evidence-item-summary::after {
 .challenge-stage {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface-2);
+  background: var(--surface);
   overflow: hidden;
 }
 
@@ -1206,7 +1273,7 @@ details[open] .evidence-item-summary::after {
 }
 
 .challenge-stage--resolved {
-  border-color: rgba(14, 203, 129, 0.45);
+  border-color: rgba(7, 148, 85, 0.35);
   background: var(--ok-bg);
 }
 
@@ -1214,26 +1281,29 @@ details[open] .evidence-item-summary::after {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 14px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border);
   font-size: 14px;
   font-weight: 600;
   color: var(--text);
+  background: var(--surface-2);
 }
 
 .challenge-stage--resolved .challenge-stage-header {
-  border-bottom-color: rgba(14, 203, 129, 0.45);
+  border-bottom-color: rgba(7, 148, 85, 0.25);
   color: var(--ok);
+  background: transparent;
 }
 
 .challenge-stage-body {
   display: grid;
   gap: 0;
-  padding: 12px 14px 14px;
+  padding: 6px 16px 16px;
 }
 
 .challenge-materials {
   border-top: 1px solid var(--border);
+  margin-top: 12px;
   padding-top: 12px;
   display: grid;
   gap: 0;
@@ -1242,7 +1312,7 @@ details[open] .evidence-item-summary::after {
 .challenge-fund-actions {
   display: grid;
   gap: 8px;
-  padding: 4px 0;
+  padding: 8px 0 4px;
 }
 
 .challenge-fund-row {
@@ -1351,6 +1421,16 @@ details[open] .evidence-item-summary::after {
   .provider-grid,
   .two-col {
     grid-template-columns: 1fr;
+  }
+
+  .data-row,
+  .money-row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+
+  .candidate-facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .section-header {

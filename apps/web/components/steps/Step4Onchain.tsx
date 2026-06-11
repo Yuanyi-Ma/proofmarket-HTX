@@ -118,7 +118,7 @@ export function Step4Onchain({
         </div>
       ) : isJobFunded ? (
         // Fixture mode: status is JobFunded but no on-chain tx details.
-        <div className="info-strip">演示模式：本地状态机，无链上交易明细。</div>
+        <div className="info-strip">本地模拟模式：未连接测试网，无链上交易明细。</div>
       ) : (
         // Genuinely mid-execute: waiting for chain confirmation.
         <div className="info-strip">等待链上确认…</div>

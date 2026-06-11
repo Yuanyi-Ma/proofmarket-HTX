@@ -73,7 +73,7 @@ describe("Step4Onchain — tx list rendering", () => {
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("演示模式：本地状态机，无链上交易明细。")).toBeTruthy();
+    expect(screen.getByText("本地模拟模式：未连接测试网，无链上交易明细。")).toBeTruthy();
   });
 
   it("shows 等待链上确认 message when txRecords is empty and status is NOT JobFunded (mid-execute)", () => {
@@ -188,7 +188,7 @@ describe("Step4Onchain — 获取证据 action", () => {
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("演示模式：本地状态机，无链上交易明细。")).toBeTruthy();
+    expect(screen.getByText("本地模拟模式：未连接测试网，无链上交易明细。")).toBeTruthy();
   });
 
   // Mid-execute: status NOT JobFunded, empty txRecords — no button, calm wait.

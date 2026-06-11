@@ -92,7 +92,7 @@ export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSi
             <details className="audit-denial-note">
               <summary>
                 <span className="dot ok" aria-hidden="true" />
-                Cobo 拦截记录（演示）— 越权操作被拦下，零资金流出
+                Cobo 越权拦截记录 — 请求被策略引擎阻断，零资金流出
               </summary>
               <div className="audit-denial-body">
                 <span className="small muted">

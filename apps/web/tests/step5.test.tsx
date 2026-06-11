@@ -347,9 +347,9 @@ describe("Step5Evidence — RefundedOrSlashed stage", () => {
     expect(screen.getByText(/三位审判方均分/)).toBeTruthy();
   });
 
-  it("notes the appeal path as future work", () => {
+  it("does not leak roadmap copy into the resolved view", () => {
     render(<Step5Evidence task={resolvedTask} {...defaultProps} />);
-    expect(screen.getByText(/上诉窗口与扩编重审/)).toBeTruthy();
+    expect(screen.queryByText(/后续可做/)).toBeNull();
   });
 
   it("shows resolve txHash with etherscan link in real mode", () => {

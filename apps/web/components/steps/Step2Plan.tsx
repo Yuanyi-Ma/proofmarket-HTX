@@ -49,7 +49,7 @@ export function Step2Plan({
     <StepShell
       stepNo={2}
       title="采购方案"
-      subtitle="研究 Agent（真实 Claude Code）已分析你的问题并给出一份候选证据来源排序。选择一个后进入授权。"
+      subtitle="Agent 已分析你的问题，给出候选证据来源排序。选择一个后进入授权。"
       primary={
         readOnly || !plan
           ? undefined
@@ -167,20 +167,31 @@ export function Step2Plan({
             </div>
           ) : null}
 
-          <div className="data-grid" style={{ marginTop: 16 }}>
-            <DataRow label="验证方式" value={plan.verificationMethod} />
-            <DataRow
-              label="预算明细"
-              value={
-                <span className="mono">
-                  总预算 {plan.totalBudget} · 单个 Provider 上限 {plan.perJobCap}
-                </span>
-              }
-            />
-            <DataRow
-              label="返回内容"
-              value="带证据定位与核验线索的回答包，而非整篇文档或无限制的钱包访问。"
-            />
+          <div style={{ marginTop: 20 }}>
+            <p className="section-kicker" style={{ margin: "0 0 8px" }}>采购条款</p>
+            <div className="data-grid">
+              <DataRow
+                label="交付物"
+                value="证据包：每条结论附来源定位与核验线索，逐条可独立核验。"
+              />
+              <DataRow label="核验方式" value={plan.verificationMethod} />
+              <DataRow
+                label="预算"
+                value={
+                  <span className="mono">
+                    总预算 {plan.totalBudget} · 单笔上限 {plan.perJobCap}
+                  </span>
+                }
+              />
+              <DataRow
+                label="结算条件"
+                value="资金先入链上托管；证据通过核验、且挑战窗口结束后，才放款给 Provider。"
+              />
+              <DataRow
+                label="违约保障"
+                value="交付与声明不符可发起挑战；挑战成立即全额退款，并从 Provider 质押中扣罚赔付。"
+              />
+            </div>
           </div>
 
           {readOnly ? (

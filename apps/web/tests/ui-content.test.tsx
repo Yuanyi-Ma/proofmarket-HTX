@@ -266,9 +266,9 @@ describe("ProofMarket workflow UI content", () => {
     const realHtml = renderToStaticMarkup(<ModeBadge task={task({ mode: "real" })} />);
     const emptyHtml = renderToStaticMarkup(<ModeBadge task={null} />);
 
-    expect(fixtureHtml).toContain("演示模式（fixture）");
+    expect(fixtureHtml).toContain("本地模拟");
     expect(fixtureHtml).not.toContain("Sepolia");
-    expect(realHtml).toContain("真链模式 · Sepolia");
+    expect(realHtml).toContain("Sepolia 测试网");
     expect(emptyHtml).toBe("");
   });
 
