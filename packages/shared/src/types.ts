@@ -56,14 +56,33 @@ export type ProviderAnswerPackage = {
 export type ProviderProfile = {
   id: ProviderId;
   agentId: number;
+  /** On-chain wallet address (Sepolia). Preset; matches deployments/sepolia.json. */
+  address: string;
   name: string;
   role: "recommended" | "risky" | "comparison";
   coverage: string;
   price: string;
   stake: string;
   reputationScore: number;
-  challengeHistory: string;
+  /**
+   * Structured challenge counts (design doc §7: structured, never free text).
+   * challenged = times this provider was challenged; upheld = challenges that
+   * succeeded against it.
+   */
+  challengeStats: { challenged: number; upheld: number };
   demoBehavior: "happy" | "challenge" | "unused";
+};
+
+/**
+ * One entry in the research agent's ranked shortlist. The user picks one of
+ * these before authorizing. `reason` is written by the real Claude Code call in
+ * real mode (preset in fixture mode); provider facts come from providerProfiles.
+ */
+export type PlanCandidate = {
+  providerId: ProviderId;
+  reason: string;
+  /** 1-based rank, 1 = top recommendation. */
+  rank: number;
 };
 
 export type ProviderReputation = {
@@ -92,6 +111,11 @@ export type ProcurementPlan = {
    * providerProfiles score there.
    */
   providerReputations?: ProviderReputation[];
+  /**
+   * Ranked shortlist the user chooses from (rank 1 = recommendedProviderId).
+   * Real mode: built from the Claude ranking. Fixture mode: preset.
+   */
+  candidates?: PlanCandidate[];
 };
 
 export type PactSummary = {
@@ -119,20 +143,52 @@ export type AuditEvent = {
   createdAt: string;
 };
 
-export type ChallengeVote = {
-  voterId: string;
-  vote: "ProviderFault";
+/**
+ * One juror's reasoned vote. The reason book is the L2 three-question ruling
+ * (design doc §4.2): plaintext shown in the UI, only its hash goes on-chain
+ * with the vote.
+ */
+export type JuryVote = {
+  jurorId: string;
+  jurorAddress: string;
+  /** Heterogeneous model-family commitment registered on-chain. */
+  modelFamily: string;
+  vote: "ProviderFault" | "ProviderNotFault";
   reasonCode: string;
-  reason: string;
-  resultHash: string;
+  reasonBook: {
+    /** 反例在承诺范围内吗？ */
+    inScope: string;
+    /** 字面或语义命中声明检索词吗？ */
+    hitsDeclaredQuery: string;
+    /** Provider 未返回且未声明排除吗？ */
+    notReturnedNotExcluded: string;
+    conclusion: string;
+  };
+  reasonHash: string;
+  /** castVote tx (real mode). */
+  txHash?: string | null;
+};
+
+/** The provider's defense statement, filed within the defense window R_w. */
+export type ChallengeDefense = {
+  statement: string;
+  defenseHash: string;
+  /** submitDefense tx (real mode). */
+  txHash?: string | null;
 };
 
 export type TaskChallenge = {
   type: "CoverageMiss";
+  /** 挑战书：挑战者陈述（明文进 UI，哈希上链）。 */
+  statement: string;
+  /** 命中覆盖声明的哪一条。 */
+  hitCoverageClause: string;
   counterEvidenceHash: string;
   /** On-chain challenge id from ChallengeManager.openChallenge (real mode). */
   challengeId?: number | null;
-  vote?: ChallengeVote | null;
+  defense?: ChallengeDefense | null;
+  /** Jury votes in casting order; majority decides. */
+  votes?: JuryVote[] | null;
   /** Settlement tx of ChallengeManager.resolve (real mode). */
   resolvedTxHash?: string | null;
 };
@@ -150,6 +206,12 @@ export type Task = {
   challenge?: TaskChallenge | null;
   audit: AuditEvent[];
   jobId: number | null;
+  /**
+   * End of the challenge window W_c (ISO timestamp), set when the provider's
+   * deliverable is confirmed on-chain. Settlement is blocked (on-chain and in
+   * the UI) until this passes; challenges are expected within it.
+   */
+  challengeWindowEndsAt?: string | null;
   mode: "fixture" | "real";
   txRecords: import("./realMode").TxRecord[];
   claudePlanRaw: string | null;

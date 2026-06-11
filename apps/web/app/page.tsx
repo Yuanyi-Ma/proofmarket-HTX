@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { Task } from "@proofmarket/shared/src/types";
+import type { ProviderId, Task } from "@proofmarket/shared/src/types";
 import { AuditSidebar } from "../components/AuditSidebar";
 import { ModeBadge } from "../components/ModeBadge";
 import { Stepper } from "../components/Stepper";
@@ -62,6 +62,9 @@ export default function Page() {
   const [busyAction, setBusyAction] = useState<string | null>(null);
   // A done step the user clicked to review read-only; null = follow the task.
   const [viewStep, setViewStep] = useState<number | null>(null);
+  // Provider the user picked from the step-2 shortlist; drives the provider
+  // call in step 4. Null = fall back to the agent's recommendation.
+  const [selectedProviderId, setSelectedProviderId] = useState<ProviderId | null>(null);
   // Whether to expand the audit sidebar (for the 「查看完整审计」button).
   const [auditExpanded, setAuditExpanded] = useState(true);
   const isBusy = busyAction !== null;
@@ -178,6 +181,7 @@ export default function Page() {
     setError(null);
     setBusyAction(null);
     setViewStep(null);
+    setSelectedProviderId(null);
   }
 
   const currentStep = stepFor(task);
@@ -201,7 +205,10 @@ export default function Page() {
         return (
           <Step2Plan
             task={task}
-            onConfirm={() => runAction("pact")}
+            onConfirm={(providerId) => {
+              setSelectedProviderId(providerId);
+              runAction("pact");
+            }}
             isBusy={isBusy}
             readOnly={isReviewing}
           />
@@ -222,7 +229,8 @@ export default function Page() {
             task={task}
             onGetEvidence={() =>
               runAction("provider", {
-                providerId: task?.plan?.recommendedProviderId
+                providerId:
+                  selectedProviderId ?? task?.plan?.recommendedProviderId
               })
             }
             isBusy={isBusy}

@@ -648,8 +648,8 @@ describe("real task service", () => {
     expect(planned.status).toBe("Planned"); // planning never breaks on a read failure
     expect(planned.plan?.providerReputations).toEqual([
       { providerId: "execution-research-expert", score: 970, source: "fixture" },
-      { providerId: "shallow-search-provider", score: 710, source: "fixture" },
-      { providerId: "general-web-summary", score: 820, source: "fixture" }
+      { providerId: "shallow-search-provider", score: 620, source: "fixture" },
+      { providerId: "general-web-summary", score: 800, source: "fixture" }
     ]);
     const fallback = planned.audit.find((e) => e.type === "reputation_read_fallback");
     expect(fallback?.message).toContain("rpc unreachable");

@@ -1,8 +1,60 @@
 import React from "react";
 import type { Task, TaskChallenge, ChallengeVote } from "@proofmarket/shared/src/types";
 import type { TxRecord } from "@proofmarket/shared/src/realMode";
+import { presetCounterEvidence } from "@proofmarket/shared/src/fixtures";
 import { isFullTxHash, sepoliaTxUrl, shortHash } from "../../lib/links";
 import { StepShell } from "../StepShell";
+
+// Materials handed to the judge. The counter-evidence plaintext is shown in
+// full; only its hash is committed on-chain, so anyone can verify the plaintext
+// was not altered. challenge.counterEvidenceHash is that on-chain commitment.
+function ChallengeMaterials({
+  task,
+  challenge
+}: {
+  task: Task;
+  challenge: TaskChallenge;
+}) {
+  return (
+    <div className="challenge-materials" style={{ marginTop: 14 }}>
+      <p className="section-kicker" style={{ margin: "0 0 8px" }}>
+        提交给审判者的材料
+      </p>
+      <div className="data-row">
+        <span className="data-label">Provider 证据包</span>
+        <div className="data-value">
+          {task.providerPackage
+            ? `${task.providerPackage.providerName} · ${task.providerPackage.answers.length} 条证据`
+            : "—"}
+        </div>
+      </div>
+      <div className="data-row" style={{ marginTop: 6 }}>
+        <span className="data-label">挑战类型</span>
+        <div className="data-value">
+          <span className="mono">{challenge.type}</span>
+        </div>
+      </div>
+      <div className="data-row" style={{ marginTop: 6 }}>
+        <span className="data-label">反证来源</span>
+        <div className="data-value">
+          {presetCounterEvidence.sourceTitle}
+          <span className="muted small mono"> （{presetCounterEvidence.sourceLocator}）</span>
+        </div>
+      </div>
+      <div className="data-row" style={{ marginTop: 6 }}>
+        <span className="data-label">反证主张（明文）</span>
+        <div className="data-value">{presetCounterEvidence.claim}</div>
+      </div>
+      <div className="data-row" style={{ marginTop: 6 }}>
+        <span className="data-label">反证哈希</span>
+        <div className="data-value mono">{challenge.counterEvidenceHash}</div>
+      </div>
+      <p className="small muted tight" style={{ marginTop: 6 }}>
+        上方为提交给审判者的反证明文；协议只把它的哈希写入链上，任何人可按哈希核对明文未被篡改。
+      </p>
+    </div>
+  );
+}
 
 type Step5EvidenceProps = {
   task: Task | null;
@@ -229,30 +281,7 @@ function ChallengeStage1({
         )}
 
         {/* Materials for the judge */}
-        <div className="challenge-materials" style={{ marginTop: 14 }}>
-          <p className="section-kicker" style={{ margin: "0 0 8px" }}>提交给审判者的材料</p>
-          <div className="data-row">
-            <span className="data-label">Provider 证据包</span>
-            <div className="data-value">
-              {task.providerPackage
-                ? `${task.providerPackage.providerName} · ${task.providerPackage.answers.length} 条证据`
-                : "—"}
-            </div>
-          </div>
-          <div className="data-row" style={{ marginTop: 6 }}>
-            <span className="data-label">挑战类型</span>
-            <div className="data-value">
-              <span className="mono">{challenge.type}</span>
-            </div>
-          </div>
-          <div className="data-row" style={{ marginTop: 6 }}>
-            <span className="data-label">反证哈希</span>
-            <div className="data-value mono">{challenge.counterEvidenceHash}</div>
-          </div>
-          <p className="small muted tight" style={{ marginTop: 6 }}>
-            协议只将哈希写入链上；原始反证存于链下审计层，可按哈希核对完整性。
-          </p>
-        </div>
+        <ChallengeMaterials task={task} challenge={challenge} />
 
         {/* Action */}
         {!readOnly && (
@@ -314,25 +343,7 @@ function ChallengeStage2({
         </div>
 
         {/* Materials panel (still visible for reference) */}
-        <div className="challenge-materials" style={{ marginTop: 14 }}>
-          <p className="section-kicker" style={{ margin: "0 0 8px" }}>提交给审判者的材料</p>
-          <div className="data-row">
-            <span className="data-label">Provider 证据包</span>
-            <div className="data-value">
-              {task.providerPackage
-                ? `${task.providerPackage.providerName} · ${task.providerPackage.answers.length} 条证据`
-                : "—"}
-            </div>
-          </div>
-          <div className="data-row" style={{ marginTop: 6 }}>
-            <span className="data-label">挑战类型</span>
-            <div className="data-value mono">{challenge.type}</div>
-          </div>
-          <div className="data-row" style={{ marginTop: 6 }}>
-            <span className="data-label">反证哈希</span>
-            <div className="data-value mono">{challenge.counterEvidenceHash}</div>
-          </div>
-        </div>
+        <ChallengeMaterials task={task} challenge={challenge} />
 
         {/* Action */}
         {!readOnly && (
@@ -472,7 +483,7 @@ export function Step5Evidence({
     };
     // Secondary: low-key challenge entry
     secondary = {
-      label: "发起挑战（演示争议流程）",
+      label: "发起挑战",
       onClick: onOpenChallenge,
       disabled: isBusy,
     };
@@ -639,11 +650,11 @@ export function Step5Evidence({
         </div>
       )}
 
-      {/* ── 实诚提示（real 模式）──────────────────────────── */}
+      {/* ── 挑战说明（real 模式）──────────────────────────── */}
       {isDelivered && isRealMode && (
         <div className="info-strip" style={{ marginTop: 16 }}>
           <span className="small">
-            真实链上挑战需已部署 ChallengeManager 并配置 resolver。fixture 模式可完整演示挑战流程。
+            若对证据有异议，可发起挑战：锁定押金 → 独立审判者裁决 → 链上扣罚 / 退款，全过程上链可查。
           </span>
         </div>
       )}

@@ -51,8 +51,8 @@
     "taskId": "task_001",
     "providerAgentId": 1,
     "providerId": "execution-research-expert",
-    "providerName": "执行加速研究专家 Agent",
-    "coverageStatement": "已检索 2021-2026 年区块链交易执行加速方向的来源，覆盖并行执行、投机执行、冲突检测、状态访问优化、Block-STM、EVM 并行化、Sei、Sui 与 Solana 运行时。",
+    "providerName": "论文证据专家 Agent",
+    "coverageStatement": "已从 IEEE / Elsevier 论文库检索 2021-2026 年区块链交易执行加速方向的同行评审来源，覆盖并行执行、投机执行、冲突检测、状态访问优化、Block-STM、EVM 并行化、Sei、Sui 与 Solana 运行时。",
     "answers": [
       {
         "providerAnswer": "近年区块链执行加速研究集中在乐观并行执行、投机执行、冲突检测与状态访问优化。",

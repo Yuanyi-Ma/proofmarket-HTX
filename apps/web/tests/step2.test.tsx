@@ -63,8 +63,9 @@ describe("Step2Plan — provider reputation 来源展示", () => {
       />
     );
 
-    // 三个 provider 行均应含「链上信誉」标签
-    const badgeCount = (html.match(/链上信誉/g) ?? []).length;
+    // 三个 provider 行均应含「链上信誉」标签（按 badge 样式类计数，
+    // 避免与页面说明文案里出现的「链上信誉」字样混淆）
+    const badgeCount = (html.match(/chain-rep-tag/g) ?? []).length;
     expect(badgeCount).toBe(3);
 
     // 链上分数要出现在 HTML 中（非 fixture 原始值）
@@ -86,14 +87,13 @@ describe("Step2Plan — provider reputation 来源展示", () => {
       />
     );
 
-    // 不应出现链上标签
-    expect(html).not.toContain("链上信誉");
+    // 不应出现链上信誉 badge（说明文案里的「链上信誉」字样不算，按样式类判定）
     expect(html).not.toContain("chain-rep-tag");
 
-    // 应显示 fixture 原始信誉分（970 / 710 / 820）
+    // 应显示 fixture 原始信誉分（970 / 620 / 800）
     expect(html).toContain("970");
-    expect(html).toContain("710");
-    expect(html).toContain("820");
+    expect(html).toContain("620");
+    expect(html).toContain("800");
   });
 
   it("providerReputations 存在但 source 不是 erc8004 时，不显示「链上信誉」标签", () => {
@@ -110,6 +110,6 @@ describe("Step2Plan — provider reputation 来源展示", () => {
       />
     );
 
-    expect(html).not.toContain("链上信誉");
+    expect(html).not.toContain("chain-rep-tag");
   });
 });

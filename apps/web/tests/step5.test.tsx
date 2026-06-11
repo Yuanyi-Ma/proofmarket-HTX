@@ -331,25 +331,25 @@ describe("Step5Evidence — RefundedOrSlashed stage", () => {
   });
 });
 
-describe("Step5Evidence — real-mode honesty note", () => {
-  it("shows honesty note at Delivered in real mode", () => {
+describe("Step5Evidence — real-mode challenge explainer", () => {
+  it("shows the challenge explainer at Delivered in real mode", () => {
     render(
       <Step5Evidence
         task={task({ mode: "real", status: "Delivered" })}
         {...defaultProps}
       />
     );
-    expect(screen.getByText(/真实链上挑战需已部署 ChallengeManager/)).toBeTruthy();
+    expect(screen.getByText(/若对证据有异议，可发起挑战/)).toBeTruthy();
   });
 
-  it("does not show honesty note in fixture mode", () => {
+  it("does not show the challenge explainer in fixture mode", () => {
     render(
       <Step5Evidence
         task={task({ mode: "fixture", status: "Delivered" })}
         {...defaultProps}
       />
     );
-    expect(screen.queryByText(/真实链上挑战需已部署 ChallengeManager/)).toBeNull();
+    expect(screen.queryByText(/若对证据有异议，可发起挑战/)).toBeNull();
   });
 });
 

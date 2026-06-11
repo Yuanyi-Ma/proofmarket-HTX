@@ -18,7 +18,7 @@ export function Step1Question({
   readOnly = false
 }: Step1QuestionProps) {
   const [question, setQuestion] = useState(defaultQuestion);
-  const [budget, setBudget] = useState("5 test USDC");
+  const [budget, setBudget] = useState("5 mUSDC");
 
   // When reviewing a done step, show what was actually submitted.
   const shownQuestion = readOnly && task ? task.userQuestion : question;
@@ -57,6 +57,7 @@ export function Step1Question({
             disabled={readOnly || isBusy}
             onChange={(event) => setBudget(event.target.value)}
           />
+          <span className="small muted">mUSDC = 测试网 USDC（MockUSDC）</span>
         </label>
       </div>
 
@@ -64,7 +65,7 @@ export function Step1Question({
         <div className="info-strip">该问题已提交，此处为只读回看。</div>
       ) : (
         <div className="info-strip">
-          提交后，Research Agent 会先给出一份有边界的采购方案——在任何资金移动之前，你都能看到钱花在哪、花多少。
+          提交后，研究 Agent（真实 Claude Code）会先给出一份有边界的采购方案——在任何资金移动之前，你都能看到钱花在哪、花多少。
         </div>
       )}
     </StepShell>

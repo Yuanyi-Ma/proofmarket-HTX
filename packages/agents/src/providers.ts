@@ -40,11 +40,11 @@ export function runProvider(
       taskId,
       providerAgentId: 1,
       providerId,
-      providerName: "执行加速研究专家 Agent",
+      providerName: "论文证据专家 Agent",
       // NOTE: the verifier's coverage check matches the literal "2021-2026"
       // substring in this statement — keep it intact when editing copy.
       coverageStatement:
-        "已检索 2021-2026 年区块链交易执行加速方向的来源，覆盖并行执行、投机执行、冲突检测、状态访问优化、Block-STM、EVM 并行化、Sei、Sui 与 Solana 运行时。",
+        "已从 IEEE / Elsevier 论文库检索 2021-2026 年区块链交易执行加速方向的同行评审来源，覆盖并行执行、投机执行、冲突检测、状态访问优化、Block-STM、EVM 并行化、Sei、Sui 与 Solana 运行时。",
       answers: [
         {
           providerAnswer:
@@ -92,11 +92,11 @@ export function runProvider(
     taskId,
     providerAgentId: 2,
     providerId,
-    providerName: "浅层检索 Provider Agent",
+    providerName: "论文聚合检索 Agent",
     // NOTE: "2021-2026" must stay literal here too — the verifier uses it to
     // detect a broad coverage claim, which (without Block-STM) yields CoverageMiss.
     coverageStatement:
-      "声称广泛覆盖 2021-2026 年区块链执行加速方向的论文。",
+      "自报广泛覆盖 2021-2026 年区块链执行加速方向的论文（IEEE / Elsevier）。",
     answers: [
       {
         providerAnswer:

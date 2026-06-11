@@ -8,8 +8,13 @@ import {
 export type ProviderCatalogEntry = {
   providerId: string;
   displayName: string;
+  /** Self-DECLARED coverage — an advertisement, not a verified fact. */
   specialties: string[];
   price: string;
+  /** On-chain reputation prior (0-1000) read from ERC-8004, if available. */
+  reputation?: number;
+  /** On-chain / historical challenge record, a probabilistic prior. */
+  challengeHistory?: string;
 };
 
 export type ResearchContext = {
@@ -36,6 +41,12 @@ export function buildResearchPrompt(context: ResearchContext): string {
         taskId: context.taskId,
         recommendedProviderId: "<one providerId from the catalog>",
         reason: "<why this provider fits the question — written in Simplified Chinese (简体中文)>",
+        ranking: [
+          {
+            providerId: "<providerId from the catalog>",
+            reason: "<one short line on this provider's fit — Simplified Chinese (简体中文)>"
+          }
+        ],
         maxPayment: `<decimal string, must not exceed ${context.budgetAmount}>`,
         requiredEvidenceSchema: {
           minItems: 3,
@@ -57,8 +68,11 @@ export function buildResearchPrompt(context: ResearchContext): string {
     JSON.stringify(context.providerCatalog, null, 2),
     "",
     "Rules: never output a contract address, calldata, or key material.",
-    "Pick the provider whose specialties best match the question and justify briefly.",
-    "The reason value MUST be written in Simplified Chinese (简体中文); keep all JSON field names and every other value exactly as specified by the schema."
+    "You are choosing BEFORE any evidence is purchased. The ONLY things you know about each provider are: its self-DECLARED coverage (an advertisement, not verified), its price, and its on-chain reputation / challenge history (a probabilistic prior).",
+    "Therefore you MUST NOT assert what a provider's delivered evidence will actually contain or omit. NEVER write claims like 'misses Block-STM' / '遗漏了 X' / 'lacks the corpus' as if they were facts — you have not seen the deliverable. Whether anything is missing is only known after purchase + Judge verification.",
+    "Frame every `reason` as a probabilistic judgment grounded in declared coverage + price + on-chain reputation (e.g. '自报覆盖与问题吻合，且链上信誉最高，命中完整证据的概率最高' / '链上有覆盖类挑战成立记录，交付完整性先验风险较高').",
+    "Rank EVERY provider in the catalog best-first in `ranking` (one entry per catalog provider). `recommendedProviderId` MUST equal ranking[0].providerId.",
+    "Every `reason` value (top-level and each ranking entry) MUST be written in Simplified Chinese (简体中文); keep all JSON field names and every other value exactly as specified by the schema."
   ].join("\n");
 }
 

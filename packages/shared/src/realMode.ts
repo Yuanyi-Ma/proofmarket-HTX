@@ -58,10 +58,18 @@ export type DeploymentArtifact = {
   };
 };
 
+export type ResearchPlanRankEntry = { providerId: string; reason: string };
+
 export type ResearchPlanOutput = {
   taskId: string;
   recommendedProviderId: string;
   reason: string;
+  /**
+   * Ranked shortlist best-first; ranking[0].providerId === recommendedProviderId.
+   * Optional on raw model output; validateResearchPlanOutput normalizes/repairs
+   * it so the validated result always has it populated and ordered.
+   */
+  ranking?: ResearchPlanRankEntry[];
   maxPayment: string;
   requiredEvidenceSchema: { minItems: number; requiredFields: string[] };
   chainActions: ChainAction[];
@@ -192,6 +200,44 @@ export function validateResearchPlanOutput(
   if (!schema || typeof schema.minItems !== "number" || !Array.isArray(schema.requiredFields)) {
     throw new Error("requiredEvidenceSchema malformed");
   }
+  // Normalize the ranked shortlist. We repair rather than reject: a malformed
+  // ranking must never break planning. Keep only entries with a known provider
+  // and a non-empty reason, dedupe, and guarantee the recommended one is first.
+  const seen = new Set<string>();
+  const cleaned: ResearchPlanRankEntry[] = [];
+  if (Array.isArray(p.ranking)) {
+    for (const entry of p.ranking) {
+      const pid = entry?.providerId;
+      const reason = entry?.reason;
+      if (
+        typeof pid === "string" &&
+        context.providerIds.includes(pid) &&
+        typeof reason === "string" &&
+        reason.length > 0 &&
+        !seen.has(pid)
+      ) {
+        seen.add(pid);
+        cleaned.push({ providerId: pid, reason });
+      }
+    }
+  }
+  // Ensure the recommended provider leads the list.
+  const withoutRecommended = cleaned.filter(
+    (e) => e.providerId !== p.recommendedProviderId
+  );
+  const ranked: ResearchPlanRankEntry[] = [
+    { providerId: p.recommendedProviderId, reason: p.reason },
+    ...withoutRecommended
+  ];
+  // Backfill any catalog provider the model left out, so the user always sees
+  // the full shortlist to choose from (the model is asked to rank them all).
+  const rankedIds = new Set(ranked.map((e) => e.providerId));
+  for (const pid of context.providerIds) {
+    if (!rankedIds.has(pid)) {
+      ranked.push({ providerId: pid, reason: "其他候选来源（供对比）" });
+    }
+  }
+  p.ranking = ranked;
   if (ADDRESS_PATTERN.test(JSON.stringify(p))) {
     throw new Error("plan output must not contain contract addresses");
   }

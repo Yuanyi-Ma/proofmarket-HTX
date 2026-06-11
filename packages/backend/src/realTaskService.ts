@@ -522,37 +522,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       const task = store.getTask(id);
       assertStatus(task, ["Created"], "plan");
       const budgetAmount = leadingDecimal(task.budgetLimit);
-      const providerCatalog = providerProfiles.map((profile) => ({
-        providerId: profile.id,
-        displayName: profile.name,
-        specialties: [profile.coverage],
-        price: profile.price
-      }));
-      const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
-      const pactSummary = challengeManagerAddress
-        ? "A Cobo pact restricts execution to the ProofMarketEscrow, MockUSDC and " +
-          "ProofMarketChallengeManager contracts on Sepolia, " +
-          "with a cap of 10 transactions and a 90 minute expiry."
-        : "A Cobo pact restricts execution to the ProofMarketEscrow and MockUSDC " +
-          "contracts on Sepolia, with a 90 minute expiry.";
-
-      // On research agent failure: rethrow untouched — never fabricate a plan.
-      const { plan, rawStdout } = await deps.runResearchAgent({
-        taskId: task.id,
-        question: task.userQuestion,
-        budgetAmount,
-        providerCatalog,
-        pactSummary
-      });
-
-      const recommendedProfile = providerProfiles.find(
-        (profile) => profile.id === plan.recommendedProviderId
-      );
-
-      // On-chain reputation for the provider cards (real mode): read the
-      // ERC-8004 summary per provider, mapped to the fixture 0-1000 scale.
-      // Read failure (or a missing agentId) falls back to the fixture score —
-      // a degraded read must never block planning.
+      // Read on-chain reputation FIRST — it is a probabilistic prior the
+      // research agent must weigh when recommending. A degraded read (or a
+      // missing agentId) falls back to the fixture score; it must never block
+      // planning. Mapped to the 0-1000 scale.
       const providerReputations: ProviderReputation[] = [];
       const reputationFallbacks: string[] = [];
       for (const profile of providerProfiles) {
@@ -580,6 +553,52 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           );
         }
       }
+      const repOf = (pid: ProviderId): number | undefined =>
+        providerReputations.find((r) => r.providerId === pid)?.score;
+
+      // The catalog the agent reasons over: self-DECLARED coverage + price +
+      // on-chain reputation/history. Deliberately no post-purchase facts — the
+      // agent recommends on priors, the Judge verifies actual delivery later.
+      const providerCatalog = providerProfiles.map((profile) => ({
+        providerId: profile.id,
+        displayName: profile.name,
+        specialties: [profile.coverage],
+        price: profile.price,
+        reputation: repOf(profile.id),
+        challengeHistory: `被挑战 ${profile.challengeStats.challenged} 次 / 成立 ${profile.challengeStats.upheld} 次`
+      }));
+      const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
+      const pactSummary = challengeManagerAddress
+        ? "A Cobo pact restricts execution to the ProofMarketEscrow, MockUSDC and " +
+          "ProofMarketChallengeManager contracts on Sepolia, " +
+          "with a cap of 10 transactions and a 90 minute expiry."
+        : "A Cobo pact restricts execution to the ProofMarketEscrow and MockUSDC " +
+          "contracts on Sepolia, with a 90 minute expiry.";
+
+      // On research agent failure: rethrow untouched — never fabricate a plan.
+      const { plan, rawStdout } = await deps.runResearchAgent({
+        taskId: task.id,
+        question: task.userQuestion,
+        budgetAmount,
+        providerCatalog,
+        pactSummary
+      });
+
+      const recommendedProfile = providerProfiles.find(
+        (profile) => profile.id === plan.recommendedProviderId
+      );
+
+      // Ranked shortlist the user picks from. validateResearchPlanOutput
+      // normalizes plan.ranking (populated, recommended-first); fall back to a
+      // single-entry list if a raw/unvalidated output omitted it.
+      const ranking = plan.ranking ?? [
+        { providerId: plan.recommendedProviderId, reason: plan.reason }
+      ];
+      const candidates = ranking.map((entry, index) => ({
+        providerId: entry.providerId as ProviderId,
+        reason: entry.reason,
+        rank: index + 1
+      }));
 
       const procurementPlan: ProcurementPlan = {
         taskId: task.id,
@@ -592,7 +611,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         coverage: recommendedProfile?.coverage ?? "专项证据覆盖",
         returnType: "provider-answer-package",
         verificationMethod: "确定性 Judge 校验端点",
-        providerReputations
+        providerReputations,
+        candidates
       };
 
       const planned = transition(
@@ -689,9 +709,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           "openChallenge"
         ],
         denyRules: [
-          "direct transfers denied by default (no transfer policy)",
-          "max 10 txs",
-          "expires 90 min"
+          "默认禁止任何直接转账（无转账策略）",
+          "最多 10 笔交易",
+          "90 分钟后自动过期"
         ],
         expiresInMinutes: 90,
         pactId: result.pactId,
@@ -717,7 +737,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "cobo",
             type: "pact_submitted",
             result: "success",
-            message: `已提交 Pact ${pact.pactId}（状态 ${result.status}）。原始返回：${truncate(result.raw)}`,
+            message: `已提交 Cobo 授权策略（Pact ${pact.pactId}），状态 ${result.status}。`,
             pactId: pact.pactId
           })
         )

@@ -73,7 +73,7 @@ describe("Step3Authorize — pact boundary values", () => {
     expect(screen.getAllByText("5 test USDC").length).toBeGreaterThan(0);
   });
 
-  it("renders per-job cap", () => {
+  it("frames the budget as escrow-enforced (Cobo policy has no amount cap)", () => {
     render(
       <Step3Authorize
         task={task()}
@@ -82,8 +82,8 @@ describe("Step3Authorize — pact boundary values", () => {
         onTriggerDenial={noop}
       />
     );
-    // perJobCap rendered with "≤ " prefix
-    expect(screen.getByText(/1 test USDC/)).toBeTruthy();
+    // The misleading per-tx amount cap is gone; budget is attributed to escrow.
+    expect(screen.getByText(/放款金额由托管合约按订单预算约束/)).toBeTruthy();
   });
 
   it("renders expiry time", () => {

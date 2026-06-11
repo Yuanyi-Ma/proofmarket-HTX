@@ -89,13 +89,18 @@ export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSi
       {expanded ? (
         <div className="audit-sidebar-body">
           {denial ? (
-            <div className="audit-denial" role="alert">
-              <strong>Cobo 拒绝记录</strong>
-              <span className="small">
-                被拦截的动作：{denial.attemptedAction}（exit {denial.exitCode}）
-              </span>
-              <pre className="denial-output">{denial.rawOutput}</pre>
-            </div>
+            <details className="audit-denial-note">
+              <summary>
+                <span className="dot ok" aria-hidden="true" />
+                Cobo 拦截记录（演示）— 越权操作被拦下，零资金流出
+              </summary>
+              <div className="audit-denial-body">
+                <span className="small muted">
+                  被拦截的动作：{denial.attemptedAction}（exit {denial.exitCode}）
+                </span>
+                <pre className="denial-output">{denial.rawOutput}</pre>
+              </div>
+            </details>
           ) : null}
 
           {events.length ? (

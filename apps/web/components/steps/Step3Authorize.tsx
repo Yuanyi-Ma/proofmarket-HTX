@@ -32,7 +32,9 @@ function resolveFunctionLabel(fn: string): string {
     submit: "提交证据",
     complete: "结算放款",
     reject: "拒绝订单",
-    approve: "授权代币"
+    approve: "授权代币",
+    openChallenge: "发起挑战",
+    setBudget: "设定预算"
   };
   return map[fn] ?? fn;
 }
@@ -94,7 +96,7 @@ export function Step3Authorize({
           {/* Pact boundary definition */}
           <div className="pact-boundary">
             <p className="section-kicker" style={{ margin: "0 0 10px" }}>
-              Pact 边界
+              Cobo 授权边界（链上强制）
             </p>
             <div className="data-grid">
               <DataRow
@@ -106,14 +108,13 @@ export function Step3Authorize({
                 value={`${pact.expiresInMinutes} 分钟内有效`}
               />
               <DataRow
-                label="总预算上限"
-                value={<span className="mono">{pact.totalBudget}</span>}
-              />
-              <DataRow
-                label="单笔上限"
+                label="采购总预算"
                 value={
-                  <span className="mono">
-                    ≤ {pact.perJobCap}
+                  <span>
+                    <span className="mono">{pact.totalBudget}</span>
+                    <span className="muted small">
+                      {" — "}放款金额由托管合约按订单预算约束
+                    </span>
                   </span>
                 }
               />

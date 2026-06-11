@@ -125,9 +125,9 @@ describe("ProofMarket workflow UI content", () => {
     );
 
     expect((html.match(/data-provider-card=/g) ?? [])).toHaveLength(3);
-    expect(html).toContain("执行加速研究专家 Agent");
-    expect(html).toContain("浅层检索 Provider Agent");
-    expect(html).toContain("通用网页摘要 Agent");
+    expect(html).toContain("论文证据专家 Agent");
+    expect(html).toContain("论文聚合检索 Agent");
+    expect(html).toContain("IEEE 文献检索 Agent");
     expect(html).toContain("Run expert provider");
     expect(html).toContain("Run shallow provider");
   });

@@ -162,7 +162,7 @@ export function Step6Done({
             </p>
 
             <div className="data-row" style={{ marginBottom: 10 }}>
-              <span className="data-label">结论</span>
+              <span className="data-label">主要发现</span>
               <div className="data-value">
                 <p className="tight">{conclusion}</p>
               </div>

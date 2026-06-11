@@ -135,10 +135,28 @@ export function encodeOpenChallenge(jobId: bigint, challengeType: number, challe
   });
 }
 
-export function encodeResolve(challengeId: bigint, result: number): Hex {
+// resolve(challengeId) is single-arg in v2: the outcome is the on-chain
+// majority of juror votes, never a caller-supplied result.
+export function encodeResolve(challengeId: bigint): Hex {
   return encodeFunctionData({
     abi: challengeManagerAbi,
     functionName: "resolve",
-    args: [challengeId, result]
+    args: [challengeId]
+  });
+}
+
+export function encodeSubmitDefense(challengeId: bigint, defenseHash: Hex): Hex {
+  return encodeFunctionData({
+    abi: challengeManagerAbi,
+    functionName: "submitDefense",
+    args: [challengeId, defenseHash]
+  });
+}
+
+export function encodeCastVote(challengeId: bigint, result: number, reasonHash: Hex): Hex {
+  return encodeFunctionData({
+    abi: challengeManagerAbi,
+    functionName: "castVote",
+    args: [challengeId, result, reasonHash]
   });
 }

@@ -6,13 +6,13 @@ import { assertReceiptSuccess } from "./chainReader";
 
 export type ResolveChallengeOnChain = (input: {
   challengeId: bigint;
-  result: number;
 }) => Promise<{ txHash: string }>;
 
 /**
- * ChallengeManager.resolve is resolver-only on-chain: it is signed directly
- * with the backend's resolver key (like the provider submit signer), NOT
- * routed through Cobo — the Cobo wallet is the job client, not the resolver.
+ * ChallengeManager.resolve(challengeId) is permissionless in v2 — the outcome
+ * is the on-chain juror-vote majority, so execution carries no discretion.
+ * It is still signed directly with the backend's resolver key (NOT routed
+ * through Cobo) because the Cobo wallet is the job client, and any key works.
  */
 export function createChallengeResolver(input: {
   rpcUrl: string;
@@ -26,12 +26,12 @@ export function createChallengeResolver(input: {
     transport: http(input.rpcUrl)
   }).extend(publicActions);
 
-  return async ({ challengeId, result }) => {
+  return async ({ challengeId }) => {
     const hash = await client.writeContract({
       address: input.challengeManagerAddress,
       abi: challengeManagerAbi,
       functionName: "resolve",
-      args: [challengeId, result]
+      args: [challengeId]
     });
     const receipt = await client.waitForTransactionReceipt({ hash, timeout: 180_000 });
     assertReceiptSuccess(receipt, hash);

@@ -1,4 +1,5 @@
-import type { ProviderProfile } from "./types";
+import type { ChallengeDefense, JuryVote, ProviderProfile } from "./types";
+import { stableHash } from "./hash";
 
 export const defaultQuestion = "请调研近几年区块链交易执行加速的最新研究进展。";
 
@@ -17,43 +18,154 @@ export const presetCounterEvidence = {
     "Provider 声明覆盖 2021-2026 年区块链执行加速方向，但交付的证据包中遗漏了 Block-STM——该声明范围内公认的代表性工作。"
 } as const;
 
+/**
+ * Preset L2 challenge document (挑战书, design doc §4.2): the challenger's
+ * structured statement around the counter-evidence above. Plaintext for the
+ * UI/audit layer; its hash is the on-chain challengeHash.
+ */
+export const presetChallengeDocument = {
+  statement:
+    "交付的证据包未包含 Block-STM（arXiv:2203.06871）——区块链并行执行方向被广泛引用的代表性工作，" +
+    "且 Provider 未在覆盖声明中排除该子方向。属于承诺范围内漏检（CoverageMiss）。",
+  hitCoverageClause: "覆盖声明：『2021-2026 年区块链执行加速方向（IEEE / Elsevier）』"
+} as const;
+
+/**
+ * Preset provider defense (应辩书): deliberately weak — it concedes the paper
+ * exists and only argues scope, which the three-question ruling can reject.
+ */
+export const presetDefense: Omit<ChallengeDefense, "txHash"> = (() => {
+  const statement =
+    "检索按声明的关键词字面执行，未触达 Block-STM 一文；该文属并行执行子方向，" +
+    "我方认为不构成对『执行加速』整体声明的漏检。";
+  return { statement, defenseHash: stableHash({ defense: statement }) };
+})();
+
+/**
+ * Preset jury operators (heterogeneous model families, design doc §5.1).
+ * modelTag / promptTag hash into the on-chain registration commitments — the
+ * same tags are hashed by the deploy script, so UI text and chain commitments
+ * stay consistent.
+ */
+export const presetJurors = [
+  {
+    jurorId: "juror-anthropic",
+    modelFamily: "Anthropic Claude 系",
+    modelTag: "claude-sonnet-4-6",
+    promptTag: "proofmarket-jury-prompt-v1"
+  },
+  {
+    jurorId: "juror-openai",
+    modelFamily: "OpenAI GPT 系",
+    modelTag: "gpt-5",
+    promptTag: "proofmarket-jury-prompt-v1"
+  },
+  {
+    jurorId: "juror-google",
+    modelFamily: "Google Gemini 系",
+    modelTag: "gemini-2.5-pro",
+    promptTag: "proofmarket-jury-prompt-v1"
+  }
+] as const;
+
+/**
+ * Preset jury verdict, 2:1 ProviderFault. Deliberately NOT unanimous: the demo
+ * shows majority rule with a dissenting reason book, not a rubber stamp. Each
+ * reason book answers the L2 three questions (design doc §4.2); reasonHash is
+ * what goes on-chain with castVote.
+ */
+export function presetJuryVotes(jurorAddresses: readonly string[]): JuryVote[] {
+  const books = [
+    {
+      vote: "ProviderFault" as const,
+      reasonCode: "COVERAGE_MISS",
+      reasonBook: {
+        inScope:
+          "是。Block-STM 直接研究区块链交易并行执行加速，落在声明的『执行加速』范围内。",
+        hitsDeclaredQuery:
+          "是。『并行执行 / 投机执行』与声明检索词在语义上直接命中。",
+        notReturnedNotExcluded:
+          "是。交付包未含该文，覆盖声明也未排除并行执行子方向。",
+        conclusion: "三问皆成立，构成承诺范围内漏检，判 ProviderFault。"
+      }
+    },
+    {
+      vote: "ProviderFault" as const,
+      reasonCode: "COVERAGE_MISS",
+      reasonBook: {
+        inScope: "是。该文为执行加速方向被广泛引用的代表性工作。",
+        hitsDeclaredQuery: "是。声明覆盖语句按字面即包含交易执行优化。",
+        notReturnedNotExcluded:
+          "是。应辩书承认未触达且未事先排除，仅作范围抗辩，不能成立。",
+        conclusion: "覆盖缺失成立，判 ProviderFault。"
+      }
+    },
+    {
+      vote: "ProviderNotFault" as const,
+      reasonCode: "SCOPE_AMBIGUOUS",
+      reasonBook: {
+        inScope: "存疑。『执行加速』未逐项列举子方向，对并行执行的涵盖存在解释空间。",
+        hitsDeclaredQuery: "部分。字面检索词未直接包含 Block-STM 同义词。",
+        notReturnedNotExcluded: "是，未返回亦未排除。",
+        conclusion: "三问未全部明确成立，倾向不构成失职，持异议票。"
+      }
+    }
+  ];
+  return books.map((book, i) => {
+    const juror = presetJurors[i];
+    return {
+      jurorId: juror.jurorId,
+      jurorAddress: jurorAddresses[i] ?? "",
+      modelFamily: juror.modelFamily,
+      vote: book.vote,
+      reasonCode: book.reasonCode,
+      reasonBook: book.reasonBook,
+      reasonHash: stableHash({ jurorId: juror.jurorId, ...book.reasonBook })
+    };
+  });
+}
+
 export const providerProfiles: ProviderProfile[] = [
   {
     id: "execution-research-expert",
-    agentId: 1,
-    name: "执行加速研究专家 Agent",
+    agentId: 6388,
+    address: "0x0866e2b066d1D04e4a5A4Cccc380E7Da2c1c2f3a",
+    name: "论文证据专家 Agent",
     role: "recommended",
     coverage:
-      "覆盖 2021-2026 年区块链执行加速方向：Block-STM、并行执行、投机执行、冲突检测、状态访问、EVM 并行化、Sei、Sui、Solana 运行时。",
-    price: "1 test USDC",
-    stake: "10 test USDC",
+      "接入 IEEE Xplore 与 Elsevier（爱思唯尔）论文库，覆盖区块链性能优化方向的同行评审论文（交易执行、并行/投机执行、共识优化等），并自建带来源定位与摘录的精炼证据沉淀。",
+    price: "1 mUSDC",
+    stake: "10 mUSDC",
     reputationScore: 970,
-    challengeHistory: "近 20 单中 0 次挑战成立",
+    challengeStats: { challenged: 0, upheld: 0 },
     demoBehavior: "happy"
   },
   {
     id: "shallow-search-provider",
-    agentId: 2,
-    name: "浅层检索 Provider Agent",
+    agentId: 6389,
+    address: "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+    name: "论文聚合检索 Agent",
     role: "risky",
     coverage:
-      "声称广泛覆盖 2021-2026 年区块链执行加速方向，但演示数据中遗漏了 Block-STM。",
-    price: "0.2 test USDC",
-    stake: "2 test USDC",
-    reputationScore: 710,
-    challengeHistory: "近 10 单中 2 次覆盖挑战成立",
+      "自报同样接入 IEEE / Elsevier 论文库、覆盖区块链性能方向，但仅做原始关键词检索、无精炼沉淀；覆盖声明较泛，未对代表性工作单独承诺。",
+    price: "0.2 mUSDC",
+    stake: "2 mUSDC",
+    reputationScore: 620,
+    challengeStats: { challenged: 5, upheld: 3 },
     demoBehavior: "challenge"
   },
   {
     id: "general-web-summary",
-    agentId: 3,
-    name: "通用网页摘要 Agent",
+    agentId: 6390,
+    address: "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+    name: "IEEE 文献检索 Agent",
     role: "comparison",
-    coverage: "通用公开网页摘要，并非执行系统方向的专业语料库。",
-    price: "0.1 test USDC",
-    stake: "1 test USDC",
-    reputationScore: 820,
-    challengeHistory: "无执行系统方向的专业履历",
+    coverage:
+      "仅接入 IEEE Xplore 单一论文库；对区块链执行加速方向只能部分覆盖（偏共识 / 网络层，执行与并行方向资料有限）。",
+    price: "0.1 mUSDC",
+    stake: "1 mUSDC",
+    reputationScore: 800,
+    challengeStats: { challenged: 1, upheld: 0 },
     demoBehavior: "unused"
   }
 ];

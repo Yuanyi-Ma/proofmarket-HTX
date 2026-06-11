@@ -13,14 +13,14 @@ type ProviderMarketProps = {
 
 function recommendationCopy(provider: ProviderProfile): string {
   if (provider.role === "recommended") {
-    return "Recommended because its declared coverage matches the plan and its challenge history is clean.";
+    return "Top pick on priors: IEEE + Elsevier coverage with a curated corpus, highest on-chain reputation, no upheld challenges.";
   }
 
   if (provider.role === "risky") {
-    return "Not recommended for the main path: cheap, but the demo fixture misses Block-STM and can trigger CoverageMiss.";
+    return "Lower-probability pick: similar claimed sources but no curated corpus, lower reputation and prior upheld coverage challenges.";
   }
 
-  return "Visible for comparison only: useful general summary coverage, but not an execution-systems specialist.";
+  return "IEEE-only and self-reportedly partial on execution acceleration — useful as a supplement, not a full match.";
 }
 
 function roleTone(provider: ProviderProfile) {
@@ -102,7 +102,7 @@ export function ProviderMarket({
               </div>
               <div className="data-row">
                 <span className="data-label">History</span>
-                <div className="data-value small">{provider.challengeHistory}</div>
+                <div className="data-value small">{`被挑战 ${provider.challengeStats.challenged} 次 / 成立 ${provider.challengeStats.upheld} 次`}</div>
               </div>
             </div>
             <div className="info-strip small">{recommendationCopy(provider)}</div>

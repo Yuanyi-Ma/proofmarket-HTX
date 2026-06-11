@@ -51,8 +51,8 @@
     "taskId": "task_001",
     "providerAgentId": 2,
     "providerId": "shallow-search-provider",
-    "providerName": "浅层检索 Provider Agent",
-    "coverageStatement": "声称广泛覆盖 2021-2026 年区块链执行加速方向的论文。",
+    "providerName": "论文聚合检索 Agent",
+    "coverageStatement": "自报广泛覆盖 2021-2026 年区块链执行加速方向的论文（IEEE / Elsevier）。",
     "answers": [
       {
         "providerAnswer": "区块链性能的提升主要来自更好的共识机制与硬件。",
@@ -159,7 +159,7 @@
       "source": "verifier",
       "type": "challenge_won",
       "result": "success",
-      "message": "验证者判定 Provider 失职，挑战成立。",
+      "message": "审判团 2:1 判定 ProviderFault（覆盖声明漏检），挑战成立。",
       "txHash": null,
       "pactId": null,
       "jobId": 1,
@@ -171,7 +171,7 @@
       "source": "settlement",
       "type": "refund_or_slash",
       "result": "success",
-      "message": "已执行退款或对 Provider 的罚没。",
+      "message": "已执行裁决：扣罚 Provider 质押、退款买方、退回挑战押金与审判费并支付审判团。",
       "txHash": null,
       "pactId": null,
       "jobId": 1,

@@ -106,6 +106,22 @@ export const escrowAbi = [
       { name: "evaluator", type: "address" }
     ]
   },
+  // Challenge window W_c: timestamp of submit() and the gate length, used by
+  // the backend to compute when complete() becomes callable.
+  {
+    type: "function",
+    name: "submittedAt",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "uint256" }],
+    outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "challengeWindow",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }]
+  },
   {
     type: "function",
     name: "jobs",
@@ -267,13 +283,44 @@ export const challengeManagerAbi = [
     ],
     outputs: [{ name: "challengeId", type: "uint256" }]
   },
+  // ── Defense + jury voting (v2) ─────────────────────────────────────────────
+  {
+    type: "function",
+    name: "submitDefense",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "challengeId", type: "uint256" },
+      { name: "defenseHash", type: "bytes32" }
+    ],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "castVote",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "challengeId", type: "uint256" },
+      { name: "result", type: "uint8" },           // ChallengeResult enum
+      { name: "reasonHash", type: "bytes32" }
+    ],
+    outputs: []
+  },
+  // Permissionless majority execution: votes are on-chain, no discretion.
   {
     type: "function",
     name: "resolve",
     stateMutability: "nonpayable",
+    inputs: [{ name: "challengeId", type: "uint256" }],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "registerJuror",
+    stateMutability: "nonpayable",
     inputs: [
-      { name: "challengeId", type: "uint256" },
-      { name: "result", type: "uint8" }            // ChallengeResult enum
+      { name: "account", type: "address" },
+      { name: "modelHash", type: "bytes32" },
+      { name: "promptHash", type: "bytes32" }
     ],
     outputs: []
   },
@@ -311,8 +358,33 @@ export const challengeManagerAbi = [
       { name: "challengeHash", type: "bytes32" },
       { name: "result", type: "uint8" },
       { name: "challenger", type: "address" },
-      { name: "provider", type: "address" }
+      { name: "provider", type: "address" },
+      { name: "openedAt", type: "uint64" },
+      { name: "defenseHash", type: "bytes32" },
+      { name: "faultVotes", type: "uint8" },
+      { name: "notFaultVotes", type: "uint8" }
     ]
+  },
+  {
+    type: "function",
+    name: "jurorCount",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "juryFee",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "defenseWindow",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256" }]
   },
   // ── Events ─────────────────────────────────────────────────────────────────
   {
@@ -372,12 +444,40 @@ export const challengeManagerAbi = [
   },
   {
     type: "event",
+    name: "JurorRegistered",
+    inputs: [
+      { name: "juror", type: "address", indexed: true },
+      { name: "modelHash", type: "bytes32", indexed: false },
+      { name: "promptHash", type: "bytes32", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "DefenseSubmitted",
+    inputs: [
+      { name: "challengeId", type: "uint256", indexed: true },
+      { name: "defenseHash", type: "bytes32", indexed: false }
+    ]
+  },
+  {
+    type: "event",
+    name: "JurorVoted",
+    inputs: [
+      { name: "challengeId", type: "uint256", indexed: true },
+      { name: "juror", type: "address", indexed: true },
+      { name: "result", type: "uint8", indexed: false },
+      { name: "reasonHash", type: "bytes32", indexed: false }
+    ]
+  },
+  {
+    type: "event",
     name: "ChallengeResolved",
     inputs: [
       { name: "challengeId", type: "uint256", indexed: true },
       { name: "result", type: "uint8", indexed: false },
       { name: "slashAmount", type: "uint256", indexed: false },
       { name: "challengerPayout", type: "uint256", indexed: false },
+      { name: "juryPayout", type: "uint256", indexed: false },
       { name: "treasuryPayout", type: "uint256", indexed: false }
     ]
   }

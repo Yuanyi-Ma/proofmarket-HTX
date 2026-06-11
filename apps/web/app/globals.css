@@ -310,32 +310,89 @@ button.stepper-link:hover {
   font-weight: 600;
 }
 
-.provider-table-wrap {
-  overflow-x: auto;
+/* ---- Step 2: selectable candidate shortlist ---- */
+
+.candidate-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
 }
 
-.provider-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
+.candidate-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 14px;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 
-.provider-table th,
-.provider-table td {
-  border-bottom: 1px solid var(--border);
-  padding: 10px 12px;
-  text-align: left;
-  vertical-align: top;
+.candidate-card:hover {
+  border-color: var(--border-strong);
 }
 
-.provider-table th {
-  color: var(--text-2);
-  font-size: 12px;
+.candidate-card.selected {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+
+.candidate-radio {
+  margin-top: 3px;
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+
+.candidate-body {
+  display: grid;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.candidate-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.candidate-head strong {
+  font-size: 14px;
   font-weight: 600;
 }
 
-.provider-table tr.recommended td {
-  background: var(--surface-2);
+.candidate-rank {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.candidate-reason {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-1);
+}
+
+.candidate-facts {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.candidate-fact {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 13px;
+}
+
+.candidate-coverage {
+  margin: 0;
 }
 
 /* ---- Audit sidebar ---- */
@@ -438,16 +495,36 @@ button.stepper-link:hover {
   background: var(--danger);
 }
 
-.audit-denial {
-  border: 1px solid var(--danger);
+/* Neutral, collapsed-by-default record of the (intentional) Cobo denial demo —
+   it should read as "the guard worked", not as a live error bleeding through
+   the rest of the happy path. */
+.audit-denial-note {
+  border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--danger-bg);
-  color: var(--danger);
-  padding: 12px;
+  background: var(--surface-2);
+  padding: 10px 12px;
   margin-top: 12px;
+  font-size: 13px;
+}
+
+.audit-denial-note > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.audit-denial-note > summary::-webkit-details-marker {
+  display: none;
+}
+
+.audit-denial-body {
   display: grid;
   gap: 6px;
-  font-size: 13px;
+  margin-top: 8px;
 }
 
 /* ---- Legacy layout (pre-wizard sections, kept for reused components) ---- */
