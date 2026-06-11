@@ -55,6 +55,10 @@ export function encodeReject(jobId: bigint, reasonHash: Hex): Hex {
   return encodeFunctionData({ abi: escrowAbi, functionName: "reject", args: [jobId, reasonHash] });
 }
 
+export function encodeExpireAndRefund(jobId: bigint): Hex {
+  return encodeFunctionData({ abi: escrowAbi, functionName: "expireAndRefund", args: [jobId] });
+}
+
 // ── Escrow: P0 challenge-lifecycle functions ───────────────────────────────────
 
 export function encodeMarkChallenged(jobId: bigint): Hex {

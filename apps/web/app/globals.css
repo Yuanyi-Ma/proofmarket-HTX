@@ -1,38 +1,41 @@
 :root {
-  color-scheme: light;
+  color-scheme: dark;
 
-  /* 中性灰阶为骨架 */
-  --bg: #fafafa;            /* 页面底 */
-  --surface: #ffffff;       /* 卡片 */
-  --surface-2: #f4f4f5;     /* 次级面/代码块底 */
-  --border: #e4e4e7;        /* 描边 */
-  --border-strong: #d4d4d8;
-  --text: #18181b;          /* 主文字 */
-  --text-2: #52525b;        /* 次文字 */
-  --text-3: #a1a1aa;        /* 弱化/未来步 */
+  /* 交易所暗色三层底（Binance 设计语言：近黑页面 / 炭灰面板 / 浮起表面） */
+  --bg: #0b0e11;            /* 页面底 */
+  --surface: #181a20;       /* 卡片 */
+  --surface-2: #1e2329;     /* 次级面/代码块底/悬浮 */
+  --surface-3: #2b3139;     /* 强调面/hover */
+  --border: #2b3139;        /* 描边 */
+  --border-strong: #474d57;
+  --text: #eaecef;          /* 主文字 */
+  --text-2: #b7bdc6;        /* 次文字 */
+  --text-3: #848e9c;        /* 弱化/未来步 */
 
-  /* 主强调：近黑（克制），不是蓝不是紫 */
-  --accent: #18181b;
-  --accent-text: #ffffff;
+  /* 主强调：交易所金。仅用于主行动、当前态、关键链接，不做大面积铺色 */
+  --accent: #f0b90b;
+  --accent-hover: #fcd535;
+  --accent-text: #181a20;   /* 金底上用近黑文字 */
+  --accent-dim: rgba(240, 185, 11, 0.08);
 
-  /* 状态色：仅用于状态语义，不做大面积背景 */
-  --ok: #15803d;            /* 确认/链上成功 */
-  --ok-bg: #f0fdf4;
-  --pending: #b45309;       /* 进行中/待批准 */
-  --pending-bg: #fffbeb;
-  --danger: #b91c1c;        /* 失败/拒绝 */
-  --danger-bg: #fef2f2;
+  /* 状态色：涨跌绿红 + 警示金，语义点缀，不做大面积背景 */
+  --ok: #0ecb81;            /* 确认/链上成功 */
+  --ok-bg: rgba(14, 203, 129, 0.08);
+  --pending: #f0b90b;       /* 进行中/待批准 */
+  --pending-bg: rgba(240, 185, 11, 0.08);
+  --danger: #f6465d;        /* 失败/拒绝/挑战 */
+  --danger-bg: rgba(246, 70, 93, 0.08);
 
   /* 排版 */
   --font-sans: -apple-system, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Menlo", monospace;  /* 哈希/地址/金额 */
 
-  /* 节奏 */
+  /* 节奏：交易所风格小圆角，靠分层与描边而非阴影 */
   --radius: 8px;
-  --radius-sm: 6px;
+  --radius-sm: 4px;
   --space: 4px;             /* 4px 基准间距 scale: 4/8/12/16/24/32/48 */
-  --shadow-sm: 0 1px 2px rgba(0,0,0,.04);
-  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow-sm: 0 0 0 0 transparent;
+  --shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -53,6 +56,25 @@ body {
   line-height: 1.6;
 }
 
+::selection {
+  background: rgba(240, 185, 11, 0.28);
+}
+
+/* 暗色细滚动条（审计侧栏等内部滚动区） */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
 button,
 input,
 textarea {
@@ -67,18 +89,30 @@ button {
   color: var(--accent-text);
   cursor: pointer;
   font-weight: 600;
-  padding: 7px 14px;
+  padding: 7px 16px;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
 }
 
 button.secondary {
   border-color: var(--border-strong);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
+}
+
+button.secondary:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-3);
 }
 
 button.danger {
   border-color: var(--danger);
   background: var(--danger);
+  color: #fff;
 }
 
 button:disabled {
@@ -91,7 +125,7 @@ button:disabled {
 button:focus-visible,
 input:focus-visible,
 textarea:focus-visible {
-  outline: 2px solid var(--text);
+  outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
 
@@ -107,6 +141,11 @@ code {
 .mono {
   font-family: var(--font-mono);
   font-size: 0.92em;
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: var(--text);
 }
 
 /* ---- Wizard shell ---- */
@@ -114,13 +153,15 @@ code {
 .wizard-shell {
   margin: 0 auto;
   max-width: 1240px;
-  padding: 24px 24px 48px;
+  padding: 20px 24px 48px;
 }
 
 .wizard-header {
   display: grid;
-  gap: 16px;
-  margin-bottom: 24px;
+  gap: 14px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
 }
 
 .brand-row {
@@ -130,9 +171,23 @@ code {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.01em;
+}
+
+/* 交易所式品牌标：金色菱形，功能性识别而非装饰 */
+.brand::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  flex: none;
+  background: var(--accent);
+  transform: rotate(45deg);
+  border-radius: 2px;
 }
 
 .wizard-grid {
@@ -206,6 +261,7 @@ button.stepper-link {
 
 button.stepper-link:hover {
   background: var(--surface-2);
+  border-color: transparent;
 }
 
 .stepper-marker {
@@ -215,7 +271,7 @@ button.stepper-link:hover {
   width: 22px;
   height: 22px;
   flex: none;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
@@ -229,7 +285,7 @@ button.stepper-link:hover {
 
 .stepper-item.done .stepper-marker {
   border-color: var(--border-strong);
-  color: var(--text-2);
+  color: var(--ok);
 }
 
 .stepper-item.current .stepper-link {
@@ -253,7 +309,6 @@ button.stepper-link:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
   padding: 28px 32px 24px;
   display: grid;
   gap: 20px;
@@ -261,10 +316,10 @@ button.stepper-link:hover {
 
 .step-kicker {
   margin: 0 0 6px;
-  color: var(--text-3);
+  color: var(--accent);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
 }
 
 .step-title {
@@ -298,7 +353,7 @@ button.stepper-link:hover {
 .recommend-card {
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
   padding: 16px;
   display: grid;
   gap: 12px;
@@ -324,7 +379,7 @@ button.stepper-link:hover {
   align-items: flex-start;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
   padding: 14px;
   cursor: pointer;
   transition: border-color 0.12s ease, background 0.12s ease;
@@ -336,7 +391,7 @@ button.stepper-link:hover {
 
 .candidate-card.selected {
   border-color: var(--accent);
-  background: var(--surface-2);
+  background: var(--accent-dim);
 }
 
 .candidate-radio {
@@ -367,7 +422,7 @@ button.stepper-link:hover {
 .candidate-rank {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
@@ -375,7 +430,7 @@ button.stepper-link:hover {
   margin: 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--text-1);
+  color: var(--text-2);
 }
 
 .candidate-facts {
@@ -402,7 +457,6 @@ button.stepper-link:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
   position: sticky;
   top: 16px;
   max-height: calc(100vh - 32px);
@@ -571,7 +625,6 @@ button.stepper-link:hover {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
 }
 
 .section-header {
@@ -588,7 +641,7 @@ button.stepper-link:hover {
   color: var(--text-3);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
 }
 
 .section-title {
@@ -640,14 +693,25 @@ button.stepper-link:hover {
   width: 100%;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--surface-2);
   color: var(--text);
   padding: 10px;
 }
 
+.field input:hover,
+.field textarea:hover {
+  border-color: var(--text-3);
+}
+
+.field input:focus-visible,
+.field textarea:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .field input:disabled,
 .field textarea:disabled {
-  background: var(--surface-2);
+  background: var(--surface);
   color: var(--text-2);
 }
 
@@ -693,12 +757,12 @@ button.stepper-link:hover {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--surface-2);
   padding: 10px;
 }
 
 .data-label {
-  color: var(--text-2);
+  color: var(--text-3);
   font-size: 12px;
   font-weight: 600;
 }
@@ -711,6 +775,7 @@ button.stepper-link:hover {
 .data-value.mono {
   font-family: var(--font-mono);
   font-size: 13px;
+  font-variant-numeric: tabular-nums;
 }
 
 .provider-grid {
@@ -725,7 +790,7 @@ button.stepper-link:hover {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
   padding: 12px;
 }
 
@@ -756,7 +821,7 @@ button.stepper-link:hover {
   align-items: center;
   width: fit-content;
   max-width: 100%;
-  border: 1px solid var(--border);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--text-2);
@@ -768,19 +833,19 @@ button.stepper-link:hover {
 }
 
 .status-badge.success {
-  border-color: var(--ok);
+  border-color: rgba(14, 203, 129, 0.45);
   background: var(--ok-bg);
   color: var(--ok);
 }
 
 .status-badge.danger {
-  border-color: var(--danger);
+  border-color: rgba(246, 70, 93, 0.45);
   background: var(--danger-bg);
   color: var(--danger);
 }
 
 .status-badge.warning {
-  border-color: var(--pending);
+  border-color: rgba(240, 185, 11, 0.45);
   background: var(--pending-bg);
   color: var(--pending);
 }
@@ -790,8 +855,8 @@ button.stepper-link:hover {
   display: inline;
   font-size: 11px;
   font-weight: 500;
-  color: var(--text-2);
-  border: 1px solid var(--border);
+  color: var(--accent);
+  border: 1px solid rgba(240, 185, 11, 0.45);
   border-radius: var(--radius-sm);
   padding: 1px 5px;
   white-space: nowrap;
@@ -848,7 +913,7 @@ button.stepper-link:hover {
   min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
   padding: 10px;
 }
 
@@ -863,10 +928,17 @@ button.stepper-link:hover {
   overflow-wrap: anywhere;
   font-family: var(--font-mono);
   font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
+/* 哈希/地址链接：交易所金，可点性一目了然 */
 a.hash {
-  color: var(--text);
+  color: var(--accent);
+  text-decoration-color: rgba(240, 185, 11, 0.4);
+}
+
+a.hash:hover {
+  color: var(--accent-hover);
 }
 
 .denial-output {
@@ -918,7 +990,7 @@ a.hash {
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid var(--ok);
+  border: 1px solid rgba(14, 203, 129, 0.45);
   border-radius: var(--radius-sm);
   background: var(--ok-bg);
   color: var(--ok);
@@ -928,7 +1000,7 @@ a.hash {
 }
 
 .denial-card {
-  border: 1px solid var(--danger);
+  border: 1px solid rgba(246, 70, 93, 0.45);
   border-radius: var(--radius);
   background: var(--danger-bg);
   padding: 16px;
@@ -963,7 +1035,7 @@ a.hash {
   align-items: center;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .tx-progress-row:last-child {
@@ -971,7 +1043,7 @@ a.hash {
 }
 
 .tx-progress-row.confirmed {
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .tx-progress-row.pending {
@@ -1030,11 +1102,12 @@ a.hash {
 .evidence-item-row {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--surface-2);
 }
 
 .evidence-item-row[open] {
-  background: var(--surface);
+  background: var(--surface-2);
+  border-color: var(--border-strong);
 }
 
 .evidence-item-summary {
@@ -1078,7 +1151,7 @@ details[open] .evidence-item-summary::after {
   font-size: 11px;
   font-weight: 600;
   color: var(--text-2);
-  background: var(--surface-2);
+  background: var(--surface-3);
 }
 
 .evidence-item-title {
@@ -1114,7 +1187,7 @@ details[open] .evidence-item-summary::after {
 .challenge-flow {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
   padding: 14px 16px;
   margin-top: 8px;
 }
@@ -1124,7 +1197,7 @@ details[open] .evidence-item-summary::after {
 .challenge-stage {
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: var(--surface);
+  background: var(--surface-2);
   overflow: hidden;
 }
 
@@ -1133,7 +1206,7 @@ details[open] .evidence-item-summary::after {
 }
 
 .challenge-stage--resolved {
-  border-color: var(--ok);
+  border-color: rgba(14, 203, 129, 0.45);
   background: var(--ok-bg);
 }
 
@@ -1149,7 +1222,7 @@ details[open] .evidence-item-summary::after {
 }
 
 .challenge-stage--resolved .challenge-stage-header {
-  border-bottom-color: var(--ok);
+  border-bottom-color: rgba(14, 203, 129, 0.45);
   color: var(--ok);
 }
 
@@ -1222,7 +1295,7 @@ details[open] .evidence-item-summary::after {
 
 .receipt-row dt {
   font-size: 13px;
-  color: var(--text-2);
+  color: var(--text-3);
   font-weight: 500;
 }
 

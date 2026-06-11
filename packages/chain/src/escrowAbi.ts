@@ -65,6 +65,13 @@ export const escrowAbi = [
     ],
     outputs: []
   },
+  {
+    type: "function",
+    name: "expireAndRefund",
+    stateMutability: "nonpayable",
+    inputs: [{ name: "jobId", type: "uint256" }],
+    outputs: []
+  },
   // P0 additions: challenge lifecycle hooks callable only by challengeManager
   {
     type: "function",
