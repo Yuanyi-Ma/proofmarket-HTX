@@ -271,7 +271,9 @@ export default async function SystemPage() {
       </section>
 
       <p className="small muted" style={{ marginTop: 28 }}>
-        <a href="/">← 返回采购工作台</a>
+        <a href="/">← 返回首页</a>
+        {" · "}
+        <a href="/console">进入控制台</a>
       </p>
     </main>
   );

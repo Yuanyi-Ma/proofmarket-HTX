@@ -33,9 +33,15 @@ async function main() {
 
   // ─────────────────────────── SYSTEM INIT ───────────────────────────
   if (only !== "challenge" && only !== "success") {
+  log("=== LANDING ===");
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await waitText("可核验的证据采购市场", 30_000);
+  await page.waitForTimeout(400);
+  await shot("00-landing");
+
   log("=== SYSTEM INIT (live chain reads) ===");
   await page.goto(`${BASE}/system`, { waitUntil: "networkidle" });
-  await waitText("初始化完成判定", 60_000);
+  await waitText("就绪检查", 60_000);
   await page.waitForTimeout(500);
   await shot("00-system-init");
   }
@@ -43,7 +49,7 @@ async function main() {
   // ─────────────────────────── SUCCESS PATH ───────────────────────────
   if (only !== "challenge") {
   log("=== SUCCESS PATH ===");
-  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/console`, { waitUntil: "networkidle" });
   await waitBtn("生成采购方案", 30_000);
   await shot("01-step1-question");
 
@@ -112,7 +118,7 @@ async function main() {
   // ─────────────────────────── CHALLENGE PATH ───────────────────────────
   if (only !== "success") {
   log("=== CHALLENGE PATH ===");
-  await page.goto(BASE, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}/console`, { waitUntil: "networkidle" });
   await waitBtn("生成采购方案", 30_000);
 
   log("plan…");
