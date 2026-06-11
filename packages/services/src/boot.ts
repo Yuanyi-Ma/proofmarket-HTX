@@ -2,11 +2,16 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseDeploymentArtifact } from "@proofmarket/shared/src/realMode";
-import { createDefenseSubmitter, createJuryVoter } from "@proofmarket/chain/src/jurySigner";
+import {
+  createDefenseSubmitter,
+  createDefenseWindowChecker,
+  createJuryVoter
+} from "@proofmarket/chain/src/jurySigner";
 import { createProviderSubmitter } from "./providerSigner";
 import {
   startServicesServer,
   type DefenseOnChain,
+  type DefenseWindowRemaining,
   type JuryVoterEntry,
   type SubmitOnChain
 } from "./server";
@@ -74,13 +79,21 @@ async function main(): Promise<void> {
 
   const defenseWindowMs =
     Number(artifact.challengeManagerParams?.defenseWindow ?? 0) * 1000;
+  const defenseWindowRemaining: DefenseWindowRemaining | null =
+    rpcUrl && challengeManagerAddress
+      ? createDefenseWindowChecker({
+          rpcUrl,
+          challengeManagerAddress: challengeManagerAddress as `0x${string}`
+        })
+      : null;
 
   const server = await startServicesServer({
     port,
     submitOnChain,
     defenseOnChain,
     juryVoters,
-    defenseWindowMs
+    defenseWindowMs,
+    defenseWindowRemaining
   });
   console.log(`ProofMarket services listening at ${server.url}`);
 }

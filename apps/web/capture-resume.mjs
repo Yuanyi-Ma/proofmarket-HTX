@@ -1,11 +1,11 @@
-// One-off: resume task_002 (ChallengeWon) via /?taskId= and capture shots 12/13.
+// One-off: resume task_004 (ChallengeWon) via /?taskId= and capture shots 12/13.
 import { chromium } from "@playwright/test";
 const SHOTS = "/Users/luke/agents/product_designer/proofmarket/spec/proofmarket-demo/demo-shots";
 const log = (m) => console.log(`[capture] ${m}`);
 
 const browser = await chromium.launch({ headless: true });
 const page = await browser.newPage({ viewport: { width: 1480, height: 1000 }, deviceScaleFactor: 2 });
-await page.goto("http://localhost:3000/?taskId=task_002", { waitUntil: "networkidle" });
+await page.goto("http://localhost:3000/?taskId=task_004", { waitUntil: "networkidle" });
 await page.getByText("审判团投票 2 : 1", { exact: false }).waitFor({ state: "visible", timeout: 30_000 });
 await page.waitForTimeout(800);
 await page.screenshot({ path: `${SHOTS}/12-challenge-vote.png`, fullPage: true });

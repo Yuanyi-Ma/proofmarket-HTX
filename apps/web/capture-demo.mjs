@@ -151,7 +151,20 @@ async function main() {
   await clickBtn("请求审判团裁决");
   await page.waitForTimeout(2_000);
   await shot("11b-jury-deliberating");
-  await page.getByText("审判团投票 2 : 1", { exact: false }).waitFor({ state: "visible", timeout: 600_000 });
+  // Transient chain/RPC errors leave the task Challenged with the button
+  // re-enabled; clicking again resumes (votes are idempotent server-side).
+  let verdictShown = false;
+  for (let attempt = 1; attempt <= 3 && !verdictShown; attempt++) {
+    if (attempt > 1) await clickBtn("请求审判团裁决");
+    try {
+      await page.getByText("审判团投票 2 : 1", { exact: false }).waitFor({ state: "visible", timeout: 420_000 });
+      verdictShown = true;
+    } catch {
+      log(`jury verdict attempt ${attempt} did not land, retrying…`);
+      await waitBtn("请求审判团裁决", 30_000);
+    }
+  }
+  if (!verdictShown) throw new Error("jury verdict failed after 3 attempts");
   await page.waitForTimeout(500);
   await shot("12-challenge-vote");
 

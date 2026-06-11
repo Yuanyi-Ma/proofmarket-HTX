@@ -41,6 +41,45 @@ export function createJuryVoter(input: {
   };
 }
 
+export type DefenseWindowRemaining = (challengeId: bigint) => Promise<number>;
+
+/**
+ * Seconds of defense window R_w still open for a challenge, measured ENTIRELY
+ * in chain time (latest block timestamp vs the challenge's on-chain openedAt).
+ * Wall clocks must not be trusted here: block timestamps may run ahead of the
+ * local clock, and castVote reverts with "defense window open" until the
+ * window has passed in the contract's own clock domain.
+ */
+export function createDefenseWindowChecker(input: {
+  rpcUrl: string;
+  challengeManagerAddress: `0x${string}`;
+}): DefenseWindowRemaining {
+  const client = createWalletClient({
+    chain: sepolia,
+    transport: http(input.rpcUrl)
+  }).extend(publicActions);
+
+  return async (challengeId) => {
+    const [challenge, defenseWindow, block] = await Promise.all([
+      client.readContract({
+        address: input.challengeManagerAddress,
+        abi: challengeManagerAbi,
+        functionName: "challenges",
+        args: [challengeId]
+      }) as Promise<readonly unknown[]>,
+      client.readContract({
+        address: input.challengeManagerAddress,
+        abi: challengeManagerAbi,
+        functionName: "defenseWindow"
+      }) as Promise<bigint>,
+      client.getBlock()
+    ]);
+    const openedAt = challenge[7] as bigint; // struct field: openedAt
+    const closesAt = openedAt + defenseWindow;
+    return block.timestamp >= closesAt ? 0 : Number(closesAt - block.timestamp);
+  };
+}
+
 export type SubmitDefenseOnChain = (input: {
   challengeId: bigint;
   defenseHash: `0x${string}`;

@@ -35,6 +35,8 @@ export type JuryVoterEntry = {
 
 export type RunningServer = { url: string; close(): Promise<void> };
 
+export type DefenseWindowRemaining = (challengeId: bigint) => Promise<number>;
+
 function readBody(
   request: IncomingMessage
 ): Promise<Record<string, unknown>> {
@@ -73,6 +75,8 @@ export async function startServicesServer(options: {
   juryVoters?: JuryVoterEntry[] | null;
   /** Defense window R_w in ms; /jury/vote sleeps out the remainder. */
   defenseWindowMs?: number;
+  /** Chain-time check of the window — authoritative over the wall clock. */
+  defenseWindowRemaining?: DefenseWindowRemaining | null;
 }): Promise<RunningServer> {
   const server: Server = createServer(async (request, response) => {
     try {
@@ -233,9 +237,19 @@ export async function startServicesServer(options: {
           return;
         }
 
+        // Coarse wall-clock wait first (cheap), then verify in CHAIN time:
+        // block timestamps may run ahead of the local clock, and the contract
+        // rejects votes until the window has passed by ITS clock.
         const waitMs = openedAtMs + (options.defenseWindowMs ?? 0) + 5_000 - Date.now();
         if (waitMs > 0) {
           await new Promise((resolve) => setTimeout(resolve, waitMs));
+        }
+        if (options.defenseWindowRemaining) {
+          for (let i = 0; i < 12; i++) {
+            const remaining = await options.defenseWindowRemaining(BigInt(rawChallengeId));
+            if (remaining <= 0) break;
+            await new Promise((resolve) => setTimeout(resolve, (remaining + 2) * 1000));
+          }
         }
 
         const votes = presetJuryVotes(options.juryVoters.map((v) => v.jurorAddress));
