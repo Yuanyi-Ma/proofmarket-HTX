@@ -2,18 +2,21 @@
   "chainId": 11155111,
   "network": "sepolia",
   "deployer": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
-  "blockNumber": 11031061,
+  "blockNumber": 11035933,
   "coboWallet": "0xe84772e20744cdc22318825e00cf5fdf6000cc24",
   "contracts": {
     "MockUSDC": "0xe94054bc75524B197255e605CE02f41F086F0Cc5",
-    "ProofMarketEscrow": "0xde60301995c2d2f9D6Ea9A965C89fbBa5d3dC41A",
-    "ProofMarketChallengeManager": "0x2f1a8131377466e29B66E916635a8c1EccC3Db83"
+    "ProofMarketEscrow": "0x8d072b5FE5E67Dc9e52A8A8c4fB0154a7ED21cCd",
+    "ProofMarketChallengeManager": "0xe52ea0160fC0dD83861302E524Ea3d4368AB2bC9"
   },
   "challengeManagerParams": {
     "minStake": "10000000",
     "challengeDeposit": "2000000",
     "slashBps": "5000",
-    "slashRewardBps": "5000"
+    "slashRewardBps": "5000",
+    "juryFee": "500000",
+    "defenseWindow": "120",
+    "jurySize": "3"
   },
   "resolver": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
   "treasury": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
@@ -25,7 +28,7 @@
     "execution-research-expert": {
       "address": "0x0866e2b066d1D04e4a5A4Cccc380E7Da2c1c2f3a",
       "mintedUsdc": "20000000",
-      "stakedAmount": "20000000",
+      "stakedAmount": "40000000",
       "stakePending": false,
       "agentId": 6388,
       "agentURI": "proofmarket://agent/execution-research-expert"
@@ -54,9 +57,35 @@
     "rawAmount": "100000000",
     "txHash": "0x72df2c465abc59afc992f7f1628a90ee57743b40806172fd5dc3539af233a343"
   },
-  "deployedAt": "2026-06-10T17:16:38.578Z",
+  "deployedAt": "2026-06-11T09:32:13.896Z",
   "erc8004": {
     "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
     "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713"
-  }
+  },
+  "escrowParams": {
+    "challengeWindow": "300"
+  },
+  "jurors": [
+    {
+      "jurorId": "juror-anthropic",
+      "address": "0x4992F1Cdc37A6c99ef72f75351272063b567648C",
+      "modelFamily": "Anthropic Claude 系",
+      "modelTag": "claude-sonnet-4-6",
+      "promptTag": "proofmarket-jury-prompt-v1"
+    },
+    {
+      "jurorId": "juror-openai",
+      "address": "0x0d2B4B9d28812C7BF6Aa072860bdEA04C3BCCD85",
+      "modelFamily": "OpenAI GPT 系",
+      "modelTag": "gpt-5",
+      "promptTag": "proofmarket-jury-prompt-v1"
+    },
+    {
+      "jurorId": "juror-google",
+      "address": "0x8B310B8bf8347A108557DeC9041eFfC0A1A41d4c",
+      "modelFamily": "Google Gemini 系",
+      "modelTag": "gemini-2.5-pro",
+      "promptTag": "proofmarket-jury-prompt-v1"
+    }
+  ]
 }

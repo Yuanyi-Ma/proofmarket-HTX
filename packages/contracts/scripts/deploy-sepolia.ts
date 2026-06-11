@@ -47,6 +47,13 @@ const MIN_STAKE         = 10_000_000n; // 10 mUSDC
 const CHALLENGE_DEPOSIT =  2_000_000n; //  2 mUSDC
 const SLASH_BPS         =      5_000n; // 50 %
 const SLASH_REWARD_BPS  =      5_000n; // 50 % of slashed amount → challenger
+// v2 jury params. NOTE: a fresh deploy via this script leaves the jury
+// UNSEATED — run upgrade-jury-sepolia.ts (or registerJuror manually) after,
+// because openChallenge reverts until jurorCount == JURY_SIZE.
+const JURY_FEE          =    500_000n; // 0.5 mUSDC (F)
+const DEFENSE_WINDOW    =        120n; // R_w seconds
+const JURY_SIZE         =          3n; // N
+const CHALLENGE_WINDOW  =        300n; // W_c seconds (escrow complete gate)
 
 // Each provider gets 20 mUSDC minted; expert stakes the full 20 mUSDC.
 const PROVIDER_MINT     = 20_000_000n; // 20 mUSDC
@@ -107,22 +114,24 @@ async function main() {
   console.log(`MockUSDC: ${usdcAddress}`);
 
   // ── 2. Deploy ProofMarketEscrow ────────────────────────────────────────────
-  const escrow = await hre.ethers.deployContract("ProofMarketEscrow");
+  const escrow = await hre.ethers.deployContract("ProofMarketEscrow", [CHALLENGE_WINDOW]);
   await escrow.waitForDeployment();
   const escrowAddress = await escrow.getAddress();
   console.log(`ProofMarketEscrow: ${escrowAddress}`);
 
   // ── 3. Deploy ProofMarketChallengeManager ──────────────────────────────────
-  // Constructor: (token_, resolver_, treasury_, minStake_, challengeDeposit_,
-  //               slashBps_, slashRewardBps_)
+  // Constructor v2: (token_, treasury_, minStake_, challengeDeposit_,
+  //                  slashBps_, slashRewardBps_, juryFee_, defenseWindow_, jurySize_)
   const cm = await hre.ethers.deployContract("ProofMarketChallengeManager", [
     usdcAddress,
-    resolverAddress,
     treasuryAddress,
     MIN_STAKE,
     CHALLENGE_DEPOSIT,
     SLASH_BPS,
-    SLASH_REWARD_BPS
+    SLASH_REWARD_BPS,
+    JURY_FEE,
+    DEFENSE_WINDOW,
+    JURY_SIZE
   ]);
   await cm.waitForDeployment();
   const cmAddress = await cm.getAddress();
@@ -197,7 +206,13 @@ async function main() {
       minStake:         MIN_STAKE.toString(),
       challengeDeposit: CHALLENGE_DEPOSIT.toString(),
       slashBps:         SLASH_BPS.toString(),
-      slashRewardBps:   SLASH_REWARD_BPS.toString()
+      slashRewardBps:   SLASH_REWARD_BPS.toString(),
+      juryFee:          JURY_FEE.toString(),
+      defenseWindow:    DEFENSE_WINDOW.toString(),
+      jurySize:         JURY_SIZE.toString()
+    },
+    escrowParams: {
+      challengeWindow: CHALLENGE_WINDOW.toString()
     },
     resolver:  resolverAddress,
     treasury:  treasuryAddress,
