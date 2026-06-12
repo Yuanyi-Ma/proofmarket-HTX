@@ -289,12 +289,14 @@ describe("Step5Evidence — ChallengeWon stage (jury verdict)", () => {
     expect(screen.getByText(/覆盖声明漏检，挑战成立/)).toBeTruthy();
   });
 
-  it("renders one vote card per juror with model families", () => {
+  it("renders one neutral vote card per juror (no model-brand claims)", () => {
     render(<Step5Evidence task={wonTask} {...defaultProps} />);
-    for (const vote of votesFixture) {
+    votesFixture.forEach((vote, i) => {
       expect(screen.getByTestId(`jury-vote-${vote.jurorId}`)).toBeTruthy();
-      expect(screen.getAllByText(new RegExp(vote.modelFamily)).length).toBeGreaterThan(0);
-    }
+      expect(screen.getByText(`审判方 ${i + 1}`)).toBeTruthy();
+      // Model brands are unverifiable claims — they must not render.
+      expect(screen.queryByText(new RegExp(vote.modelFamily))).toBeNull();
+    });
   });
 
   it("marks the dissenting vote and shows its reason book", () => {

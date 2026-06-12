@@ -73,13 +73,13 @@ async function main() {
 
   log("execute escrow (4 on-chain txs)…");
   await clickBtn("执行链上委托");
-  await waitBtn("获取研究简报", 360_000);
+  await waitBtn("获取研究简报", 900_000);
   await page.waitForTimeout(800);
   await shot("05-step4-onchain-funded");
 
   log("run provider (submit on-chain)…");
   await clickBtn("获取研究简报");
-  await waitBtn("核验简报", 200_000);
+  await waitBtn("核验简报", 360_000);
   await page.waitForTimeout(800);
   await shot("06-step5-evidence");
 
@@ -92,7 +92,7 @@ async function main() {
   await shot("07-step6-verified");
 
   log("waiting out the challenge window W_c (up to 6 min)…");
-  await waitBtn("确认结算", 360_000);
+  await waitBtn("确认结算", 900_000);
   await page.waitForTimeout(500);
   await shot("07b-step6-window-closed");
 
@@ -137,17 +137,17 @@ async function main() {
   await clickBtn("确认委托，去授权");
   await waitBtn("执行链上委托", 90_000);
   await clickBtn("执行链上委托");
-  await waitBtn("获取研究简报", 360_000);
+  await waitBtn("获取研究简报", 900_000);
   await clickBtn("获取研究简报");
-  await waitBtn("核验简报", 200_000);
+  await waitBtn("核验简报", 360_000);
   // The branch point of the challenge flowchart: evidence delivered inside the
   // challenge window, 核验简报 and 发起挑战 both on screen.
   await page.waitForTimeout(800);
   await shot("10b-challenge-branch-point");
 
   log("open challenge (deposit + fee + openChallenge + defense on-chain)…");
-  await clickBtn("发起挑战");
-  await waitBtn("请求审判团裁决", 300_000);
+  await clickBtn("生成挑战包，发起挑战");
+  await waitBtn("请求审判团裁决", 600_000);
   // Defense card is filed automatically right after the challenge opens.
   await page.getByTestId("defense-card").waitFor({ state: "visible", timeout: 30_000 });
   await page.waitForTimeout(800);
@@ -176,7 +176,7 @@ async function main() {
 
   log("resolve (permissionless majority execution on-chain)…");
   await page.getByRole("button", { name: /执行裁决/ }).click();
-  await waitText("裁决已执行", 240_000);
+  await waitText("裁决已执行", 480_000);
   await page.waitForTimeout(800);
   await shot("13-challenge-resolved");
   } // end challenge path

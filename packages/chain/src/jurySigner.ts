@@ -35,7 +35,7 @@ export function createJuryVoter(input: {
       functionName: "castVote",
       args: [challengeId, result, reasonHash]
     });
-    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 180_000 });
+    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 420_000 });
     assertReceiptSuccess(receipt, hash);
     return { txHash: hash };
   };
@@ -108,7 +108,7 @@ export function createDefenseSubmitter(input: {
       functionName: "submitDefense",
       args: [challengeId, defenseHash]
     });
-    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 180_000 });
+    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 420_000 });
     assertReceiptSuccess(receipt, hash);
     return { txHash: hash };
   };

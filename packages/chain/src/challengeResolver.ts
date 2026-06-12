@@ -33,7 +33,7 @@ export function createChallengeResolver(input: {
       functionName: "resolve",
       args: [challengeId]
     });
-    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 180_000 });
+    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 420_000 });
     assertReceiptSuccess(receipt, hash);
     return { txHash: hash };
   };

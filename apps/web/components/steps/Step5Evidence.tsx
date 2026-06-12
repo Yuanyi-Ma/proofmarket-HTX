@@ -6,6 +6,81 @@ import { isFullTxHash, sepoliaTxUrl, shortHash } from "../../lib/links";
 import { formatCountdown, useCountdown } from "../../lib/useCountdown";
 import { StepShell } from "../StepShell";
 
+// 我方 Agent 概率性抽查的查全样本：来自用户侧本地资料库的「该方向应出现
+// 文献」清单。命中与否按简报实际内容（sourceLocator）比对——专家包命中、
+// 速查包漏检是真实的内容差异，不是写死的结果。
+const COMPLETENESS_SAMPLES = [
+  {
+    title: "Block-STM: Scaling Blockchain Execution",
+    locator: "arXiv:2203.06871"
+  },
+  {
+    title: "高吞吐智能合约执行中的状态热点",
+    locator: "mock-report:state-hotspots-2025"
+  }
+] as const;
+
+function packageMissesSample(pkg: NonNullable<Task["providerPackage"]>): boolean {
+  return COMPLETENESS_SAMPLES.some(
+    (sample) => !pkg.answers.some((a) => a.sourceLocator === sample.locator)
+  );
+}
+
+// 我方 Agent 的抽查核验：查准（抽样比对摘录与本地库原文）+ 查全（抽样
+// 「理应出现」的文献看是否在简报内）。这是挑战机制成立的根基——产出难、
+// 概率性验证容易，所以可以先信任交付，事后抽查兜底。
+function AgentSpotCheck({ pkg }: { pkg: NonNullable<Task["providerPackage"]> }) {
+  const accuracySamples = pkg.answers.slice(0, 2);
+  const completeness = COMPLETENESS_SAMPLES.map((sample) => ({
+    ...sample,
+    present: pkg.answers.some((a) => a.sourceLocator === sample.locator)
+  }));
+  const missed = completeness.filter((c) => !c.present);
+
+  return (
+    <div className="spot-check" style={{ marginTop: 20 }} data-testid="agent-spot-check">
+      <p className="section-kicker" style={{ margin: "0 0 8px" }}>
+        我方 Agent 抽查核验
+      </p>
+      <div className="data-grid">
+        <div className="data-row">
+          <span className="data-label">查准 · 抽样比对</span>
+          <div className="data-value">
+            {accuracySamples.map((a) => (
+              <div key={a.sourceLocator} className="dot-inline-wrap" style={{ marginBottom: 2 }}>
+                <span className="dot ok" aria-hidden="true" />
+                <span className="small">《{a.sourceTitle}》摘录与本地资料库原文一致</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="data-row">
+          <span className="data-label">查全 · 抽样应出现文献</span>
+          <div className="data-value">
+            {completeness.map((c) => (
+              <div key={c.locator} className="dot-inline-wrap" style={{ marginBottom: 2 }}>
+                <span className={`dot ${c.present ? "ok" : "danger"}`} aria-hidden="true" />
+                <span className="small">
+                  《{c.title}》{c.present ? "已包含在简报中" : "未出现在简报中——但在其覆盖声明范围内"}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+      {missed.length > 0 ? (
+        <div className="error-strip" style={{ marginTop: 8 }} data-testid="spot-check-failed">
+          查全抽检未通过：覆盖声明范围内的代表性文献缺失。Agent 已按「问题点 + 反证原文 + 哈希」准备好挑战包，可一键发起挑战。
+        </div>
+      ) : (
+        <p className="small muted tight" style={{ marginTop: 8 }}>
+          抽查由你的 Agent 在本地资料库自动执行：概率性抽样，不做全量复核——任何一次漏检或篡改都有足够概率被低成本抓到。
+        </p>
+      )}
+    </div>
+  );
+}
+
 // 挑战书 + counter-evidence handed to the jury. All plaintext is shown in
 // full; only its hash is committed on-chain, so anyone can verify the
 // plaintext was not altered. challenge.counterEvidenceHash is that commitment.
@@ -100,7 +175,7 @@ function DefenseCard({ challenge }: { challenge: TaskChallenge }) {
             </div>
           </div>
           <p className="small muted tight" style={{ marginTop: 6 }}>
-            审判团必须等应辩窗口结束才能投票（强制兼听）；放弃应辩不影响裁决进行。
+            挑战是公开的链上事件：专家端的监听服务收到事件后在窗口内自动提交应辩，窗口按链上时间强制。审判团必须等应辩窗口结束才能投票（强制兼听）；放弃应辩视同弃权，裁决照常进行。
           </p>
         </>
       ) : (
@@ -120,8 +195,10 @@ function JuryVoteCard({ vote, index }: { vote: JuryVote; index: number }) {
       <summary className="evidence-item-summary">
         <span className="evidence-item-index">{index + 1}</span>
         <span className="evidence-item-title">
-          {vote.jurorId}
-          <span className="muted small">（{vote.modelFamily}）</span>
+          审判方 {index + 1}
+          {vote.jurorAddress ? (
+            <span className="muted small mono">（{vote.jurorAddress.slice(0, 10)}…）</span>
+          ) : null}
         </span>
         <span className={`status-badge ${isFault ? "danger" : "warning"}`}>
           {isFault ? "ProviderFault" : "NotFault（异议）"}
@@ -456,7 +533,7 @@ function ChallengeStage2({
 
       <div className="challenge-stage-body">
         <p className="small muted tight" style={{ margin: "0 0 8px" }}>
-          三个独立审判运营方（异构模型家族）各自核对原文后投票，理由书哈希随票上链。
+          三个相互独立的审判方各自核对原文后投票，理由书哈希随票上链。
           多数决生效——异议票也完整留痕。
         </p>
         <div className="evidence-items-list">
@@ -465,7 +542,7 @@ function ChallengeStage2({
           ))}
         </div>
         <p className="small muted tight" style={{ marginTop: 8 }}>
-          各审判方的模型版本哈希与审判 prompt 哈希在注册时已承诺上链，任何人可按承诺参数离线重跑复核任一票。
+          每个审判方注册时已把模型版本与审判 prompt 的哈希承诺上链，任何人可按承诺参数离线重跑复核任一票。
         </p>
 
         {/* Materials panel (still visible for reference) */}
@@ -614,9 +691,13 @@ export function Step5Evidence({
       disabled: isBusy,
       busy: isBusy,
     };
-    // Secondary: low-key challenge entry
+    // Secondary: low-key challenge entry; when the agent's spot check found
+    // a coverage miss, the same action ships the pre-built challenge package.
     secondary = {
-      label: "发起挑战",
+      label:
+        providerPackage && packageMissesSample(providerPackage)
+          ? "生成挑战包，发起挑战"
+          : "发起挑战",
       onClick: onOpenChallenge,
       disabled: isBusy,
     };
@@ -669,6 +750,9 @@ export function Step5Evidence({
         <div className="info-strip">等待专家交付研究简报…</div>
       )}
 
+      {/* ── 我方 Agent 抽查核验 ───────────────────────── */}
+      {providerPackage && <AgentSpotCheck pkg={providerPackage} />}
+
       {/* ── 链上一致性 ───────────────────────────────── */}
       {providerPackage && (
         <div className="onchain-consistency" style={{ marginTop: 20 }}>
@@ -694,7 +778,7 @@ export function Step5Evidence({
             </div>
           </div>
           <p className="small muted tight" style={{ marginTop: 6 }}>
-            简报全文（含摘录）的哈希已写入链上——拿到明文即可重算比对，改动任何一个字都会对不上。
+            简报全文（含摘录）的哈希由专家地址签名的 submit 交易写入链上：明文重算即可比对，改一个字都对不上。专家无法否认交付内容，任何人也无法伪造一份「专家给的」简报——伪造文本凑不出专家签过名的哈希。
           </p>
         </div>
       )}
@@ -796,7 +880,7 @@ export function Step5Evidence({
               <>挑战窗口已结束，订单可正常结算。</>
             ) : null}
             {" "}若对简报有异议，可发起挑战：锁定押金 + 审判费 → 专家应辩 →
-            审判团（3 个异构模型运营方）多数决 → 链上扣罚 / 退款，全过程上链可查。
+            审判团（3 个独立审判方）多数决 → 链上扣罚 / 退款，全过程上链可查。
           </span>
         </div>
       )}

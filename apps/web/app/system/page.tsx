@@ -186,14 +186,13 @@ export default async function SystemPage() {
 
       {/* 审判团 */}
       <section style={{ marginTop: 24 }} aria-label="审判团">
-        <p className="section-kicker">AI 审判团（{String(params.jurorCount)}/{String(params.jurySize)} 席，异构模型家族）</p>
+        <p className="section-kicker">AI 审判团（{String(params.jurorCount)}/{String(params.jurySize)} 席，相互独立的运营方）</p>
         <div className="evidence-items-list">
           {jurors.map((juror) => (
             <details key={juror.jurorId} className="evidence-item-row" open>
               <summary className="evidence-item-summary">
                 <span className="evidence-item-title">
-                  {juror.jurorId}
-                  <span className="muted small">（{juror.modelFamily}）</span>
+                  审判方 {jurors.indexOf(juror) + 1}
                 </span>
                 <span className={`status-badge ${juror.registered ? "success" : "danger"}`}>
                   {juror.registered ? "已注册" : "未注册"}
@@ -209,17 +208,15 @@ export default async function SystemPage() {
                   </div>
                 </div>
                 <div className="data-row">
-                  <span className="data-label">承诺模型版本</span>
-                  <div className="data-value">
-                    <span className="mono">{juror.modelTag}</span>
-                    <span className="muted small mono"> → 链上哈希 {juror.modelHash ? `${juror.modelHash.slice(0, 18)}…` : "—"}</span>
+                  <span className="data-label">模型版本承诺</span>
+                  <div className="data-value mono">
+                    {juror.modelHash ? `${juror.modelHash.slice(0, 26)}…` : "—"}
                   </div>
                 </div>
                 <div className="data-row">
-                  <span className="data-label">承诺审判 prompt</span>
-                  <div className="data-value">
-                    <span className="mono">{juror.promptTag}</span>
-                    <span className="muted small mono"> → 链上哈希 {juror.promptHash ? `${juror.promptHash.slice(0, 18)}…` : "—"}</span>
+                  <span className="data-label">审判 prompt 承诺</span>
+                  <div className="data-value mono">
+                    {juror.promptHash ? `${juror.promptHash.slice(0, 26)}…` : "—"}
                   </div>
                 </div>
               </div>
@@ -227,7 +224,7 @@ export default async function SystemPage() {
           ))}
         </div>
         <p className="small muted tight" style={{ marginTop: 8 }}>
-          注册承诺 + 温度 0 声明，使任何一票裁决都可按链上承诺参数离线重跑复核。
+          每个审判方注册时将其模型版本与审判 prompt 的哈希承诺上链；裁决有争议时按承诺参数披露并离线重跑，任何一票都可复核。
         </p>
       </section>
 

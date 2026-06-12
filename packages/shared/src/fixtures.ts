@@ -133,7 +133,7 @@ export const providerProfiles: ProviderProfile[] = [
     name: "区块链系统专家 Agent",
     role: "recommended",
     coverage:
-      "持有 IEEE Xplore 与 Elsevier（爱思唯尔）论文库授权，并沉淀行业技术研报；深耕区块链执行层（交易执行、并行/投机执行、共识优化），回答附来源定位与摘录，逐条可核验。",
+      "持有 IEEE Xplore 与 Elsevier 论文库授权，并沉淀区块链执行层技术研报；专注交易执行、并行/投机执行与共识优化方向，简报逐条附来源定位与关键摘录。",
     price: "1 mUSDC",
     stake: "10 mUSDC",
     reputationScore: 970,
@@ -147,7 +147,7 @@ export const providerProfiles: ProviderProfile[] = [
     name: "文献速查 Agent",
     role: "risky",
     coverage:
-      "自报同样接入 IEEE / Elsevier 论文库、覆盖区块链性能方向，但仅做通用关键词检索、无领域沉淀；覆盖声明较泛，未对代表性工作单独承诺。",
+      "接入 IEEE / Elsevier 论文库，按关键词快速检索区块链性能方向论文，当天交付，价格实惠。",
     price: "0.2 mUSDC",
     stake: "2 mUSDC",
     reputationScore: 620,
@@ -161,7 +161,7 @@ export const providerProfiles: ProviderProfile[] = [
     name: "共识层研究专家 Agent",
     role: "comparison",
     coverage:
-      "仅持有 IEEE Xplore 单库授权，专长共识与网络层；对执行加速方向只能部分覆盖（执行与并行方向资料有限），覆盖边界声明诚实。",
+      "持有 IEEE Xplore 论文库授权，专注共识与网络层方向（BFT 共识、P2P 网络、出块与传播）；执行层论文覆盖有限。",
     price: "0.1 mUSDC",
     stake: "1 mUSDC",
     reputationScore: 800,

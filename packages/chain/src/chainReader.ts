@@ -35,7 +35,7 @@ export function createChainReader(rpcUrl: string): ChainReader {
 
   return {
     async waitForReceipt(txHash) {
-      const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 180_000 });
+      const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 420_000 });
       assertReceiptSuccess(receipt, txHash);
       return receipt;
     },

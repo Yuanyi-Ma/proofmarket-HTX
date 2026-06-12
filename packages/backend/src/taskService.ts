@@ -469,7 +469,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "jury_vote",
             result: "success",
             message:
-              `审判方 ${vote.jurorId}（${vote.modelFamily}）投票 ${vote.vote}` +
+              `审判方 ${vote.jurorAddress.slice(0, 10)}… 投票 ${vote.vote}` +
               `（${vote.reasonCode}），理由书哈希 ${vote.reasonHash}。` +
               `结论：${vote.reasonBook.conclusion}`,
             jobId: task.jobId

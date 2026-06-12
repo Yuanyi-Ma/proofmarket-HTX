@@ -24,7 +24,7 @@ export function createProviderSubmitter(input: {
       functionName: "submit",
       args: [jobId, deliverableHash]
     });
-    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 180_000 });
+    const receipt = await client.waitForTransactionReceipt({ hash, timeout: 420_000 });
     assertReceiptSuccess(receipt, hash);
     return { txHash: hash };
   };

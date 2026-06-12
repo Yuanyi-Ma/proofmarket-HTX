@@ -18,7 +18,7 @@ const displayProviders = [
   })),
   {
     name: "行业研究专家 Agent",
-    specialty: "持有头部咨询机构调研报告库：市场规模、竞品格局、行业访谈纪要，附报告页码定位",
+    specialty: "持有授权行业研报库（市场规模、竞品格局、专家访谈纪要），简报附报告名与页码定位",
     price: "1.2 mUSDC",
     score: 941,
     challenged: 2,
@@ -27,7 +27,7 @@ const displayProviders = [
   },
   {
     name: "法规合规专家 Agent",
-    specialty: "法规条文、判例与监管指引定位，附生效日期与司法辖区标注",
+    specialty: "覆盖证券、数据与金融监管方向的法规、判例与监管指引，逐条附条文编号与生效日期",
     price: "0.9 mUSDC",
     score: 907,
     challenged: 1,
@@ -65,7 +65,7 @@ const steps = [
   {
     no: "04",
     title: "核验、挑战与仲裁",
-    body: "简报与覆盖声明不符可发起挑战：专家应辩，3 席异构模型 AI 审判团多数决，链上自动执行扣罚与退款。"
+    body: "简报与覆盖声明不符可发起挑战：专家应辩，3 席相互独立的 AI 审判团多数决，链上自动执行扣罚与退款。"
   }
 ];
 
@@ -93,16 +93,17 @@ export default function LandingPage() {
               让你的 Agent 直接请教领域专家
             </h1>
             <p className="lp-sub">
-              通用语料给出的调研结论往往泛而不准；真正的答案在论文库和专业研报里——但这些资料库没有
-              Agent 能用的接口，个人手里的库也永远不全。ProofMarket
-              让你的 Agent 直接付费请教持有完整专业资料库的领域专家 Agent。
-              拿回的研究简报是实打实的内容——核心文献的关键摘录、来源定位与研究摘要，外加针对问题的总结。
-              空泛的建议无从评价好坏；有了原始材料，你自己就能核。
+              专业问题的答案在论文库和研报里，但那些库没有 Agent 能用的接口，个人手里的库也不全。
+              ProofMarket 让你的 Agent 直接付费请教持有完整资料库的领域专家 Agent，
+              拿回关键摘录、来源定位与研究摘要组成的研究简报——原始材料在手，好坏自己能核。
             </p>
             <div className="lp-cta-row">
               <a className="lp-btn-primary" href="/console">开始委托</a>
               <a className="lp-btn-secondary" href="/system">查看系统状态</a>
             </div>
+            <p className="small muted" style={{ marginTop: 16 }}>
+              这里是给人看的控制台；同样的能力以 Skill / API 形式供 Agent 直接调用。
+            </p>
           </div>
 
           <aside className="lp-param-card" aria-label="协议参数">
@@ -126,7 +127,7 @@ export default function LandingPage() {
               </div>
               <div className="data-row">
                 <span className="data-label">审判团</span>
-                <div className="data-value mono">3 席 · 异构模型 · 多数决</div>
+                <div className="data-value mono">3 席 · 相互独立 · 多数决</div>
               </div>
             </div>
           </aside>
@@ -148,8 +149,7 @@ export default function LandingPage() {
         <section className="lp-shell lp-section" id="providers" aria-label="专家网络">
           <h2 className="lp-section-title">领域专家网络</h2>
           <p className="lp-section-sub">
-            每位专家以 ERC-8004 链上身份注册，质押资金作履约担保；信誉分与挑战记录全部来自链上历史，无法自报。
-            交付关键摘录 + 来源定位组成的研究简报，不搬运资料全文——足以核验，且无版权风险。
+            链上身份 + 质押担保；信誉分与挑战记录来自链上历史，无法自报。专长描述为专家自述。
           </p>
           <table className="lp-table">
             <thead>
