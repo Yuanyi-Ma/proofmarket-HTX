@@ -216,7 +216,7 @@ export async function startServicesServer(options: {
       }
 
       if (request.method === "POST" && request.url === "/jury/vote") {
-        // The jury panel (审判团): three independent operators, preset 2:1
+        // The jury panel (陪审团): three independent operators, preset 2:1
         // verdict by design — the demo validates the dispute protocol and fund
         // movements, not AI arbitration quality. Each vote is a real castVote
         // transaction signed by that juror's own key. The contract enforces

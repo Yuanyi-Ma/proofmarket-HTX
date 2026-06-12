@@ -25,6 +25,10 @@ async function main() {
   const clickBtn = (name) => page.getByRole("button", { name, exact: true }).click();
   const waitBtn = (name, timeout) =>
     page.getByRole("button", { name, exact: true }).waitFor({ state: "visible", timeout });
+  const settleBtn = () =>
+    page.getByRole("button", { name: /^(我不挑战，直接结算|确认结算)$/ });
+  const clickSettle = () => settleBtn().click();
+  const waitSettle = (timeout) => settleBtn().waitFor({ state: "visible", timeout });
   const waitText = (text, timeout) =>
     page.getByText(text, { exact: false }).first().waitFor({ state: "visible", timeout });
 
@@ -35,7 +39,7 @@ async function main() {
   if (only !== "challenge" && only !== "success") {
   log("=== LANDING ===");
   await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
-  await waitText("让你的 Agent 直接请教领域专家", 30_000);
+  await waitText("给 Agent 用的可信专业资料网络", 30_000);
   await page.waitForTimeout(400);
   await shot("00-landing");
 
@@ -50,18 +54,18 @@ async function main() {
   if (only !== "challenge") {
   log("=== SUCCESS PATH ===");
   await page.goto(`${BASE}/console`, { waitUntil: "networkidle" });
-  await waitBtn("生成委托方案", 30_000);
+  await waitBtn("生成购买方案", 30_000);
   await shot("01-step1-question");
 
   log("plan (real Claude call)…");
-  await clickBtn("生成委托方案");
-  await waitBtn("确认委托，去授权", 200_000); // Claude + on-chain reputation reads
+  await clickBtn("生成购买方案");
+  await waitBtn("确认方案，去授权", 200_000); // Claude + on-chain reputation reads
   await page.waitForTimeout(800);
   await shot("02-step2-plan-candidates");
 
   log("confirm expert → pact…");
-  await clickBtn("确认委托，去授权");
-  await waitBtn("执行链上委托", 90_000);
+  await clickBtn("确认方案，去授权");
+  await waitBtn("执行采购", 90_000);
   await page.waitForTimeout(500);
   await shot("03-step3-pact-active");
 
@@ -72,7 +76,7 @@ async function main() {
   await shot("04-step3-denial");
 
   log("execute escrow (4 on-chain txs)…");
-  await clickBtn("执行链上委托");
+  await clickBtn("执行采购");
   await waitBtn("获取研究简报", 900_000);
   await page.waitForTimeout(800);
   await shot("05-step4-onchain-funded");
@@ -85,29 +89,27 @@ async function main() {
 
   log("verify…");
   await clickBtn("核验简报");
-  // W_c gate: the settle button is disabled with a countdown until the
-  // challenge window (300s after submit) passes. Shoot the gated state first.
   await page.getByTestId("settle-window-note").waitFor({ state: "visible", timeout: 90_000 });
   await page.waitForTimeout(500);
   await shot("07-step6-verified");
 
-  log("waiting out the challenge window W_c (up to 6 min)…");
-  await waitBtn("确认结算", 900_000);
+  log("settlement is available; client can choose no challenge…");
+  await waitSettle(120_000);
   await page.waitForTimeout(500);
-  await shot("07b-step6-window-closed");
+  await shot("07b-step6-settle-ready");
 
   log("settle (on-chain)…");
   // The settle Cobo call occasionally hits transient API errors; the task
   // stays Verified, so clicking again retries safely.
   let settled = false;
   for (let attempt = 1; attempt <= 3 && !settled; attempt++) {
-    await clickBtn("确认结算");
+    await clickSettle();
     try {
       await waitText("最终回答", 200_000);
       settled = true;
     } catch {
       log(`settle attempt ${attempt} did not land, retrying…`);
-      await waitBtn("确认结算", 30_000); // back to Verified with button re-enabled
+      await waitSettle(30_000); // back to Verified with button re-enabled
     }
   }
   if (!settled) throw new Error("settle failed after 3 attempts");
@@ -125,11 +127,11 @@ async function main() {
   if (only !== "success") {
   log("=== CHALLENGE PATH ===");
   await page.goto(`${BASE}/console`, { waitUntil: "networkidle" });
-  await waitBtn("生成委托方案", 30_000);
+  await waitBtn("生成购买方案", 30_000);
 
   log("plan…");
-  await clickBtn("生成委托方案");
-  await waitBtn("确认委托，去授权", 200_000);
+  await clickBtn("生成购买方案");
+  await waitBtn("确认方案，去授权", 200_000);
   await page.waitForTimeout(500);
 
   log("select shallow provider (faulty package → real coverage miss)…");
@@ -140,9 +142,9 @@ async function main() {
   await shot("10-challenge-step2-select-shallow");
 
   log("confirm → pact → execute…");
-  await clickBtn("确认委托，去授权");
-  await waitBtn("执行链上委托", 90_000);
-  await clickBtn("执行链上委托");
+  await clickBtn("确认方案，去授权");
+  await waitBtn("执行采购", 90_000);
+  await clickBtn("执行采购");
   await waitBtn("获取研究简报", 900_000);
   await clickBtn("获取研究简报");
   await waitBtn("核验简报", 360_000);
@@ -153,27 +155,27 @@ async function main() {
 
   log("open challenge (deposit + fee + openChallenge + defense on-chain)…");
   await clickBtn("生成挑战包，发起挑战");
-  await waitBtn("请求审判团裁决", 600_000);
+  await waitBtn("请求陪审团裁决", 600_000);
   // Defense card is filed automatically right after the challenge opens.
   await page.getByTestId("defense-card").waitFor({ state: "visible", timeout: 30_000 });
   await page.waitForTimeout(800);
   await shot("11-challenge-opened-materials");
 
   log("request jury verdict (waits out R_w 120s, then 3 castVote txs)…");
-  await clickBtn("请求审判团裁决");
+  await clickBtn("请求陪审团裁决");
   await page.waitForTimeout(2_000);
   await shot("11b-jury-deliberating");
   // Transient chain/RPC errors leave the task Challenged with the button
   // re-enabled; clicking again resumes (votes are idempotent server-side).
   let verdictShown = false;
   for (let attempt = 1; attempt <= 3 && !verdictShown; attempt++) {
-    if (attempt > 1) await clickBtn("请求审判团裁决");
+    if (attempt > 1) await clickBtn("请求陪审团裁决");
     try {
-      await page.getByText("审判团投票 2 : 1", { exact: false }).waitFor({ state: "visible", timeout: 420_000 });
+      await page.getByText("陪审团投票 2 : 1", { exact: false }).waitFor({ state: "visible", timeout: 420_000 });
       verdictShown = true;
     } catch {
       log(`jury verdict attempt ${attempt} did not land, retrying…`);
-      await waitBtn("请求审判团裁决", 30_000);
+      await waitBtn("请求陪审团裁决", 30_000);
     }
   }
   if (!verdictShown) throw new Error("jury verdict failed after 3 attempts");

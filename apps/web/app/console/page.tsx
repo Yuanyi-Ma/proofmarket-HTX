@@ -67,7 +67,7 @@ export default function Page() {
   // call in step 4. Null = fall back to the agent's recommendation.
   const [selectedProviderId, setSelectedProviderId] = useState<ProviderId | null>(null);
   // Whether to expand the audit sidebar (for the 「查看完整审计」button).
-  const [auditExpanded, setAuditExpanded] = useState(true);
+  const [auditExpanded, setAuditExpanded] = useState(false);
   const isBusy = busyAction !== null;
   const taskId = task?.id ?? null;
 
@@ -202,7 +202,12 @@ export default function Page() {
     setSelectedProviderId(null);
   }
 
-  const currentStep = stepFor(task);
+  const currentStep =
+    busyAction === "execute"
+      ? 4
+      : busyAction === "provider"
+        ? 5
+        : stepFor(task);
   // Review mode only goes backwards: a stale viewStep (>= current) is ignored.
   const displayStep =
     viewStep !== null && viewStep < currentStep ? viewStep : currentStep;
@@ -303,6 +308,7 @@ export default function Page() {
         </div>
         <Stepper
           task={task}
+          currentStep={currentStep}
           viewingStep={isReviewing ? displayStep : null}
           onSelectStep={(n) => setViewStep(n === currentStep ? null : n)}
         />

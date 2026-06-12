@@ -18,7 +18,7 @@ import { createPublicClient, formatEther, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { sepolia } from "viem/chains";
 
-import { erc20Abi } from "@proofmarket/chain/src/escrowAbi";
+import { challengeManagerAbi, erc20Abi } from "@proofmarket/chain/src/escrowAbi";
 import { parseDeploymentArtifact } from "@proofmarket/shared/src/realMode";
 
 const execFileAsync = promisify(execFile);
@@ -237,6 +237,60 @@ async function checkMockUsdcBalance(
   }
 }
 
+function formatMUSDC(raw: bigint): string {
+  const whole = raw / 1_000_000n;
+  const fractional = (raw % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return `${whole}${fractional ? `.${fractional}` : ""} mUSDC`;
+}
+
+async function checkProviderFreeStake(
+  client: ReturnType<typeof createPublicClient>,
+  challengeManagerAddress: `0x${string}`,
+  providerAddress: `0x${string}`
+): Promise<void> {
+  const name = "provider_free_stake";
+  try {
+    const [stake, lockedStake, minStake] = await Promise.all([
+      client.readContract({
+        address: challengeManagerAddress,
+        abi: challengeManagerAbi,
+        functionName: "stake",
+        args: [providerAddress]
+      }),
+      client.readContract({
+        address: challengeManagerAddress,
+        abi: challengeManagerAbi,
+        functionName: "lockedStake",
+        args: [providerAddress]
+      }),
+      client.readContract({
+        address: challengeManagerAddress,
+        abi: challengeManagerAbi,
+        functionName: "minStake"
+      })
+    ]);
+    const freeStake = stake - lockedStake;
+    if (freeStake < minStake) {
+      fail(
+        name,
+        `Provider ${providerAddress} has only ${formatMUSDC(freeStake)} free stake; ` +
+          `needs ${formatMUSDC(minStake)} to create another job ` +
+          `(total ${formatMUSDC(stake)}, locked ${formatMUSDC(lockedStake)}). ` +
+          "Release stranded jobs or deposit more provider stake before the demo."
+      );
+    } else {
+      pass(
+        name,
+        `Provider ${providerAddress} free stake ${formatMUSDC(freeStake)} ` +
+          `≥ minStake ${formatMUSDC(minStake)} ` +
+          `(total ${formatMUSDC(stake)}, locked ${formatMUSDC(lockedStake)})`
+      );
+    }
+  } catch (err) {
+    fail(name, `Failed to read provider stake: ${String(err)}`);
+  }
+}
+
 async function checkServicesReachable(): Promise<void> {
   const name = "services_reachable";
   const servicesUrl = process.env.SERVICES_URL ?? "http://localhost:4010";
@@ -339,8 +393,23 @@ async function main(): Promise<void> {
         "Artifact or COBO_WALLET_ADDRESS missing — cannot check MockUSDC balance"
       );
     }
+
+    // 8b. Provider free stake must cover one more createJob lock.
+    const challengeManagerAddress = artifact?.contracts.ProofMarketChallengeManager;
+    if (challengeManagerAddress && providerSignerAddress) {
+      await checkProviderFreeStake(
+        client,
+        challengeManagerAddress as `0x${string}`,
+        providerSignerAddress
+      );
+    } else {
+      fail(
+        "provider_free_stake",
+        "Artifact ProofMarketChallengeManager or PROVIDER_SIGNER_ADDRESS missing — cannot check provider free stake"
+      );
+    }
   } else {
-    for (const n of ["gas_cobo_wallet", "gas_deployer", "gas_provider_signer", "usdc_balance_cobo_wallet"]) {
+    for (const n of ["gas_cobo_wallet", "gas_deployer", "gas_provider_signer", "usdc_balance_cobo_wallet", "provider_free_stake"]) {
       fail(n, "SEPOLIA_RPC_URL not set — skipped on-chain check");
     }
   }

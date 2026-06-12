@@ -283,16 +283,14 @@ export function createTaskService(store: InMemoryStore): TaskService {
 
     async triggerDenial(id: string): Promise<Task> {
       const task = store.getTask(id);
-      const denied = transition(task, "DeniedByCobo");
       const denial = {
-        denied: true,
-        reason:
-          "直接转账被拒绝：目标地址不在白名单内，且金额超出 Pact 上限。",
-        attemptedTarget: "0xDeniedDirectTransfer",
-        attemptedFunction: "transfer",
-        attemptedAmount: "10 SETH",
-        movedFunds: "0 test USDC"
+        denied: true as const,
+        exitCode: 403,
+        attemptedAction: "transfer 10 SETH to 0xDeniedDirectTransfer",
+        rawOutput:
+          "COBO_DENY: 直接转账被拒绝：目标地址不在白名单内，且金额超出 Pact 上限。"
       };
+      const denied = transition({ ...task, denial }, "DeniedByCobo");
 
       return save(
         withAudit(
@@ -303,9 +301,9 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "escrow_denied",
             result: "denied",
             message:
-              `${denial.reason} 尝试目标=${denial.attemptedTarget}；` +
-              `函数=${denial.attemptedFunction}；金额=${denial.attemptedAmount}；` +
-              `已转移资金=${denial.movedFunds}；未创建任何托管订单。`,
+              `${denial.rawOutput} 尝试目标=0xDeniedDirectTransfer；` +
+              "函数=transfer；金额=10 SETH；已转移资金=0 test USDC；" +
+              "未创建任何托管订单。",
             pactId: task.pact?.pactId ?? null
           })
         )
@@ -446,8 +444,8 @@ export function createTaskService(store: InMemoryStore): TaskService {
           result: "success",
           message:
             `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
-            "挑战押金与审判费已锁定，托管订单已冻结，专家应辩窗口开启。" +
-            `审判方指派：${presetChallengeDocument.juryAssignmentBasis}`,
+            "挑战押金与陪审费已锁定，托管订单已冻结，专家应辩窗口开启。" +
+            `陪审方指派：${presetChallengeDocument.juryAssignmentBasis}`,
           jobId: task.jobId
         })
       );
@@ -475,7 +473,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
 
     async winChallenge(id: string): Promise<Task> {
       const task = store.getTask(id);
-      // Preset jury verdict (审判团确定性裁决): 2:1 ProviderFault, fixture
+      // Preset jury verdict (陪审团确定性裁决): 2:1 ProviderFault, fixture
       // juror addresses (no chain in fixture mode).
       const votes = presetJuryVotes([
         "0x0000000000000000000000000000000000000a01",
@@ -498,7 +496,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "jury_vote",
             result: "success",
             message:
-              `审判方 ${vote.jurorAddress.slice(0, 10)}… 投票 ${vote.vote}` +
+              `陪审方 ${vote.jurorAddress.slice(0, 10)}… 投票 ${vote.vote}` +
               `（${vote.reasonCode}），理由书哈希 ${vote.reasonHash}。` +
               `结论：${vote.reasonBook.conclusion}`,
             jobId: task.jobId
@@ -516,7 +514,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "challenge_won",
             result: "success",
             message:
-              `审判团多数决 ${faultVotes}:${votes.length - faultVotes} 判 ProviderFault，挑战成立。`,
+              `陪审团多数决 ${faultVotes}:${votes.length - faultVotes} 判 ProviderFault，挑战成立。`,
             jobId: task.jobId
           })
         )
@@ -537,7 +535,7 @@ export function createTaskService(store: InMemoryStore): TaskService {
             result: "success",
             message:
               "已执行裁决资金动作：扣除专家质押 50%（挑战者得一半作奖励），" +
-              "托管资金退款买方，挑战者押金与审判费退回，审判费由扣罚承担、审判团均分，余额归入金库。",
+              "托管资金退款买方，挑战者押金与陪审费退回，陪审费由扣罚承担、陪审团均分，余额归入金库。",
             jobId: task.jobId
           })
         )

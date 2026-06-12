@@ -160,7 +160,7 @@ describe("task service orchestration", () => {
     const fundEvent = refunded.audit.find((event) => event.type === "refund_or_slash");
     expect(fundEvent?.message).toContain("扣除专家质押");
     expect(fundEvent?.message).toContain("退款买方");
-    expect(fundEvent?.message).toContain("审判费");
+    expect(fundEvent?.message).toContain("陪审费");
   });
 
   it("rejects openChallenge before evidence delivery", async () => {

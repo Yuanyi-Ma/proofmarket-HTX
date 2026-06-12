@@ -132,7 +132,7 @@ export default async function SystemPage() {
     <main className="wizard-shell" style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 24px" }}>
       <h1 style={{ marginBottom: 4 }}>系统状态</h1>
       <p className="muted small" style={{ marginTop: 0 }}>
-        以下数据全部来自 Sepolia 链上实时读取，地址均可点击在 Etherscan 复核。
+        当前部署概览：合约、资金托管、领域专家与陪审机制。
       </p>
 
       {/* 判定清单 */}
@@ -141,7 +141,7 @@ export default async function SystemPage() {
         <CheckRow ok label={`三合约已部署并完成双向 wire（Escrow / ChallengeManager / MockUSDC）`} />
         <CheckRow
           ok={jurySeated}
-          label={`审判团已满席：${params.jurorCount}/${params.jurySize} 个独立运营方注册，模型版本哈希 + 审判 prompt 哈希已上链承诺`}
+          label={`陪审团已就绪：本案 ${params.jurorCount}/${params.jurySize} 个独立运营方注册，模型版本哈希 + 陪审规程哈希已上链承诺`}
         />
         <CheckRow
           ok={stakeOk}
@@ -160,7 +160,7 @@ export default async function SystemPage() {
               <a className="hash" href={sepoliaAddressUrl(artifact.contracts.ProofMarketEscrow)} target="_blank" rel="noreferrer">
                 {shortAddress(artifact.contracts.ProofMarketEscrow)}
               </a>
-              <span className="muted"> · 挑战窗口 W_c = {String(params.challengeWindow)}s（窗口未过 complete 拒绝放款）</span>
+              <span className="muted"> · 挑战窗口 W_c = {String(params.challengeWindow)}s（买方可直接验收；非买方结算需等窗口结束）</span>
             </div>
           </div>
           <div className="data-row">
@@ -185,15 +185,15 @@ export default async function SystemPage() {
         </div>
       </section>
 
-      {/* 审判团 */}
-      <section style={{ marginTop: 24 }} aria-label="审判团">
-        <p className="section-kicker">AI 审判团（{String(params.jurorCount)}/{String(params.jurySize)} 席，相互独立的运营方）</p>
+      {/* 陪审团 */}
+      <section style={{ marginTop: 24 }} aria-label="陪审团">
+        <p className="section-kicker">AI 陪审团（九席候选陪审池；本案 {String(params.jurorCount)}/{String(params.jurySize)} 席参与裁决）</p>
         <div className="evidence-items-list">
           {jurors.map((juror) => (
             <details key={juror.jurorId} className="evidence-item-row" open>
               <summary className="evidence-item-summary">
                 <span className="evidence-item-title">
-                  审判方 {jurors.indexOf(juror) + 1}
+                  陪审方 {jurors.indexOf(juror) + 1}
                 </span>
                 <span className={`status-badge ${juror.registered ? "success" : "danger"}`}>
                   {juror.registered ? "已注册" : "未注册"}
@@ -215,7 +215,7 @@ export default async function SystemPage() {
                   </div>
                 </div>
                 <div className="data-row">
-                  <span className="data-label">审判 prompt 承诺</span>
+                  <span className="data-label">陪审规程承诺</span>
                   <div className="data-value mono">
                     {juror.promptHash ? `${juror.promptHash.slice(0, 26)}…` : "—"}
                   </div>
@@ -227,7 +227,7 @@ export default async function SystemPage() {
                       presetJurors[jurors.indexOf(juror)]?.libraryAccess ?? []
                     ) || "—"}
                     <span className="muted small">
-                      {" "}· 运营方自报，用于原文核对与挑战指派匹配
+                      {" "}· 用于原文核对与挑战指派匹配
                     </span>
                   </div>
                 </div>
@@ -236,13 +236,13 @@ export default async function SystemPage() {
           ))}
         </div>
         <p className="small muted tight" style={{ marginTop: 8 }}>
-          每个审判方注册时将其模型版本与审判 prompt 的哈希承诺上链；裁决有争议时按承诺参数披露并离线重跑，任何一票都可复核。挑战发起时按「审判方库授权 ⊇ 反证所在库」指派席位，确保每一票都能自行调取原文，而不是轻信挑战者提交件。
+          每个陪审方注册时将模型版本与陪审规程的哈希承诺上链。挑战发起时按「陪审方库授权覆盖反证所在库」指派席位，确保每一票都能自行调取原文，而不是轻信挑战者提交件。
         </p>
       </section>
 
       {/* Provider 市场 */}
-      <section style={{ marginTop: 24 }} aria-label="领域专家网络">
-        <p className="section-kicker">领域专家网络（ERC-8004 身份 + 链上信誉）</p>
+      <section style={{ marginTop: 24 }} aria-label="领域专家">
+        <p className="section-kicker">领域专家（ERC-8004 身份 + 链上信誉）</p>
         <div className="data-grid">
           {providerProfiles.map((profile) => {
             const rep = reputations.find((r) => r.id === profile.id);

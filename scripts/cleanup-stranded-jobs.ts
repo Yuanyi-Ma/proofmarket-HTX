@@ -5,6 +5,7 @@
  * Usage:
  *   npx tsx --env-file=.env scripts/cleanup-stranded-jobs.ts complete <jobId>
  *   npx tsx --env-file=.env scripts/cleanup-stranded-jobs.ts expire <jobId>
+ *   npx tsx --env-file=.env scripts/cleanup-stranded-jobs.ts settle-open <jobId>
  *
  * Both actions must be signed by the Cobo wallet (it is the job's client AND
  * evaluator), so the script submits a fresh pact and routes the call through
@@ -16,8 +17,16 @@ import { createPublicClient, http } from "viem";
 import { sepolia } from "viem/chains";
 import { createCliCoboClient } from "@proofmarket/cobo/src/coboClient";
 import { buildRealPactSubmission } from "@proofmarket/cobo/src/pactPolicy";
-import { encodeComplete, encodeExpireAndRefund } from "@proofmarket/chain/src/calldata";
+import {
+  encodeApprove,
+  encodeComplete,
+  encodeExpireAndRefund,
+  encodeFund,
+  encodeSetBudget
+} from "@proofmarket/chain/src/calldata";
 import { escrowAbi } from "@proofmarket/chain/src/escrowAbi";
+import { assertReceiptSuccess } from "@proofmarket/chain/src/chainReader";
+import { createProviderSubmitter } from "@proofmarket/services/src/providerSigner";
 import { stableHash } from "@proofmarket/shared/src/hash";
 import { parseDeploymentArtifact } from "@proofmarket/shared/src/realMode";
 
@@ -25,8 +34,8 @@ const JOB_STATE = ["Open", "Funded", "Submitted", "Completed", "Rejected", "Expi
 
 async function main() {
   const [action, jobIdArg] = process.argv.slice(2);
-  if (!["complete", "expire"].includes(action) || !/^\d+$/.test(jobIdArg ?? "")) {
-    throw new Error("usage: cleanup-stranded-jobs.ts <complete|expire> <jobId>");
+  if (!["complete", "expire", "settle-open"].includes(action) || !/^\d+$/.test(jobIdArg ?? "")) {
+    throw new Error("usage: cleanup-stranded-jobs.ts <complete|expire|settle-open> <jobId>");
   }
   const jobId = BigInt(jobIdArg);
 
@@ -38,6 +47,50 @@ async function main() {
 
   const readJob = () =>
     client.readContract({ address: escrowAddress, abi: escrowAbi, functionName: "jobs", args: [jobId] }) as Promise<readonly unknown[]>;
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  function extractTxHash(parsed: Record<string, unknown>): `0x${string}` | null {
+    const candidate = parsed.tx_hash ?? parsed.transaction_hash;
+    return typeof candidate === "string" && /^0x[0-9a-fA-F]{64}$/.test(candidate)
+      ? candidate as `0x${string}`
+      : null;
+  }
+
+  function isFailedTx(parsed: Record<string, unknown>): boolean {
+    return (
+      typeof parsed.status === "string" &&
+      ["failed", "rejected", "denied", "cancelled", "canceled", "invalid"].includes(
+        parsed.status.toLowerCase()
+      )
+    );
+  }
+
+  async function coboCallAndWait(input: {
+    pactId: string;
+    contract: `0x${string}`;
+    calldata: `0x${string}`;
+    requestId: string;
+    description: string;
+  }): Promise<`0x${string}`> {
+    const call = await cobo.callContract(input);
+    console.log(`${input.description}: cobo tx ${call.coboTxId} status=${call.status}`);
+
+    for (let i = 0; i < 84; i++) {
+      const { parsed } = await cobo.getTx(call.coboTxId);
+      if (isFailedTx(parsed)) {
+        throw new Error(`${input.description} failed in Cobo: ${JSON.stringify(parsed)}`);
+      }
+      const txHash = extractTxHash(parsed);
+      if (txHash) {
+        const receipt = await client.waitForTransactionReceipt({ hash: txHash, timeout: 420_000 });
+        assertReceiptSuccess(receipt, txHash);
+        console.log(`${input.description}: confirmed ${txHash}`);
+        return txHash;
+      }
+      await sleep(5_000);
+    }
+    throw new Error(`${input.description} produced no tx hash after polling`);
+  }
 
   const before = await readJob();
   console.log(`job ${jobId}: state=${JOB_STATE[Number(before[9])]} budget=${before[7]}`);
@@ -53,6 +106,78 @@ async function main() {
     })
   );
   console.log(`pact ${pact.pactId} status=${pact.status}`);
+
+  if (action === "settle-open") {
+    const budget = BigInt(before[7] as bigint) > 0n ? before[7] as bigint : 1_000_000n;
+    const budgetHuman = Number(budget) / 1e6;
+    const suffix = `${jobId}-${Date.now().toString(36)}`;
+
+    await coboCallAndWait({
+      pactId: pact.pactId,
+      contract: artifact.contracts.MockUSDC as `0x${string}`,
+      calldata: encodeApprove(escrowAddress, budget),
+      requestId: `cleanup-${suffix}-approve`,
+      description: `cleanup approve ${budgetHuman} mUSDC for job ${jobId}`
+    });
+
+    let job = await readJob();
+    if (Number(job[9]) === 0 && BigInt(job[7] as bigint) === 0n) {
+      await coboCallAndWait({
+        pactId: pact.pactId,
+        contract: escrowAddress,
+        calldata: encodeSetBudget(jobId, budget),
+        requestId: `cleanup-${suffix}-setBudget`,
+        description: `cleanup setBudget for job ${jobId}`
+      });
+      job = await readJob();
+    }
+
+    if (Number(job[9]) === 0) {
+      await coboCallAndWait({
+        pactId: pact.pactId,
+        contract: escrowAddress,
+        calldata: encodeFund(jobId, budget),
+        requestId: `cleanup-${suffix}-fund`,
+        description: `cleanup fund for job ${jobId}`
+      });
+      job = await readJob();
+    }
+
+    if (Number(job[9]) === 1) {
+      const providerKey = process.env.PROVIDER_SIGNER_PRIVATE_KEY as `0x${string}` | undefined;
+      if (!providerKey) throw new Error("PROVIDER_SIGNER_PRIVATE_KEY required for settle-open");
+      const deliverableHash = stableHash({
+        cleanup: `job-${jobId}`,
+        reason: "complete open job left by interrupted demo run"
+      }) as `0x${string}`;
+      const submit = createProviderSubmitter({
+        rpcUrl: process.env.SEPOLIA_RPC_URL ?? "",
+        privateKey: providerKey,
+        escrowAddress
+      });
+      const submitted = await submit({ jobId, deliverableHash });
+      console.log(`cleanup submit for job ${jobId}: confirmed ${submitted.txHash}`);
+      job = await readJob();
+    }
+
+    if (Number(job[9]) !== 2) {
+      throw new Error(`job ${jobId} is ${JOB_STATE[Number(job[9])]}, expected Submitted before complete`);
+    }
+
+    await coboCallAndWait({
+      pactId: pact.pactId,
+      contract: escrowAddress,
+      calldata: encodeComplete(
+        jobId,
+        stableHash({ cleanup: `job-${jobId}`, reason: "client accepts no challenge" }) as `0x${string}`
+      ),
+      requestId: `cleanup-${suffix}-complete`,
+      description: `cleanup complete for job ${jobId}`
+    });
+    const after = await readJob();
+    console.log(`job ${jobId} now ${JOB_STATE[Number(after[9])]} ✓ (stake bond released)`);
+    return;
+  }
 
   const calldata =
     action === "complete"

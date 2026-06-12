@@ -80,6 +80,10 @@ export type RealDeps = {
       escrowAddress: `0x${string}`,
       jobId: bigint
     ): Promise<{ state: number; budget: bigint; deliverableHash: `0x${string}` }>;
+    readProviderStake(
+      challengeManagerAddress: `0x${string}`,
+      providerAddress: `0x${string}`
+    ): Promise<{ stake: bigint; lockedStake: bigint; minStake: bigint; freeStake: bigint }>;
   };
   /**
    * Executes ChallengeManager.resolve(challengeId) with the backend's resolver
@@ -174,6 +178,14 @@ function leadingDecimal(budgetLimit: string): string {
     throw new Error(`Cannot derive a budget amount from "${budgetLimit}"`);
   }
   return match[1];
+}
+
+function formatMUSDC(raw: bigint): string {
+  const sign = raw < 0n ? "-" : "";
+  const value = raw < 0n ? -raw : raw;
+  const whole = value / 1_000_000n;
+  const fractional = (value % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
+  return `${sign}${whole}${fractional ? `.${fractional}` : ""} mUSDC`;
 }
 
 export function createRealTaskService(store: InMemoryStore, deps: RealDeps): TaskService {
@@ -364,6 +376,64 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
     );
   }
 
+  function summarizeCoboTx(parsed: Record<string, unknown>): string {
+    const fields = [
+      "status",
+      "sub_status",
+      "code",
+      "reason",
+      "message",
+      "request_id",
+      "id",
+      "transaction_hash",
+      "tx_hash"
+    ];
+    const parts: string[] = [];
+    for (const field of fields) {
+      const value = parsed[field];
+      if (typeof value === "string" && value) {
+        parts.push(`${field}=${value}`);
+      }
+    }
+    return parts.length > 0 ? parts.join(", ") : "no parsed failure detail";
+  }
+
+  async function assertProviderStakeAvailable(taskRef: { task: Task }): Promise<void> {
+    const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
+    if (!challengeManagerAddress) {
+      return;
+    }
+
+    const stake = await deps.chain.readProviderStake(
+      challengeManagerAddress as `0x${string}`,
+      deps.providerAddress as `0x${string}`
+    );
+    if (stake.freeStake >= stake.minStake) return;
+
+    const message =
+      "专家可用质押不足，无法创建新的托管订单：" +
+      `总质押 ${formatMUSDC(stake.stake)}，` +
+      `已锁定 ${formatMUSDC(stake.lockedStake)}，` +
+      `可用 ${formatMUSDC(stake.freeStake)}，` +
+      `新任务至少需要 ${formatMUSDC(stake.minStake)}。` +
+      "请先释放未终结订单，或补充专家质押后再继续。";
+    taskRef.task = save(
+      withAudit(
+        taskRef.task,
+        audit({
+          taskId: taskRef.task.id,
+          source: "chain",
+          type: "provider_stake_insufficient",
+          result: "failed",
+          message,
+          pactId: taskRef.task.pact?.pactId ?? null,
+          jobId: taskRef.task.jobId
+        })
+      )
+    );
+    throw new Error(message);
+  }
+
   /**
    * Executes one contract call through Cobo, persisting incremental progress:
    * the record is saved as pending before the call, and confirmed (or failed)
@@ -438,7 +508,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       if (isFailedTxStatus(parsed)) {
         patchRecord({ status: "failed" });
         const error = new Error(
-          `Cobo transaction ${call.coboTxId} (${label}) failed with status ${String(parsed.status)}`
+          `Cobo transaction ${call.coboTxId} (${label}) failed: ${summarizeCoboTx(parsed)}`
         );
         auditFailure(error);
         throw error;
@@ -833,6 +903,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         const budgetRaw = BigInt(Math.round(Number(budgetAmount) * 1e6));
         const taskRef = { task };
 
+        await assertProviderStakeAvailable(taskRef);
+
         await coboCall(
           taskRef,
           "approve",
@@ -1048,8 +1120,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         );
       }
 
-      // Challenge window W_c starts at submit: settlement is blocked (by the
-      // escrow contract and by the UI) until it passes.
+      // Challenge window W_c starts at submit: the client may still accept the
+      // work immediately, while separate evaluators must wait for the window.
       if (challengeWindowMs > 0) {
         const endsAt = new Date(Date.parse(deps.now()) + challengeWindowMs).toISOString();
         current = save(
@@ -1062,7 +1134,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               result: "success",
               message:
                 `挑战窗口开启：${Math.round(challengeWindowMs / 60000)} 分钟内可对简报发起挑战，` +
-                "窗口结束前合约拒绝放款（complete 被链上门禁拦截）。",
+                "买方也可以直接验收结算，结算交易即表示不发起挑战。",
               jobId: task.jobId
             })
           )
@@ -1124,16 +1196,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         if (task.jobId === null) {
           throw new Error("Cannot settle before verification");
         }
-        // Client-side W_c guard: the escrow would revert anyway ("challenge
-        // window open"); failing early gives a readable countdown message.
-        if (task.challengeWindowEndsAt) {
-          const remainingMs = Date.parse(task.challengeWindowEndsAt) - Date.parse(deps.now());
-          if (remainingMs > 0) {
-            throw new Error(
-              `挑战窗口未结束，剩余 ${Math.ceil(remainingMs / 1000)} 秒后才可结算`
-            );
-          }
-        }
+        // In the live demo the Cobo wallet is both client and evaluator. If the
+        // client sends complete() before W_c expires, that transaction is the
+        // explicit "I will not challenge" acceptance signal; separate evaluators
+        // still have to wait for the on-chain window to close.
         const verdictHash = verdicts.get(task.id);
         if (!verdictHash) {
           throw new Error("No judge verdict hash recorded for this task");
@@ -1245,8 +1311,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               message:
                 `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
                 `挑战者为 Cobo 钱包（订单 client），将锁定挑战押金 ${Number(depositRaw) / 1e6} mUSDC + ` +
-                `审判费 ${Number(juryFeeRaw) / 1e6} mUSDC 并冻结托管订单。` +
-                `审判方指派：${presetChallengeDocument.juryAssignmentBasis}`,
+                `陪审费 ${Number(juryFeeRaw) / 1e6} mUSDC 并冻结托管订单。` +
+                `陪审方指派：${presetChallengeDocument.juryAssignmentBasis}`,
               jobId: task.jobId
             })
           )
@@ -1288,7 +1354,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "challenge_onchain_opened",
               result: "success",
               message:
-                `挑战已上链：ChallengeManager 已锁定押金与审判费并冻结订单 ${task.jobId}` +
+                `挑战已上链：ChallengeManager 已锁定押金与陪审费并冻结订单 ${task.jobId}` +
                 `（challengeId ${challengeId}）。专家应辩窗口开启。`,
               jobId: task.jobId
             })
@@ -1372,7 +1438,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         );
       }
 
-      // The jury panel (审判团确定性裁决): three real castVote transactions,
+      // The jury panel (陪审团确定性裁决): three real castVote transactions,
       // preset 2:1 ProviderFault. The contract rejects votes before
       // openedAt + R_w, so wait the window out HERE (a long sleep inside the
       // services HTTP call would trip undici's headers timeout instead).
@@ -1415,7 +1481,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "jury_vote",
             result: "success",
             message:
-              `审判方 ${vote.jurorAddress.slice(0, 10)}… 投票 ${vote.vote}` +
+              `陪审方 ${vote.jurorAddress.slice(0, 10)}… 投票 ${vote.vote}` +
               `（${vote.reasonCode}），理由书哈希 ${vote.reasonHash} 已随票上链。` +
               `结论：${vote.reasonBook.conclusion}`,
             txHash: vote.txHash ?? null,
@@ -1435,7 +1501,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "challenge_won",
             result: "success",
             message:
-              `审判团多数决 ${faultVotes}:${votes.length - faultVotes} 判 ProviderFault，挑战成立。` +
+              `陪审团多数决 ${faultVotes}:${votes.length - faultVotes} 判 ProviderFault，挑战成立。` +
               "多数已达成，任何人可执行链上裁决。",
             jobId: task.jobId
           })
@@ -1517,8 +1583,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               result: "success",
               message:
                 "链上裁决已执行：扣除专家质押 50%（挑战者得一半作奖励），" +
-                "托管资金退款买方，挑战者押金与审判费全额退回，" +
-                "审判费由扣罚承担、三位审判方均分，余额归入金库。",
+                "托管资金退款买方，挑战者押金与陪审费全额退回，" +
+                "陪审费由扣罚承担、三位陪审方均分，余额归入金库。",
               txHash: resolved.txHash,
               jobId: task.jobId
             })

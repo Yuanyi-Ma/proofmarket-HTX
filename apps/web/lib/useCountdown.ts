@@ -9,7 +9,7 @@ function remainingSeconds(endsAt: string | null | undefined): number {
 
 /**
  * Seconds remaining until `endsAt` (ISO timestamp), ticking once per second;
- * 0 when absent or already passed. Used for the challenge-window W_c gate.
+ * 0 when absent or already passed. Used to display challenge-window W_c.
  */
 export function useCountdown(endsAt: string | null | undefined): number {
   const [remaining, setRemaining] = useState(() => remainingSeconds(endsAt));

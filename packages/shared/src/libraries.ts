@@ -28,6 +28,10 @@ export type LibraryId =
   | "forrester"
   | "statista"
   | "cb-insights"
+  // 金融数据库
+  | "bloomberg"
+  | "wind"
+  | "spcapitaliq"
   // 法规 / 判例库
   | "pkulaw"
   | "wolters-kluwer"
@@ -41,7 +45,7 @@ export type LibraryId =
   // 兜底：未经授权库背书的公开网页
   | "open-web";
 
-export type LibraryKind = "学术论文库" | "行业研究库" | "法规数据库" | "链上数据" | "公开网页";
+export type LibraryKind = "学术论文库" | "行业研究库" | "金融数据库" | "法规数据库" | "链上数据" | "公开网页";
 
 export type LibraryInfo = {
   /** Display name, the official product name. */
@@ -67,6 +71,9 @@ export const LIBRARIES: Record<LibraryId, LibraryInfo> = {
   forrester: { name: "Forrester", kind: "行业研究库", access: "订阅授权" },
   statista: { name: "Statista", kind: "行业研究库", access: "订阅授权" },
   "cb-insights": { name: "CB Insights", kind: "行业研究库", access: "订阅授权" },
+  bloomberg: { name: "Bloomberg Terminal", kind: "金融数据库", access: "订阅授权" },
+  wind: { name: "Wind 万得", kind: "金融数据库", access: "订阅授权" },
+  spcapitaliq: { name: "S&P Capital IQ", kind: "金融数据库", access: "订阅授权" },
   pkulaw: { name: "北大法宝", kind: "法规数据库", access: "订阅授权" },
   "wolters-kluwer": { name: "威科先行（Wolters Kluwer）", kind: "法规数据库", access: "订阅授权" },
   lexisnexis: { name: "LexisNexis", kind: "法规数据库", access: "订阅授权" },

@@ -5,7 +5,11 @@ import { createInMemoryStore } from "@proofmarket/backend/src/demoStore";
 import { createTaskService } from "@proofmarket/backend/src/taskService";
 import { createRealTaskService } from "@proofmarket/backend/src/realTaskService";
 import { createAuditFileLog } from "@proofmarket/backend/src/auditFileLog";
-import { parseDeploymentArtifact } from "@proofmarket/shared/src/realMode";
+import {
+  ALLOWED_CHAIN_ACTIONS,
+  parseDeploymentArtifact,
+  validateResearchPlanOutput
+} from "@proofmarket/shared/src/realMode";
 import { createCliCoboClient } from "@proofmarket/cobo/src/coboClient";
 import { createChainReader } from "@proofmarket/chain/src/chainReader";
 import { createChallengeResolver } from "@proofmarket/chain/src/challengeResolver";
@@ -14,7 +18,11 @@ import {
   readReputationSummary,
   reputationSummaryToScore1000
 } from "@proofmarket/chain/src/erc8004";
-import { runClaudeResearchAgent } from "@proofmarket/agents/src/claudeResearchAgent";
+import {
+  runClaudeResearchAgent,
+  type ResearchContext,
+  type ResearchRun
+} from "@proofmarket/agents/src/claudeResearchAgent";
 
 type TaskService = ReturnType<typeof createTaskService>;
 
@@ -25,6 +33,72 @@ const globalForProofMarket = globalThis as typeof globalThis & {
 function repoRoot(): string {
   // Next dev/build runs with cwd = apps/web
   return join(process.cwd(), "..", "..");
+}
+
+async function runPresetResearchAgent(context: ResearchContext): Promise<ResearchRun> {
+  const recommendedProviderId = context.providerCatalog.some(
+    (entry) => entry.providerId === "execution-research-expert"
+  )
+    ? "execution-research-expert"
+    : context.providerCatalog[0]?.providerId;
+
+  if (!recommendedProviderId) {
+    throw new Error("provider catalog is empty");
+  }
+
+  const preset = validateResearchPlanOutput(
+    {
+      taskId: context.taskId,
+      recommendedProviderId,
+      reason:
+        "区块链系统专家 Agent 的自报资料覆盖与本问题最匹配，同时链上信誉最高、历史挑战风险最低，适合作为本单首选专家。",
+      ranking: context.providerCatalog.map((entry) => {
+        if (entry.providerId === recommendedProviderId) {
+          return {
+            providerId: entry.providerId,
+            reason:
+              "自报覆盖论文库与行业研报库，能覆盖并行执行、投机执行、冲突检测与产业落地案例；链上信誉和挑战记录也最稳。"
+          };
+        }
+        if (entry.providerId === "shallow-search-provider") {
+          return {
+            providerId: entry.providerId,
+            reason:
+              "价格较低，但链上挑战记录较弱，交付完整性的先验风险更高，适合后续挑战分支演示。"
+          };
+        }
+        return {
+          providerId: entry.providerId,
+          reason:
+            "可作为对照候选，但资料库覆盖与本问题的专业匹配度弱于首选专家。"
+        };
+      }),
+      maxPayment: context.budgetAmount,
+      requiredEvidenceSchema: {
+        minItems: 3,
+        requiredFields: [
+          "sourceTitle",
+          "sourceLocator",
+          "claim",
+          "relevanceExplanation"
+        ]
+      },
+      chainActions: ALLOWED_CHAIN_ACTIONS
+    },
+    {
+      taskId: context.taskId,
+      budgetAmount: context.budgetAmount,
+      providerIds: context.providerCatalog.map((entry) => entry.providerId)
+    }
+  );
+
+  return {
+    plan: preset,
+    rawStdout: JSON.stringify({
+      result: JSON.stringify(preset)
+    }),
+    attempts: 1
+  };
 }
 
 function buildRealService(): TaskService {
@@ -141,10 +215,15 @@ function buildRealService(): TaskService {
     return (await response.json()) as T;
   }
 
+  const runResearchAgent =
+    process.env.PROOFMARKET_PLAN_SOURCE === "preset"
+      ? runPresetResearchAgent
+      : (context: ResearchContext) => runClaudeResearchAgent(context);
+
   return createRealTaskService(createInMemoryStore(), {
     deployment,
     providerAddress,
-    runResearchAgent: (context) => runClaudeResearchAgent(context),
+    runResearchAgent,
     cobo,
     chain,
     services: {

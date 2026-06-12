@@ -16,15 +16,15 @@ const ESCROW_LABELS: TxRecord["label"][] = ["approve", "createJob", "setBudget",
 // Human-readable Chinese labels for each transaction step.
 const TX_LABEL_MAP: Record<TxRecord["label"], string> = {
   approve: "授权代币",
-  createJob: "创建委托订单",
+  createJob: "创建专家订单",
   setBudget: "设定预算",
-  fund: "注入托管资金",
+  fund: "锁定托管资金",
   submit: "提交简报",
   complete: "结算放款",
-  approveDeposit: "授权押金 + 审判费",
+  approveDeposit: "授权押金 + 陪审费",
   openChallenge: "发起挑战",
   defense: "提交应辩书",
-  castVote: "审判投票",
+  castVote: "陪审投票",
   resolve: "执行裁决",
   feedback: "链上信誉反馈"
 };
@@ -87,7 +87,7 @@ export function Step4Onchain({
 }: Step4OnchainProps) {
   const records = task?.txRecords ?? [];
 
-  // Gate 获取证据 on task status, not on txRecords contents.
+  // Gate 获取研究简报 on task status, not on txRecords contents.
   // In fixture mode txRecords stays [] even after JobFunded; real mode
   // populates all 4 confirmed rows.  Either way, status === "JobFunded"
   // is the canonical signal that escrow is complete.
@@ -96,8 +96,8 @@ export function Step4Onchain({
   return (
     <StepShell
       stepNo={4}
-      title="链上委托进行中"
-      subtitle="资金正在 Sepolia 测试网上按 Cobo 边界托管给专家订单。每一步都是真实交易，可点开核验。"
+      title="采购执行中"
+      subtitle="专家订单正在执行。普通用户只需等简报返回；需要核验时可展开每笔测试网交易。"
       primary={
         isJobFunded
           ? {
@@ -118,15 +118,15 @@ export function Step4Onchain({
         </div>
       ) : isJobFunded ? (
         // Fixture mode: status is JobFunded but no on-chain tx details.
-        <div className="info-strip">本地模拟模式：未连接测试网，无链上交易明细。</div>
+        <div className="info-strip">本地模拟模式：已完成采购执行，没有测试网交易明细。</div>
       ) : (
         // Genuinely mid-execute: waiting for chain confirmation.
-        <div className="info-strip">等待链上确认…</div>
+        <div className="info-strip">等待采购执行完成…</div>
       )}
 
       {!isJobFunded && records.length > 0 && (
         <div className="info-strip">
-          托管交易确认中，完成后可获取研究简报。
+          采购执行确认中，完成后可获取研究简报。
         </div>
       )}
     </StepShell>

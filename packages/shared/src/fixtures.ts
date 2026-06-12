@@ -34,15 +34,15 @@ export const presetChallengeDocument = {
     "交付的研究简报未包含 Block-STM（ACM PPoPP '23，doi:10.1145/3572848.3577524）——区块链并行执行方向被广泛引用的代表性工作，" +
     "且该专家未在覆盖声明中排除该子方向，属于承诺范围内漏检（CoverageMiss）。" +
     "另：查准抽检发现简报第 1 条《A Survey of Blockchain Performance Optimization Techniques》的摘录与原文结论相反" +
-    "（原文归因执行层并行化，简报改写为共识与硬件主导），作为佐证一并提交审判团。",
+    "（原文归因执行层并行化，简报改写为共识与硬件主导），作为佐证一并提交陪审团。",
   hitCoverageClause:
     "覆盖声明：『广泛覆盖 2021-2026 年区块链执行加速方向的学术论文（持有 IEEE Xplore / ACM Digital Library 订阅）』",
   /**
-   * 指派依据：审判方必须持有反证所在库的访问权限，才能自行调取原文核对，
+   * 指派依据：陪审方必须持有反证所在库的访问权限，才能自行调取原文核对，
    * 不必轻信挑战者提交件。本案反证在 ACM DL（订阅库），库授权匹配是硬条件。
    */
   juryAssignmentBasis:
-    "反证位于 ACM Digital Library（订阅库）；三位注册审判方均持有 ACM DL 与 IEEE Xplore 订阅授权，可独立调取原文，全部入席。"
+    "反证位于 ACM Digital Library（订阅库）；三位注册陪审方均持有 ACM DL 与 IEEE Xplore 订阅授权，可独立调取原文，全部入席。"
 } as const;
 
 /**
@@ -68,7 +68,7 @@ export const presetJurors = [
     modelFamily: "Anthropic Claude 系",
     modelTag: "claude-sonnet-4-6",
     promptTag: "proofmarket-jury-prompt-v1",
-    /** 运营方自报的资料库访问授权——指派审判方时必须覆盖反证所在库。 */
+    /** 运营方自报的资料库访问授权——指派陪审方时必须覆盖反证所在库。 */
     libraryAccess: ["ieee-xplore", "acm-dl", "sciencedirect", "arxiv", "springer-link"]
   },
   {
@@ -158,7 +158,7 @@ export const providerProfiles: ProviderProfile[] = [
     name: "区块链系统专家 Agent",
     role: "recommended",
     coverage:
-      "持有 IEEE Xplore、ACM Digital Library 与 Elsevier ScienceDirect 论文库授权，订阅 Messari Pro 与 Delphi Digital 行业研报库；专注交易执行、并行/投机执行与共识优化方向，简报逐条附来源库、来源定位与关键摘录。",
+      "持有 IEEE Xplore、ACM Digital Library 与 Elsevier ScienceDirect 论文库授权，订阅 Messari Pro 与 Delphi Digital 行业研报库；专注交易执行、并行/投机执行与共识优化方向，简报逐条附来源库、来源定位与限长摘录。",
     libraries: ["ieee-xplore", "acm-dl", "sciencedirect", "messari-pro", "delphi-digital"],
     price: "1 mUSDC",
     stake: "10 mUSDC",

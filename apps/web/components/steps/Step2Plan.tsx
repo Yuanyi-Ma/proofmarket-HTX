@@ -38,6 +38,17 @@ export function Step2Plan({
   const [selected, setSelected] = useState<ProviderId>(
     (plan?.recommendedProviderId as ProviderId) ?? candidates[0]?.providerId
   );
+  const recommendedCandidate =
+    candidates.find((c) => c.providerId === plan?.recommendedProviderId) ??
+    candidates[0];
+  const recommendedProfile = providerProfiles.find(
+    (p) => p.id === recommendedCandidate?.providerId
+  );
+
+  function compactReason(reason: string): string {
+    if (reason.length <= 120) return reason;
+    return `${reason.slice(0, 118)}…`;
+  }
 
   /** 查找某个 provider 在链上信誉列表里的得分（仅 real mode 有）。 */
   function onChainScore(providerId: ProviderId): number | null {
@@ -49,13 +60,13 @@ export function Step2Plan({
   return (
     <StepShell
       stepNo={2}
-      title="委托方案"
-      subtitle="Agent 已分析你的问题，给出候选领域专家排序。选择一位后进入授权。"
+      title="选择领域专家"
+      subtitle="先做采购决策：买什么、找谁买、预计花多少。可信记录只作为选择专家时的证据。"
       primary={
         readOnly || !plan
           ? undefined
           : {
-              label: "确认委托，去授权",
+              label: "确认方案，去授权",
               onClick: () => onConfirm(selected),
               disabled: isBusy || !selected,
               busy: isBusy
@@ -64,18 +75,54 @@ export function Step2Plan({
     >
       {plan ? (
         <>
-          <article className="recommend-card">
+          <article className="recommend-card purchase-summary-card">
             <div className="badge-row">
-              <StatusBadge tone="success">Agent 分析</StatusBadge>
+              <StatusBadge tone="success">购买决策</StatusBadge>
             </div>
-            <DataRow label="需求分析" value={plan.evidenceNeed} />
+            <DataRow
+              label="预计买到"
+              value="一份研究简报：关键结论、来源定位、摘录摘要和不能得出的结论；不购买资料全文。"
+            />
+            <DataRow
+              label="为什么推荐"
+              value={
+                <div className="decision-reasons">
+                  <span>
+                    资料库覆盖与问题匹配：
+                    {recommendedProfile?.coverage ?? plan.evidenceNeed}
+                  </span>
+                  <span>
+                    历史表现可比较：信誉分{" "}
+                    <span className="mono">
+                      {recommendedProfile?.reputationScore ?? "—"} / 1000
+                    </span>
+                    {recommendedProfile?.challengeStats.challenged === 0
+                      ? "，暂无成立挑战。"
+                      : `，被挑战 ${recommendedProfile?.challengeStats.challenged} 次 / 成立 ${recommendedProfile?.challengeStats.upheld} 次。`}
+                  </span>
+                  <span>
+                    价格在授权上限内：本单预计支付{" "}
+                    <span className="mono">{plan.perJobCap}</span>
+                    {task?.budgetLimit ? (
+                      <>
+                        ，用户授权上限 <span className="mono">{task.budgetLimit}</span>。
+                      </>
+                    ) : null}
+                  </span>
+                </div>
+              }
+            />
+            <details className="technical-disclosure">
+              <summary>查看 Agent 原始分析</summary>
+              <p className="small muted tight">{plan.evidenceNeed}</p>
+            </details>
           </article>
 
           <p className="small muted tight" style={{ marginTop: 16 }}>
-            Agent 推荐排序（共 {candidates.length} 位候选专家，默认选中第一名，可改选）
+            候选专家（共 {candidates.length} 位，默认选中推荐项，可改选）
           </p>
           <p className="small muted tight" style={{ marginTop: 4 }}>
-            推荐基于各专家的【自报资料覆盖】【报价】【链上信誉 / 历史挑战记录】做的概率性判断；具体交付质量要等第 5 步由 Judge 核验后才能确定。
+            这里先解决产品问题：谁最可能交付一份可用简报。链上信誉和挑战记录是购买信号，不是本页主角。
           </p>
 
           <div className="candidate-list" role="radiogroup" aria-label="选择专家">
@@ -108,7 +155,7 @@ export function Step2Plan({
                       {isTop ? <StatusBadge tone="success">推荐</StatusBadge> : null}
                     </div>
 
-                    <p className="candidate-reason">{candidate.reason}</p>
+                    <p className="candidate-reason">{compactReason(candidate.reason)}</p>
 
                     <div className="candidate-facts">
                       <span className="candidate-fact">
@@ -177,24 +224,30 @@ export function Step2Plan({
           ) : null}
 
           <div style={{ marginTop: 20 }}>
-            <p className="section-kicker" style={{ margin: "0 0 8px" }}>委托条款</p>
+            <p className="section-kicker" style={{ margin: "0 0 8px" }}>购买条款</p>
             <div className="data-grid">
               <DataRow
                 label="交付物"
-                value="研究简报：核心资料的关键摘录 + 来源定位 + 研究摘要，并附针对你问题的总结；不搬运资料全文，无版权风险。"
+                value="研究简报：结论 + 来源定位 + 限长摘录（研报类按订阅条款转述），并附针对你问题的总结；不搬运资料全文，原文不出授权边界。"
               />
-              <DataRow label="核验方式" value={plan.verificationMethod} />
+              <DataRow
+                label="验收方式"
+                value="先看简报是否有用；来源、摘录和覆盖范围会在第 5 步抽查，发现问题再走挑战。"
+              />
               <DataRow
                 label="预算"
                 value={
                   <span className="mono">
-                    总预算 {plan.totalBudget} · 单笔上限 {plan.perJobCap}
+                    本单预计支付 {plan.perJobCap}
+                    {task?.budgetLimit
+                      ? ` · 授权上限 ${task.budgetLimit}`
+                      : ` · 方案预算 ${plan.totalBudget}`}
                   </span>
                 }
               />
               <DataRow
                 label="结算条件"
-                value="资金先入链上托管；简报通过核验、且挑战窗口结束后，才放款给专家。"
+                value="资金先入链上托管；简报通过核验后，买方可直接验收结算，也可在挑战窗口内发起挑战。"
               />
               <DataRow
                 label="违约保障"
@@ -204,12 +257,12 @@ export function Step2Plan({
           </div>
 
           {readOnly ? (
-            <div className="info-strip">委托已确认，此处为只读回看。</div>
+            <div className="info-strip">方案已确认，此处为只读回看。</div>
           ) : null}
         </>
       ) : (
         <div className="info-strip">
-          委托方案尚未生成。请回到第 1 步提交研究问题。
+          购买方案尚未生成。请回到第 1 步提交研究问题。
         </div>
       )}
     </StepShell>

@@ -144,7 +144,7 @@ describe("Step6Done — final answer (settled)", () => {
   });
 });
 
-describe("Step6Done — 凭证清单 (settled)", () => {
+describe("Step6Done — 交易与凭证 (settled)", () => {
   it("renders all 6 tx records with Chinese labels", () => {
     render(
       <Step6Done
@@ -156,9 +156,9 @@ describe("Step6Done — 凭证清单 (settled)", () => {
       />
     );
     expect(screen.getByText(/授权代币/)).toBeTruthy();
-    expect(screen.getByText(/创建委托订单/)).toBeTruthy();
+    expect(screen.getByText(/创建专家订单/)).toBeTruthy();
     expect(screen.getByText(/设定预算/)).toBeTruthy();
-    expect(screen.getByText(/注入托管资金/)).toBeTruthy();
+    expect(screen.getByText(/锁定托管资金/)).toBeTruthy();
     expect(screen.getByText(/提交简报/)).toBeTruthy();
     expect(screen.getByText(/结算放款/)).toBeTruthy();
   });
@@ -333,7 +333,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
       />
     );
     // Receipt section only shows on Settled/Audited
-    expect(screen.queryByText(/凭证清单/)).toBeNull();
+    expect(screen.queryByText(/交易与凭证/)).toBeNull();
   });
 
   it("disables 确认结算 when isBusy", () => {
@@ -353,7 +353,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
 });
 
 describe("Step6Done — Audited state", () => {
-  it("renders receipt (凭证清单) when status is Audited", () => {
+  it("renders receipt (交易与凭证) when status is Audited", () => {
     render(
       <Step6Done
         task={task({ status: "Audited" })}
@@ -363,12 +363,12 @@ describe("Step6Done — Audited state", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText(/凭证清单/)).toBeTruthy();
+    expect(screen.getByText(/交易与凭证/)).toBeTruthy();
   });
 });
 
 describe("Step6Done — challenge window gate (W_c)", () => {
-  it("disables settlement with a countdown while the window is open", () => {
+  it("allows the client to settle immediately by choosing not to challenge", () => {
     const endsAt = new Date(Date.now() + 120_000).toISOString();
     render(
       <Step6Done
@@ -379,9 +379,11 @@ describe("Step6Done — challenge window gate (W_c)", () => {
         onOpenAudit={noop}
       />
     );
-    const btn = screen.getByRole("button", { name: /挑战窗口剩余/ });
-    expect((btn as HTMLButtonElement).disabled).toBe(true);
-    expect(screen.getByTestId("settle-window-note").textContent).toContain("挑战窗口剩余");
+    const btn = screen.getByRole("button", { name: /我不挑战，直接结算/ });
+    expect((btn as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.getByTestId("settle-window-note").textContent).toContain(
+      "可以现在选择不挑战"
+    );
   });
 
   it("re-enables 确认结算 once the window has passed", () => {

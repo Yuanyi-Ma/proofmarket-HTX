@@ -15,11 +15,19 @@ const browser = await chromium.launch();
 const page = await browser.newPage({ viewport: { width: 1440, height: 940 }, deviceScaleFactor: 1.5 });
 
 const btn = (name) => page.getByRole("button", { name, exact: true });
+const settleBtn = () =>
+  page.getByRole("button", { name: /^(我不挑战，直接结算|确认结算)$/ });
 async function waitBtn(name, timeout) {
   await btn(name).waitFor({ state: "visible", timeout });
 }
 async function clickBtn(name) {
   await btn(name).click();
+}
+async function waitSettle(timeout) {
+  await settleBtn().waitFor({ state: "visible", timeout });
+}
+async function clickSettle() {
+  await settleBtn().click();
 }
 async function shot(name) {
   await page.screenshot({ path: `${SHOTS}/${name}.png`, fullPage: true });
@@ -44,21 +52,21 @@ try {
   await page.waitForTimeout(500);
   await shot("07-step6-verified");
 
-  log("waiting out the challenge window W_c…");
-  await waitBtn("确认结算", 900_000);
+  log("settlement is available; client can choose no challenge…");
+  await waitSettle(120_000);
   await page.waitForTimeout(500);
-  await shot("07b-step6-window-closed");
+  await shot("07b-step6-settle-ready");
 
   log("settle (on-chain)…");
   let settled = false;
   for (let attempt = 1; attempt <= 3 && !settled; attempt++) {
-    await clickBtn("确认结算");
+    await clickSettle();
     try {
       await page.getByText("最终回答").waitFor({ state: "visible", timeout: 200_000 });
       settled = true;
     } catch {
       log(`settle attempt ${attempt} did not land, retrying…`);
-      await waitBtn("确认结算", 30_000);
+      await waitSettle(30_000);
     }
   }
   if (!settled) throw new Error("settle failed after 3 attempts");

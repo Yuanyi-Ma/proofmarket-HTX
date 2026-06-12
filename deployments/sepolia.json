@@ -2,12 +2,12 @@
   "chainId": 11155111,
   "network": "sepolia",
   "deployer": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
-  "blockNumber": 11035933,
+  "blockNumber": 11045792,
   "coboWallet": "0xe84772e20744cdc22318825e00cf5fdf6000cc24",
   "contracts": {
     "MockUSDC": "0xe94054bc75524B197255e605CE02f41F086F0Cc5",
-    "ProofMarketEscrow": "0x8d072b5FE5E67Dc9e52A8A8c4fB0154a7ED21cCd",
-    "ProofMarketChallengeManager": "0xe52ea0160fC0dD83861302E524Ea3d4368AB2bC9"
+    "ProofMarketEscrow": "0x068943597b0B784b2Ecd2629872eC040D1B45592",
+    "ProofMarketChallengeManager": "0x2A9aB869f945369c33D2eC39335A4A0385193cc0"
   },
   "challengeManagerParams": {
     "minStake": "10000000",
@@ -57,7 +57,7 @@
     "rawAmount": "100000000",
     "txHash": "0x72df2c465abc59afc992f7f1628a90ee57743b40806172fd5dc3539af233a343"
   },
-  "deployedAt": "2026-06-11T09:32:13.896Z",
+  "deployedAt": "2026-06-12T18:27:38.182Z",
   "erc8004": {
     "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
     "reputationRegistry": "0x8004B663056A597Dffe9eCcC1965A193B7388713"

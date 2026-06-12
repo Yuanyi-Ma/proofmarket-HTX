@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "ProofMarket",
-  description: "可核验证据采购市场：链上托管、策略化支付与 AI 审判团仲裁"
+  description: "可核验证据采购市场：链上托管、策略化支付与 AI 陪审团仲裁"
 };
 
 export default function RootLayout({

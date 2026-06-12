@@ -45,7 +45,14 @@ describe("Stepper", () => {
     render(<Stepper task={task("JobFunded")} />); // step 4
 
     const current = document.querySelector('[aria-current="step"]');
-    expect(current?.textContent).toContain("链上委托");
+    expect(current?.textContent).toContain("采购执行");
+  });
+
+  it("can show an in-flight UI step before the task status changes", () => {
+    render(<Stepper task={task("DeniedByCobo")} currentStep={4} />);
+
+    const current = document.querySelector('[aria-current="step"]');
+    expect(current?.textContent).toContain("采购执行");
   });
 
   it("makes done steps clickable and current/upcoming not", () => {
@@ -53,13 +60,13 @@ describe("Stepper", () => {
     render(<Stepper task={task("JobFunded")} onSelectStep={onSelectStep} />);
 
     // Done steps (1-3) render as buttons.
-    fireEvent.click(screen.getByRole("button", { name: /委托方案/ }));
+    fireEvent.click(screen.getByRole("button", { name: /购买方案/ }));
     expect(onSelectStep).toHaveBeenCalledWith(2);
 
     // Current (4) and upcoming (5, 6) are not buttons.
-    expect(screen.queryByRole("button", { name: /链上委托/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /简报核验/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /完成结算/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /采购执行/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /验收简报/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /结算完成/ })).toBeNull();
   });
 
   it("shows a check marker for done steps", () => {

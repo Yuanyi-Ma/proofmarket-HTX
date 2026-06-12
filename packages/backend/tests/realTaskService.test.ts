@@ -103,7 +103,13 @@ function makeDeps(
       extractChallengeId: () => 42n,
       // state 1 = Funded: satisfies the post-fund readback; deliverableHash HASH64
       // satisfies the runProvider integrity check (which only compares the hash).
-      readJobState: async () => ({ state: 1, budget: 5_000_000n, deliverableHash: HASH64 as `0x${string}` })
+      readJobState: async () => ({ state: 1, budget: 5_000_000n, deliverableHash: HASH64 as `0x${string}` }),
+      readProviderStake: async () => ({
+        stake: 20_000_000n,
+        lockedStake: 0n,
+        minStake: 2_000_000n,
+        freeStake: 20_000_000n
+      })
     },
     resolveChallenge: async ({ challengeId }) => {
       calls.push(`resolveChallenge:${challengeId}`);
@@ -244,6 +250,30 @@ describe("real task service", () => {
     expect(funded.txRecords.every((r) => r.status === "confirmed")).toBe(true);
   });
 
+  it("checks provider free stake before any money-moving cobo call", async () => {
+    const baseDeps = makeDeps();
+    const deps = makeDeps({
+      chain: {
+        ...baseDeps.chain,
+        readProviderStake: async () => ({
+          stake: 25_000_000n,
+          lockedStake: 20_000_000n,
+          minStake: 10_000_000n,
+          freeStake: 5_000_000n
+        })
+      }
+    });
+    const store = createInMemoryStore();
+    const service = createRealTaskService(store, deps);
+    const active = await driveToPactActive(service);
+
+    await expect(service.executeEscrow(active.id)).rejects.toThrow(/专家可用质押不足/);
+    expect(deps.calls.filter((c) => c.startsWith("cobo:"))).toEqual([]);
+    const stored = store.getTask(active.id);
+    expect(stored.audit.some((event) => event.type === "provider_stake_insufficient")).toBe(true);
+    expect(stored.txRecords).toEqual([]);
+  });
+
   it("persists incremental progress during escrow execution", async () => {
     const store = createInMemoryStore();
     const snapshots: Array<{ pending: number; confirmed: number }> = [];
@@ -319,6 +349,30 @@ describe("real task service", () => {
     const settled = await service.settle(active.id);
     expect(settled.status).toBe("Settled");
     expect(deps.calls).toContain("cobo:complete");
+  });
+
+  it("settles during the challenge window with one client complete transaction", async () => {
+    const baseDeps = makeDeps();
+    const deps = makeDeps({
+      deployment: {
+        ...baseDeps.deployment,
+        escrowParams: { challengeWindow: "300" }
+      }
+    });
+    const service = createRealTaskService(createInMemoryStore(), deps);
+    const active = await driveToPactActive(service);
+    await service.executeEscrow(active.id);
+    await service.runProvider(active.id, "execution-research-expert");
+    const verified = await service.verify(active.id);
+    expect(verified.status).toBe("Verified");
+
+    const settled = await service.settle(active.id);
+
+    expect(settled.status).toBe("Settled");
+    expect(deps.calls.filter((c) => c.startsWith("cobo:")).slice(-1)).toEqual([
+      "cobo:complete"
+    ]);
+    expect(settled.txRecords.map((r) => r.label)).not.toContain("waiveChallengeWindow");
   });
 
   it("routes task to Challenged when judgeVerify returns provider_fault", async () => {
@@ -495,7 +549,7 @@ describe("real task service", () => {
     expect(fundEvent?.txHash).toBe(`0x${"d".repeat(64)}`);
     expect(fundEvent?.message).toContain("扣除专家质押");
     expect(fundEvent?.message).toContain("退款买方");
-    expect(fundEvent?.message).toContain("审判费");
+    expect(fundEvent?.message).toContain("陪审费");
     // No fabrication: every recorded hash came from the fakes
     expect(
       refunded.txRecords.every((r) => /^0x[0-9a-f]{64}$/.test(r.txHash))
@@ -622,12 +676,24 @@ describe("real task service", () => {
   it("records a chain_tx_failed audit event and failed record when the tx fails", async () => {
     const store = createInMemoryStore();
     const deps = makeDeps();
-    deps.cobo.getTx = async () => ({ raw: "{}", parsed: { status: "failed" } });
+    deps.cobo.getTx = async () => ({
+      raw: "{}",
+      parsed: {
+        status: "Failed",
+        sub_status: "failed",
+        request_id: "task_001-approve-0-test"
+      }
+    });
     const service = createRealTaskService(store, deps);
     const active = await driveToPactActive(service);
-    await expect(service.executeEscrow(active.id)).rejects.toThrow(/failed/);
+    await expect(service.executeEscrow(active.id)).rejects.toThrow(
+      /status=Failed, sub_status=failed/
+    );
     const stored = store.getTask(active.id);
     expect(stored.audit.some((event) => event.type === "chain_tx_failed")).toBe(true);
+    expect(
+      stored.audit.find((event) => event.type === "chain_tx_failed")?.message
+    ).toContain("request_id=task_001-approve-0-test");
     const approve = stored.txRecords.find((record) => record.label === "approve");
     expect(approve?.status).toBe("failed");
     expect(approve?.coboTxId).toBe("tx-approve");

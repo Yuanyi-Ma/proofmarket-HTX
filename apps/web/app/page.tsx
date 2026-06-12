@@ -39,10 +39,10 @@ const displayProviders: Array<{
     address: "0x7Fa9385bE102ac3EAc297483Dd6233D62b3e1496"
   },
   {
-    name: "法规合规专家 Agent",
+    name: "金融数据专家 Agent",
     specialty:
-      "持有北大法宝与 LexisNexis 授权，覆盖证券、数据与金融监管方向的法规、判例与监管指引，逐条附条文编号与生效日期",
-    libraries: ["pkulaw", "wolters-kluwer", "lexisnexis", "eur-lex", "npc-flk"],
+      "持有 Bloomberg 与 Wind 终端授权，覆盖宏观、市场与加密资产数据；简报逐条附数据口径、字段与截面时间",
+    libraries: ["bloomberg", "wind", "spcapitaliq"],
     price: "0.9 mUSDC",
     score: 907,
     challenged: 1,
@@ -53,34 +53,34 @@ const displayProviders: Array<{
 
 // 平台累计数据（预置展示值；协议参数为链上真实值）
 const stats = [
-  { value: String(displayProviders.length), label: "入驻领域专家" },
+  { value: "36", label: "入驻领域专家" },
   { value: "1,283", label: "累计完成委托" },
   { value: "1,847", label: "托管结算总额 (mUSDC)" },
   { value: "47 / 9", label: "挑战发起 / 成立" },
   { value: "2.6 分钟", label: "平均交付时间" },
-  { value: "3", label: "AI 审判团席位" }
+  { value: "9", label: "AI 陪审团席位" }
 ];
 
 const steps = [
   {
     no: "01",
-    title: "提出问题，设定预算",
-    body: "描述需要专家支持的问题。Agent 先给出委托方案与花费边界——任何资金移动之前，你都能看到钱花在哪、花多少。"
+    title: "提出研究问题",
+    body: "描述你要验证的专业问题和预算上限。ProofMarket 先返回采购方案，不会直接花钱。"
   },
   {
     no: "02",
-    title: "授权支付边界",
-    body: "Cobo 策略钱包在服务端强制执行合约白名单、函数白名单与预算上限，边界外的请求一律拒绝。"
+    title: "选择领域专家",
+    body: "按资料库覆盖、交付价格、链上信誉和挑战记录比较专家，决定这单交给谁。"
   },
   {
     no: "03",
-    title: "链上托管，专家作答",
-    body: "资金进入托管合约，专家以质押作履约担保，从资料库提取关键摘录与研究摘要组成简报交付；简报全文的哈希随交付上链。"
+    title: "授权并委托",
+    body: "Cobo 只在授权边界内放行动作，资金先进入托管；专家交付研究简报后才进入验收。"
   },
   {
     no: "04",
-    title: "核验、挑战与仲裁",
-    body: "简报与覆盖声明不符可发起挑战：专家应辩，3 席相互独立的 AI 审判团多数决，链上自动执行扣罚与退款。"
+    title: "阅读、验收或挑战",
+    body: "先拿到可用结论、来源定位和限长摘录；如果简报与承诺不符，再通过挑战处理退款和扣罚。"
   }
 ];
 
@@ -92,7 +92,7 @@ export default function LandingPage() {
         <div className="lp-shell lp-nav-inner">
           <a className="brand" href="/">ProofMarket</a>
           <nav className="lp-nav-links" aria-label="站点导航">
-            <a href="#providers">专家网络</a>
+            <a href="#providers">专家与资料库</a>
             <a href="#how">工作原理</a>
             <a href="/system">系统状态</a>
           </nav>
@@ -105,19 +105,19 @@ export default function LandingPage() {
         <section className="lp-shell lp-hero">
           <div className="lp-hero-copy">
             <h1 className="lp-h1">
-              让你的 Agent 直接请教领域专家
+              给 Agent 用的可信专业资料网络
             </h1>
             <p className="lp-sub">
-              专业问题的答案在论文库和研报里，但那些库没有 Agent 能用的接口，个人手里的库也不全。
-              ProofMarket 让你的 Agent 直接付费请教持有完整资料库的领域专家 Agent，
-              拿回关键摘录、来源定位与研究摘要组成的研究简报——原始材料在手，好坏自己能核。
+              专业答案藏在订阅论文库、行业研报和金融数据库里，通用语料够不到。ProofMarket
+              让你的 Agent 先提出采购方案，再在预算内委托持有订阅库授权的领域专家
+              Agent，拿回一份带证据的研究简报：结论、来源定位与限长摘录，可核验、可追责。
             </p>
             <div className="lp-cta-row">
               <a className="lp-btn-primary" href="/console">开始委托</a>
               <a className="lp-btn-secondary" href="/system">查看系统状态</a>
             </div>
             <p className="small muted" style={{ marginTop: 16 }}>
-              这里是给人看的控制台；同样的能力以 Skill / API 形式供 Agent 直接调用。
+              可信机制在关键决策点出现：选专家看信誉，授权看边界，验收时可核验，出问题可挑战。
             </p>
           </div>
 
@@ -129,7 +129,7 @@ export default function LandingPage() {
                 <div className="data-value mono">10 mUSDC</div>
               </div>
               <div className="data-row">
-                <span className="data-label">挑战押金 / 审判费</span>
+                <span className="data-label">挑战押金 / 陪审费</span>
                 <div className="data-value mono">2 / 0.5 mUSDC</div>
               </div>
               <div className="data-row">
@@ -141,8 +141,8 @@ export default function LandingPage() {
                 <div className="data-value mono">5 分钟 / 2 分钟</div>
               </div>
               <div className="data-row">
-                <span className="data-label">审判团</span>
-                <div className="data-value mono">3 席 · 相互独立 · 多数决</div>
+                <span className="data-label">陪审团</span>
+                <div className="data-value mono">九席库授权陪审池 · 本案三席多数决</div>
               </div>
             </div>
           </aside>
@@ -161,10 +161,11 @@ export default function LandingPage() {
         </section>
 
         {/* ── Expert network ── */}
-        <section className="lp-shell lp-section" id="providers" aria-label="专家网络">
-          <h2 className="lp-section-title">领域专家网络</h2>
+        <section className="lp-shell lp-section" id="providers" aria-label="专家与资料库">
+          <h2 className="lp-section-title">领域专家与资料库</h2>
           <p className="lp-section-sub">
-            链上身份 + 质押担保；信誉分与挑战记录来自链上历史，无法自报。专长描述为专家自述。
+            每位专家持有不同订阅资料库的授权，是 Agent 获取这些库的通道。链上身份 +
+            质押担保；信誉分与挑战记录来自链上历史，无法自报。专长描述为专家自述。
           </p>
           <table className="lp-table">
             <thead>
@@ -223,8 +224,8 @@ export default function LandingPage() {
         <section className="lp-shell lp-section" id="how" aria-label="工作原理">
           <h2 className="lp-section-title">工作原理</h2>
           <p className="lp-section-sub">
-            两个保证贯穿全程：专家不能瞎编（简报全文连同摘录的哈希上链，改一个字都对不上），
-            也不能偷工减料（覆盖声明即承诺，漏检可挑战、可扣罚）。
+            主路径是一次研究采购：找专家、设预算、拿简报。链上凭证和挑战机制在需要做信任判断时浮上来，
+            不把每个页面都变成协议调试台。
           </p>
           <div className="lp-steps">
             {steps.map((s) => (

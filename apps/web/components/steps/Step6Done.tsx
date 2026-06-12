@@ -126,9 +126,9 @@ function RatingPanel({
 // Chinese labels for each tx record label.
 const TX_LABEL_ZH: Record<string, string> = {
   approve: "授权代币",
-  createJob: "创建委托订单",
+  createJob: "创建专家订单",
   setBudget: "设定预算",
-  fund: "注入托管资金",
+  fund: "锁定托管资金",
   submit: "提交简报",
   complete: "结算放款",
   feedback: "信誉反馈",
@@ -218,8 +218,9 @@ export function Step6Done({
   const isVerified = status === "Verified";
   const isSettled = status === "Settled" || status === "Audited";
 
-  // Challenge window W_c: settlement stays locked (matching the on-chain
-  // escrow gate) until the window after evidence submission has passed.
+  // Challenge window W_c stays visible as a challenge period, but the client
+  // can accept the work immediately. That complete() transaction is the
+  // protocol-level "no challenge" signal.
   const windowRemaining = useCountdown(task?.challengeWindowEndsAt);
   const windowOpen = isVerified && windowRemaining > 0;
 
@@ -227,6 +228,9 @@ export function Step6Done({
   const { conclusion, evidenceSummary, cannotConclude } = buildFinalAnswer(task);
 
   const txRecords = task?.txRecords ?? [];
+  const subtitle = isVerified
+    ? "核验通过。可以发起挑战；如果选择不挑战，可以立即结算并进入评分。"
+    : "简报已验收，付款已结算。默认展示最终回答，需要复盘时再展开凭证记录。";
 
   // Actions live in the StepShell row only — nothing duplicated in the body.
   // Verified: primary = 确认结算. Settled: primary = 开始新任务, secondary = 查看完整审计.
@@ -236,11 +240,9 @@ export function Step6Done({
 
   if (isVerified) {
     primary = {
-      label: windowOpen
-        ? `挑战窗口剩余 ${formatCountdown(windowRemaining)} 后可结算`
-        : "确认结算",
+      label: windowOpen ? "我不挑战，直接结算" : "确认结算",
       onClick: onSettle,
-      disabled: isBusy || windowOpen,
+      disabled: isBusy,
       busy: isBusy,
     };
   } else if (isSettled) {
@@ -254,8 +256,8 @@ export function Step6Done({
   return (
     <StepShell
       stepNo={6}
-      title="完成"
-      subtitle="付款已在链上结算，整条委托链路可复盘。"
+      title="结算完成"
+      subtitle={subtitle}
       primary={primary}
       secondary={
         isSettled
@@ -274,7 +276,7 @@ export function Step6Done({
               <span className="dot pending" aria-hidden="true" />
               {" "}简报已通过核验。挑战窗口剩余{" "}
               <span className="mono">{formatCountdown(windowRemaining)}</span>
-              ，窗口内仍可回到第 5 步发起挑战；窗口结束前合约拒绝放款。
+              ，窗口内仍可回到第 5 步发起挑战，也可以现在选择不挑战并直接结算。
             </>
           ) : (
             <>
@@ -314,11 +316,9 @@ export function Step6Done({
           {/* ── 服务评分 ─────────────────────────────────── */}
           {task && <RatingPanel task={task} onRate={onRate} isBusy={isBusy} />}
 
-          {/* ── 凭证清单 ─────────────────────────────────── */}
-          <div className="receipt-section" style={{ marginTop: 28 }}>
-            <p className="section-kicker" style={{ margin: "0 0 12px" }}>
-              凭证清单
-            </p>
+          {/* ── 交易与凭证 ─────────────────────────────────── */}
+          <details className="receipt-section technical-disclosure" style={{ marginTop: 28 }}>
+            <summary>交易与凭证</summary>
 
             <dl className="receipt-list">
               {/* Task / job ID */}
@@ -389,7 +389,7 @@ export function Step6Done({
                 );
               })}
             </dl>
-          </div>
+          </details>
         </>
       )}
     </StepShell>

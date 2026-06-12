@@ -114,6 +114,13 @@ describe("Step5Evidence — evidence package rendering", () => {
     expect(screen.getByText("Speculative Execution Survey")).toBeTruthy();
   });
 
+  it("opens the first evidence item by default and frames the page as a research brief", () => {
+    const { container } = render(<Step5Evidence task={task()} {...defaultProps} />);
+    expect(screen.getByText("简报摘要")).toBeTruthy();
+    const firstDetails = container.querySelector(".evidence-item-row");
+    expect(firstDetails?.getAttribute("open")).toBe("");
+  });
+
   it("renders source locators in summary (mono)", () => {
     render(<Step5Evidence task={task()} {...defaultProps} />);
     const locators = screen.getAllByText("arXiv:2203.06871");
@@ -215,7 +222,7 @@ describe("Step5Evidence — Challenged stage", () => {
   it("shows the deposit D and jury fee F as separate locked rows", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
     expect(screen.getByText("挑战押金 D")).toBeTruthy();
-    expect(screen.getByText("审判费 F")).toBeTruthy();
+    expect(screen.getByText("陪审费 F")).toBeTruthy();
   });
 
   it("shows counterEvidenceHash in mono", () => {
@@ -226,7 +233,7 @@ describe("Step5Evidence — Challenged stage", () => {
 
   it("shows the 挑战书 panel with statement and coverage clause", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
-    expect(screen.getByText(/挑战书（提交给审判团的材料）/)).toBeTruthy();
+    expect(screen.getByText(/挑战书（提交给陪审团的材料）/)).toBeTruthy();
     expect(screen.getByText(challengeFixture.statement)).toBeTruthy();
     expect(screen.getAllByText(challengeFixture.hitCoverageClause).length).toBeGreaterThan(0);
   });
@@ -238,9 +245,9 @@ describe("Step5Evidence — Challenged stage", () => {
     expect(screen.getByText(presetDefense.defenseHash)).toBeTruthy();
   });
 
-  it("shows 请求审判团裁决 action button", () => {
+  it("shows 请求陪审团裁决 action button", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
-    expect(screen.getByRole("button", { name: /请求审判团裁决/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /请求陪审团裁决/ })).toBeTruthy();
   });
 
   it("shows real-mode tx records when present", () => {
@@ -273,7 +280,7 @@ describe("Step5Evidence — Challenged stage", () => {
     // Should show 链上交易 section label
     expect(screen.getByText("链上交易")).toBeTruthy();
     // Should show all three tx labels
-    expect(screen.getByText("授权押金 + 审判费")).toBeTruthy();
+    expect(screen.getByText("授权押金 + 陪审费")).toBeTruthy();
     expect(screen.getByText("发起挑战（链上）")).toBeTruthy();
     expect(screen.getByText("提交应辩书（链上）")).toBeTruthy();
   });
@@ -287,7 +294,7 @@ describe("Step5Evidence — ChallengeWon stage (jury verdict)", () => {
 
   it("shows the 2:1 majority verdict heading", () => {
     render(<Step5Evidence task={wonTask} {...defaultProps} />);
-    expect(screen.getByText(/审判团投票 2 : 1/)).toBeTruthy();
+    expect(screen.getByText(/陪审团投票 2 : 1/)).toBeTruthy();
     expect(screen.getByText(/覆盖声明漏检，挑战成立/)).toBeTruthy();
   });
 
@@ -295,7 +302,7 @@ describe("Step5Evidence — ChallengeWon stage (jury verdict)", () => {
     render(<Step5Evidence task={wonTask} {...defaultProps} />);
     votesFixture.forEach((vote, i) => {
       expect(screen.getByTestId(`jury-vote-${vote.jurorId}`)).toBeTruthy();
-      expect(screen.getByText(`审判方 ${i + 1}`)).toBeTruthy();
+      expect(screen.getByText(`陪审方 ${i + 1}`)).toBeTruthy();
       // Model brands are unverifiable claims — they must not render.
       expect(screen.queryByText(new RegExp(vote.modelFamily))).toBeNull();
     });
@@ -347,8 +354,8 @@ describe("Step5Evidence — RefundedOrSlashed stage", () => {
     render(<Step5Evidence task={resolvedTask} {...defaultProps} />);
     expect(screen.getByText(/扣罚专家本单履约 bond（10 mUSDC）的 50%/)).toBeTruthy();
     expect(screen.getByText(/托管资金退款买方/)).toBeTruthy();
-    expect(screen.getByText(/挑战者押金 \+ 审判费全额退回/)).toBeTruthy();
-    expect(screen.getByText(/三位审判方均分/)).toBeTruthy();
+    expect(screen.getByText(/挑战者押金 \+ 陪审费全额退回/)).toBeTruthy();
+    expect(screen.getByText(/三位陪审方均分/)).toBeTruthy();
   });
 
   it("does not leak roadmap copy into the resolved view", () => {
@@ -607,7 +614,7 @@ describe("Step5Evidence — challenge materials rigor rows", () => {
       />
     );
     expect(screen.getAllByText(/反证所在库/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/审判方指派依据/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/陪审方指派依据/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/订阅授权/).length).toBeGreaterThan(0);
   });
 

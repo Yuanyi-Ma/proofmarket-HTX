@@ -150,7 +150,7 @@ describe("Step3Authorize — authorization state", () => {
     expect(screen.getByText("授权已生效")).toBeTruthy();
   });
 
-  it("shows 执行链上委托 button when pact is active", () => {
+  it("shows 执行采购 button when pact is active", () => {
     render(
       <Step3Authorize
         task={task({ status: "PactActive", pact: { ...pact, status: "active" } })}
@@ -159,7 +159,7 @@ describe("Step3Authorize — authorization state", () => {
         onTriggerDenial={noop}
       />
     );
-    expect(screen.getByRole("button", { name: /执行链上委托/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /执行采购/ })).toBeTruthy();
   });
 
   it("shows 检查批准状态 when pact status is submitted", () => {
@@ -175,7 +175,7 @@ describe("Step3Authorize — authorization state", () => {
     expect(screen.getByRole("button", { name: "检查批准状态" })).toBeTruthy();
   });
 
-  it("disables 执行链上委托 when pact is submitted (not yet approved)", () => {
+  it("disables 执行采购 when pact is submitted (not yet approved)", () => {
     render(
       <Step3Authorize
         task={task({ status: "PactSubmitted", pact: { ...pact, status: "submitted" } })}
@@ -184,7 +184,7 @@ describe("Step3Authorize — authorization state", () => {
         onTriggerDenial={noop}
       />
     );
-    const btn = screen.getByRole("button", { name: /执行链上委托/ });
+    const btn = screen.getByRole("button", { name: /执行采购/ });
     expect(btn).toBeTruthy();
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
@@ -230,7 +230,7 @@ describe("Step3Authorize — denial card", () => {
     expect(screen.getByText("transfer 10 USDC to 0xEvilAddress")).toBeTruthy();
   });
 
-  it("shows the Cobo rawOutput in the denial card", () => {
+  it("summarizes the Cobo denial and keeps rawOutput behind a disclosure", () => {
     render(
       <Step3Authorize
         task={task({
@@ -243,6 +243,9 @@ describe("Step3Authorize — denial card", () => {
         onTriggerDenial={noop}
       />
     );
+    expect(screen.getByText("拒绝原因")).toBeTruthy();
+    expect(screen.getAllByText(/amount exceeds pact cap/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("查看 Cobo 原始返回")).toBeTruthy();
     expect(screen.getByText("COBO_DENY: amount exceeds pact cap; target not whitelisted")).toBeTruthy();
   });
 
@@ -262,7 +265,7 @@ describe("Step3Authorize — denial card", () => {
     expect(screen.getByText(/链上零资金流出/)).toBeTruthy();
   });
 
-  it("still shows 执行链上委托 after denial (denial does not block progress)", () => {
+  it("still shows 执行采购 after denial (denial does not block progress)", () => {
     render(
       <Step3Authorize
         task={task({
@@ -275,7 +278,7 @@ describe("Step3Authorize — denial card", () => {
         onTriggerDenial={noop}
       />
     );
-    const btn = screen.getByRole("button", { name: /执行链上委托/ });
+    const btn = screen.getByRole("button", { name: /执行采购/ });
     expect(btn).toBeTruthy();
     expect((btn as HTMLButtonElement).disabled).toBe(false);
   });

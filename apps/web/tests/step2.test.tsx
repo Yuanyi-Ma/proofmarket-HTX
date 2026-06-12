@@ -124,3 +124,17 @@ describe("Step2Plan — 结构化挑战计数", () => {
     expect(markup).toContain("被挑战 1 次 / 成立 0 次");
   });
 });
+
+describe("Step2Plan — product-first purchase summary", () => {
+  it("shows a concise buying decision summary before protocol details", () => {
+    const markup = renderToStaticMarkup(
+      <Step2Plan task={task({ plan: basePlan() })} onConfirm={noop} />
+    );
+
+    expect(markup).toContain("购买决策");
+    expect(markup).toContain("预计买到");
+    expect(markup).toContain("为什么推荐");
+    expect(markup).toContain("本单预计支付");
+    expect(markup).not.toContain("需求分析");
+  });
+});

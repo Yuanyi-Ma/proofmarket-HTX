@@ -113,8 +113,8 @@ export const escrowAbi = [
       { name: "evaluator", type: "address" }
     ]
   },
-  // Challenge window W_c: timestamp of submit() and the gate length, used by
-  // the backend to compute when complete() becomes callable.
+  // Challenge window W_c: timestamp of submit() and the gate length. The
+  // client may still accept immediately; separate evaluators wait for W_c.
   {
     type: "function",
     name: "submittedAt",

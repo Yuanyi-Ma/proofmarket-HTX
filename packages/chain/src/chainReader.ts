@@ -27,6 +27,10 @@ export type ChainReader = {
   extractJobId(receipt: TransactionReceipt, escrowAddress: string): bigint;
   extractChallengeId(receipt: TransactionReceipt, challengeManagerAddress: string): bigint;
   readJobState(escrowAddress: `0x${string}`, jobId: bigint): Promise<{ state: number; budget: bigint; deliverableHash: `0x${string}` }>;
+  readProviderStake(
+    challengeManagerAddress: `0x${string}`,
+    providerAddress: `0x${string}`
+  ): Promise<{ stake: bigint; lockedStake: bigint; minStake: bigint; freeStake: bigint }>;
 };
 
 export function createChainReader(rpcUrl: string): ChainReader {
@@ -92,6 +96,35 @@ export function createChainReader(rpcUrl: string): ChainReader {
         state: Number(job[9]),   // index 9 → state (see Job struct comment above)
         budget: job[7],          // index 7 → budget
         deliverableHash: job[11] // index 11 → deliverableHash
+      };
+    },
+
+    async readProviderStake(challengeManagerAddress, providerAddress) {
+      const [stake, lockedStake, minStake] = await Promise.all([
+        client.readContract({
+          address: challengeManagerAddress,
+          abi: challengeManagerAbi,
+          functionName: "stake",
+          args: [providerAddress]
+        }),
+        client.readContract({
+          address: challengeManagerAddress,
+          abi: challengeManagerAbi,
+          functionName: "lockedStake",
+          args: [providerAddress]
+        }),
+        client.readContract({
+          address: challengeManagerAddress,
+          abi: challengeManagerAbi,
+          functionName: "minStake"
+        })
+      ]);
+
+      return {
+        stake,
+        lockedStake,
+        minStake,
+        freeStake: stake - lockedStake
       };
     }
   };

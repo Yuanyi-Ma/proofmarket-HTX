@@ -27,8 +27,8 @@ function resolveTargetLabel(target: string): string {
 // Resolve raw function names to Chinese descriptions.
 function resolveFunctionLabel(fn: string): string {
   const map: Record<string, string> = {
-    createJob: "创建委托订单",
-    fund: "注入托管资金",
+    createJob: "创建专家订单",
+    fund: "锁定托管资金",
     submit: "提交简报",
     complete: "结算放款",
     reject: "拒绝订单",
@@ -48,6 +48,23 @@ function resolveDenyRule(rule: string): string {
     "expired pact": "Pact 过期后禁止操作"
   };
   return map[rule] ?? rule;
+}
+
+function summarizeDenial(rawOutput: string): { code: string; reason: string } {
+  const codeMatch = rawOutput.match(/"code"\s*:\s*"([^"]+)"/);
+  const reasonMatch = rawOutput.match(/"reason"\s*:\s*"([^"]+)"/);
+  if (codeMatch || reasonMatch) {
+    return {
+      code: codeMatch?.[1] ?? "POLICY_DENIED",
+      reason: reasonMatch?.[1] ?? "策略未匹配，Cobo 拒绝执行"
+    };
+  }
+
+  const [head, ...rest] = rawOutput.split(":");
+  return {
+    code: head?.trim() || "POLICY_DENIED",
+    reason: rest.join(":").trim() || rawOutput
+  };
 }
 
 export function Step3Authorize({
@@ -70,11 +87,11 @@ export function Step3Authorize({
     <StepShell
       stepNo={3}
       title="授权支付边界"
-      subtitle="支付由 Cobo 智能钱包按策略放行，Agent 无法越权动用资金。请确认本次授权的边界。"
+      subtitle="这是主流程里少数必须显性看边界的页面：确认 Agent 能花多少钱、能调用哪些动作、哪些请求会被拒绝。"
       primary={
         pact
           ? {
-              label: "执行链上委托",
+              label: "执行采购",
               onClick: onExecute,
               disabled: isBusy || !canExecute,
               busy: isBusy
@@ -93,11 +110,27 @@ export function Step3Authorize({
     >
       {pact ? (
         <>
-          {/* Pact boundary definition — one aligned key/value table */}
-          <div className="pact-boundary">
-            <p className="section-kicker" style={{ margin: "0 0 8px" }}>
-              授权边界
-            </p>
+          <div className="pact-decision-grid" aria-label="支付授权摘要">
+            <div className="pact-decision-item">
+              <span className="data-label">可以做</span>
+              <strong>创建委托、注资托管、结算或发起挑战</strong>
+            </div>
+            <div className="pact-decision-item">
+              <span className="data-label">不可以做</span>
+              <strong>直接转账、调用白名单外合约、过期后继续操作</strong>
+            </div>
+            <div className="pact-decision-item">
+              <span className="data-label">资金边界</span>
+              <strong>
+                <span className="mono">{pact.totalBudget}</span>
+                <span className="muted small"> 授权上限</span>
+              </strong>
+            </div>
+          </div>
+
+          {/* Pact boundary definition — retained as an expandable audit detail */}
+          <details className="technical-disclosure pact-boundary">
+            <summary>查看完整 Cobo 策略参数</summary>
             <div className="data-grid">
               <DataRow
                 label="授权编号"
@@ -164,7 +197,7 @@ export function Step3Authorize({
             <p className="small muted tight" style={{ marginTop: 8 }}>
               以上边界由 Cobo 策略引擎在服务端强制执行：边界内的调用直接放行，边界外的请求一律拒绝。
             </p>
-          </div>
+          </details>
 
           {/* Authorization status */}
           <div className="pact-status-area">
@@ -197,6 +230,12 @@ export function Step3Authorize({
               </div>
             )}
 
+            {isBusy ? (
+              <div className="info-strip">
+                正在按授权边界执行采购：授权代币 → 创建订单 → 设定预算 → 锁定托管资金。测试网确认较慢时，稍后会进入第 4 步显示逐笔交易。
+              </div>
+            ) : null}
+
             {!isActive && !isSubmitted && !wasDenied && (
               <div className="info-strip">
                 Pact 尚未提交或状态不明。当前状态：{pact.status}
@@ -211,18 +250,33 @@ export function Step3Authorize({
                 <span className="dot danger" aria-hidden="true" />
                 <strong>越权操作已被 Cobo 拦截</strong>
               </div>
+              {(() => {
+                const summary = summarizeDenial(denial.rawOutput);
+                return (
+                  <>
+                    <div className="data-row" style={{ marginTop: 10 }}>
+                      <span className="data-label">拒绝码</span>
+                      <div className="data-value">
+                        <span className="mono">{summary.code}</span>
+                      </div>
+                    </div>
+                    <div className="data-row" style={{ marginTop: 8 }}>
+                      <span className="data-label">拒绝原因</span>
+                      <div className="data-value">{summary.reason}</div>
+                    </div>
+                  </>
+                );
+              })()}
               <div className="data-row" style={{ marginTop: 10 }}>
                 <span className="data-label">尝试的操作</span>
                 <div className="data-value">
                   <span className="mono">{denial.attemptedAction}</span>
                 </div>
               </div>
-              <div className="data-row" style={{ marginTop: 8 }}>
-                <span className="data-label">Cobo 返回（原文）</span>
-                <div className="data-value">
-                  <pre className="denial-output">{denial.rawOutput}</pre>
-                </div>
-              </div>
+              <details className="technical-disclosure denial-raw-disclosure">
+                <summary>查看 Cobo 原始返回</summary>
+                <pre className="denial-output">{denial.rawOutput}</pre>
+              </details>
               <div
                 className="info-strip"
                 style={{ marginTop: 10, background: "var(--ok-bg)", borderColor: "var(--ok)", color: "var(--ok)" }}
@@ -230,7 +284,7 @@ export function Step3Authorize({
                 防护生效：该请求在策略引擎处被完整阻断，链上零资金流出。
               </div>
               <p className="small muted tight" style={{ marginTop: 10 }}>
-                Pact 依然有效，可继续执行链上采购。
+                Pact 依然有效，可继续执行采购。
               </p>
             </div>
           )}

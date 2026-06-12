@@ -498,7 +498,7 @@ describe("ProofMarketEscrow", () => {
     );
   });
 
-  it("enforces provider-only submit and evaluator-only completion", async () => {
+  it("enforces provider-only submit and authorized completion", async () => {
     const { escrow, provider, other, deliverableHash, reasonHash } =
       await createAndFundJob();
 
@@ -511,16 +511,16 @@ describe("ProofMarketEscrow", () => {
 
     await expectRevert(
       escrow.connect(other).complete(1, reasonHash),
-      "only evaluator"
+      "only client or evaluator"
     );
   });
 
   describe("challenge window gate (W_c)", () => {
     const challengeWindow = 300n;
 
-    it("blocks complete until the window after submit has fully passed", async () => {
+    async function createSubmittedGatedJob() {
       const fixture = await deployFixture();
-      const { token, manager, client, provider, evaluator, deliverableHash, reasonHash } =
+      const { token, client, provider, evaluator, deliverableHash, reasonHash, juror1, juror2, juror3 } =
         fixture;
 
       const Escrow = await ethers.getContractFactory("ProofMarketEscrow");
@@ -542,6 +542,16 @@ describe("ProofMarketEscrow", () => {
       );
       await gated.setChallengeManager(await gatedManager.getAddress());
       await gatedManager.setEscrow(await gated.getAddress());
+      const jurors = [juror1, juror2, juror3];
+      for (const [i, juror] of jurors.entries()) {
+        await gatedManager
+          .connect(client)
+          .registerJuror(
+            juror.address,
+            ethers.keccak256(ethers.toUtf8Bytes(`gated-model-${i}`)),
+            ethers.keccak256(ethers.toUtf8Bytes(`gated-prompt-${i}`))
+          );
+      }
       await token.mint(provider.address, minStake);
       await token.connect(provider).approve(await gatedManager.getAddress(), minStake);
       await gatedManager.connect(provider).depositStake(minStake);
@@ -567,6 +577,13 @@ describe("ProofMarketEscrow", () => {
       await gated.connect(provider).submit(1, deliverableHash);
       expect(await gated.submittedAt(1)).to.be.greaterThan(0n);
 
+      return { gated, token, client, evaluator, provider, reasonHash };
+    }
+
+    it("blocks complete until the window after submit has fully passed", async () => {
+      const { gated, token, evaluator, provider, reasonHash } =
+        await createSubmittedGatedJob();
+
       // Inside the window: payout blocked, the challenge right is protected.
       await expectRevert(
         gated.connect(evaluator).complete(1, reasonHash),
@@ -580,6 +597,25 @@ describe("ProofMarketEscrow", () => {
       const job = await gated.jobs(1);
       expect(job.state).to.equal(JobState.Completed);
       expect(await token.balanceOf(provider.address)).to.equal(budget);
+    });
+
+    it("lets the client settle immediately as an explicit no-challenge choice", async () => {
+      const { gated, token, client, provider, reasonHash } =
+        await createSubmittedGatedJob();
+
+      await gated.connect(client).complete(1, reasonHash);
+      const job = await gated.jobs(1);
+      expect(job.state).to.equal(JobState.Completed);
+      expect(await token.balanceOf(provider.address)).to.equal(budget);
+    });
+
+    it("still blocks a separate evaluator until the window closes", async () => {
+      const { gated, evaluator, reasonHash } = await createSubmittedGatedJob();
+
+      await expectRevert(
+        gated.connect(evaluator).complete(1, reasonHash),
+        "challenge window open"
+      );
     });
   });
 });

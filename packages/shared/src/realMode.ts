@@ -50,7 +50,7 @@ export type DeploymentArtifact = {
   };
   /** Constructor parameters used for ProofMarketEscrow (v2). */
   escrowParams?: {
-    /** Challenge window W_c in seconds: complete() blocked until it passes. */
+    /** Challenge window W_c in seconds: separate evaluators wait; client may accept immediately. */
     challengeWindow: string;
   };
   /** Registered jury operators in seat order (v2). */

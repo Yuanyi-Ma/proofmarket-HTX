@@ -166,7 +166,7 @@ export type JuryVote = {
   vote: "ProviderFault" | "ProviderNotFault";
   reasonCode: string;
   reasonBook: {
-    /** 审判方凭自有库授权调取反证原文核对的结果。 */
+    /** 陪审方凭自有库授权调取反证原文核对的结果。 */
     sourceCheck: string;
     /** 反例在承诺范围内吗？ */
     inScope: string;
@@ -220,8 +220,8 @@ export type Task = {
   jobId: number | null;
   /**
    * End of the challenge window W_c (ISO timestamp), set when the provider's
-   * deliverable is confirmed on-chain. Settlement is blocked (on-chain and in
-   * the UI) until this passes; challenges are expected within it.
+   * deliverable is confirmed on-chain. The client can settle immediately as a
+   * no-challenge acceptance signal; separate evaluators wait until it passes.
    */
   challengeWindowEndsAt?: string | null;
   mode: "fixture" | "real";

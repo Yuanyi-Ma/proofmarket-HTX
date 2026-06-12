@@ -46,6 +46,14 @@ function formatTime(value: string): string {
   });
 }
 
+function compactAuditMessage(message: string): { summary: string; full: string | null } {
+  if (message.length <= 150) return { summary: message, full: null };
+  return {
+    summary: `${message.slice(0, 148)}…`,
+    full: message
+  };
+}
+
 type AuditSidebarProps = {
   task: Task | null;
   /** External control: when provided, overrides internal toggle state. */
@@ -104,17 +112,26 @@ export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSi
           ) : null}
 
           {events.length ? (
-            events.map((event) => (
-              <article className="audit-event" key={event.id}>
-                <div className="audit-event-meta">
-                  <span className={dotClass[event.result]} aria-hidden="true" />
-                  <span>{sourceLabels[event.source] ?? event.source}</span>
-                  <span className="muted">{formatTime(event.createdAt)}</span>
-                </div>
-                <span>{event.message}</span>
-                <EventHash event={event} />
-              </article>
-            ))
+            events.map((event) => {
+              const message = compactAuditMessage(event.message);
+              return (
+                <article className="audit-event" key={event.id}>
+                  <div className="audit-event-meta">
+                    <span className={dotClass[event.result]} aria-hidden="true" />
+                    <span>{sourceLabels[event.source] ?? event.source}</span>
+                    <span className="muted">{formatTime(event.createdAt)}</span>
+                  </div>
+                  <span>{message.summary}</span>
+                  {message.full ? (
+                    <details className="audit-message-full">
+                      <summary>查看完整记录</summary>
+                      <p>{message.full}</p>
+                    </details>
+                  ) : null}
+                  <EventHash event={event} />
+                </article>
+              );
+            })
           ) : (
             <p className="small muted">尚无审计记录</p>
           )}

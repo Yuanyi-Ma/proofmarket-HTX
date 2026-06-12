@@ -41,9 +41,9 @@ contract ProofMarketEscrow {
     uint256 public nextJobId = 1;
     address public owner;
     address public challengeManager;
-    // Challenge window W_c: complete() may not pay out until this many seconds
-    // have passed since submit(). Without the gate, a provider could settle
-    // immediately after submitting and a challenge could never be filed in time.
+    // Challenge window W_c: the client may accept immediately; a separate
+    // evaluator cannot complete until this many seconds have passed since
+    // submit(), preserving the client's challenge right.
     uint256 public challengeWindow;
     mapping(uint256 => Job) public jobs;
     mapping(uint256 => uint256) public submittedAt;
@@ -177,10 +177,12 @@ contract ProofMarketEscrow {
     function complete(uint256 jobId, bytes32 reasonHash) external {
         Job storage job = jobs[jobId];
         require(job.client != address(0), "job not found");
-        require(msg.sender == job.evaluator, "only evaluator");
+        bool isClient = msg.sender == job.client;
+        bool isEvaluator = msg.sender == job.evaluator;
+        require(isClient || isEvaluator, "only client or evaluator");
         require(job.state == JobState.Submitted, "not submitted");
         require(
-            block.timestamp >= submittedAt[jobId] + challengeWindow,
+            isClient || block.timestamp >= submittedAt[jobId] + challengeWindow,
             "challenge window open"
         );
 

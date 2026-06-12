@@ -16,11 +16,11 @@ export type StepDef = {
 
 export const STEPS: StepDef[] = [
   { no: 1, key: "question", title: "提出问题" },
-  { no: 2, key: "plan", title: "委托方案" },
-  { no: 3, key: "authorize", title: "授权支付" },
-  { no: 4, key: "purchase", title: "链上委托" },
-  { no: 5, key: "verify", title: "简报核验" },
-  { no: 6, key: "settle", title: "完成结算" }
+  { no: 2, key: "plan", title: "购买方案" },
+  { no: 3, key: "authorize", title: "支付授权" },
+  { no: 4, key: "purchase", title: "采购执行" },
+  { no: 5, key: "verify", title: "验收简报" },
+  { no: 6, key: "settle", title: "结算完成" }
 ];
 
 // Status → wizard step. DeniedByCobo (and PactRejected) stay on step 3:

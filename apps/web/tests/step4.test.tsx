@@ -61,9 +61,9 @@ describe("Step4Onchain — tx list rendering", () => {
       />
     );
     expect(screen.getByText("授权代币")).toBeTruthy();
-    expect(screen.getByText("创建委托订单")).toBeTruthy();
+    expect(screen.getByText("创建专家订单")).toBeTruthy();
     expect(screen.getByText("设定预算")).toBeTruthy();
-    expect(screen.getByText("注入托管资金")).toBeTruthy();
+    expect(screen.getByText("锁定托管资金")).toBeTruthy();
   });
 
   it("shows 演示模式 message when txRecords is empty but status is JobFunded (fixture mode)", () => {
@@ -73,17 +73,17 @@ describe("Step4Onchain — tx list rendering", () => {
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("本地模拟模式：未连接测试网，无链上交易明细。")).toBeTruthy();
+    expect(screen.getByText("本地模拟模式：已完成采购执行，没有测试网交易明细。")).toBeTruthy();
   });
 
-  it("shows 等待链上确认 message when txRecords is empty and status is NOT JobFunded (mid-execute)", () => {
+  it("shows 等待采购执行完成 message when txRecords is empty and status is NOT JobFunded (mid-execute)", () => {
     render(
       <Step4Onchain
         task={task({ txRecords: [], status: "PactActive" })}
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("等待链上确认…")).toBeTruthy();
+    expect(screen.getByText("等待采购执行完成…")).toBeTruthy();
   });
 
   it("shows 已确认 badge for confirmed records", () => {
@@ -188,7 +188,7 @@ describe("Step4Onchain — 获取研究简报 action", () => {
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("本地模拟模式：未连接测试网，无链上交易明细。")).toBeTruthy();
+    expect(screen.getByText("本地模拟模式：已完成采购执行，没有测试网交易明细。")).toBeTruthy();
   });
 
   // Mid-execute: status NOT JobFunded, empty txRecords — no button, calm wait.
@@ -200,7 +200,7 @@ describe("Step4Onchain — 获取研究简报 action", () => {
       />
     );
     expect(screen.queryByRole("button", { name: /获取研究简报/ })).toBeNull();
-    expect(screen.getByText("等待链上确认…")).toBeTruthy();
+    expect(screen.getByText("等待采购执行完成…")).toBeTruthy();
   });
 
   it("disables 获取研究简报 when isBusy is true", () => {

@@ -126,7 +126,7 @@ export function runProvider(
           sourceLibrary: "messari-pro",
           sourceMetadata: { year: 2024, type: "report" },
           excerptOrSummary:
-            "Sei v2 pipelines transaction execution, state access and block commitment to maximize hardware utilization, joining Monad in the optimistic-concurrency camp.",
+            "Paraphrase (subscription terms, no verbatim quote): Sei v2 overlaps transaction execution, state access and block commitment to keep hardware saturated, joining Monad in the optimistic-concurrency camp.",
           relevanceExplanation: "提供 EVM 并行化在生产环境落地的具体案例，而不止于研究原型。"
         },
         {
@@ -136,7 +136,7 @@ export function runProvider(
           sourceLibrary: "delphi-digital",
           sourceMetadata: { year: 2025, type: "report" },
           excerptOrSummary:
-            "Bench data shows serialization fallbacks on hot accounts erase most of the parallel speedup once contention crosses a modest threshold.",
+            "Paraphrase (subscription terms, no verbatim quote): once contention on hot accounts crosses a modest threshold, serialization fallbacks erase most of the parallel speedup.",
           relevanceExplanation: "与学术侧结论交叉印证，增强可信度。"
         }
       ]

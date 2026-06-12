@@ -163,7 +163,7 @@ function AgentSpotCheck({ pkg }: { pkg: NonNullable<Task["providerPackage"]> }) 
         </div>
       ) : (
         <p className="small muted tight" style={{ marginTop: 8 }}>
-          抽查由你的 Agent 在本地资料库自动执行：概率性抽样，不做全量复核——任何一次漏检或篡改都有足够概率被低成本抓到。
+          抽查由你的 Agent 在本地资料库自动执行：概率性抽样，不做全量复核——任何一次漏检或篡改都有足够概率被低成本抓到。本地存档是你自有授权的资料，整个抽查不需要专家提供任何全文。
         </p>
       )}
     </div>
@@ -183,7 +183,7 @@ function ChallengeMaterials({
   return (
     <div className="challenge-materials" style={{ marginTop: 14 }}>
       <p className="section-kicker" style={{ margin: "0 0 8px" }}>
-        挑战书（提交给审判团的材料）
+        挑战书（提交给陪审团的材料）
       </p>
       <div className="data-row">
         <span className="data-label">专家交付简报</span>
@@ -220,7 +220,7 @@ function ChallengeMaterials({
         <div className="data-value">
           {LIBRARIES[presetCounterEvidence.sourceLibrary as LibraryId].name}
           <span className="muted small">
-            {" "}· {LIBRARIES[presetCounterEvidence.sourceLibrary as LibraryId].access}——审判方自行调取原文核对，不依赖挑战者提交件
+            {" "}· {LIBRARIES[presetCounterEvidence.sourceLibrary as LibraryId].access}——陪审方自行调取原文核对，不依赖挑战者提交件
           </span>
         </div>
       </div>
@@ -233,11 +233,11 @@ function ChallengeMaterials({
         <div className="data-value mono">{challenge.counterEvidenceHash}</div>
       </div>
       <div className="data-row" style={{ marginTop: 6 }}>
-        <span className="data-label">审判方指派依据</span>
+        <span className="data-label">陪审方指派依据</span>
         <div className="data-value">{presetChallengeDocument.juryAssignmentBasis}</div>
       </div>
       <p className="small muted tight" style={{ marginTop: 6 }}>
-        上方为提交给审判团的明文，其哈希已写入链上、不可改口。审判团不轻信提交件——各审判方凭自有库授权按定位符调取原文核对后才投票。
+        上方为提交给陪审团的明文，其哈希已写入链上、不可改口。陪审团不轻信提交件——各陪审方凭自有库授权按定位符调取原文核对后才投票。
       </p>
     </div>
   );
@@ -277,11 +277,11 @@ function DefenseCard({ challenge }: { challenge: TaskChallenge }) {
             </div>
           </div>
           <p className="small muted tight" style={{ marginTop: 6 }}>
-            挑战是公开的链上事件：专家端的监听服务收到事件后在窗口内自动提交应辩，窗口按链上时间强制。审判团必须等应辩窗口结束才能投票（强制兼听）；放弃应辩视同弃权，裁决照常进行。
+            挑战是公开的链上事件：专家端的监听服务收到事件后在窗口内自动提交应辩，窗口按链上时间强制。陪审团必须等应辩窗口结束才能投票（强制兼听）；放弃应辩视同弃权，裁决照常进行。
           </p>
           {challenge.type === "CoverageMiss" ? (
             <p className="small muted tight" style={{ marginTop: 4 }}>
-              本应辩仅作范围抗辩——若简报确实包含该文献，专家出示对应内容及其链上存证即可直接推翻挑战，无需审判团裁量；本案未能出示。
+              本应辩仅作范围抗辩——若简报确实包含该文献，专家出示对应内容及其链上存证即可直接推翻挑战，无需陪审团裁量；本案未能出示。
             </p>
           ) : null}
         </>
@@ -302,7 +302,7 @@ function JuryVoteCard({ vote, index }: { vote: JuryVote; index: number }) {
       <summary className="evidence-item-summary">
         <span className="evidence-item-index">{index + 1}</span>
         <span className="evidence-item-title">
-          审判方 {index + 1}
+          陪审方 {index + 1}
           {vote.jurorAddress ? (
             <span className="muted small mono">（{vote.jurorAddress.slice(0, 10)}…）</span>
           ) : null}
@@ -422,8 +422,10 @@ function statusLabel(task: Task | null): { text: string; tone: "ok" | "pending" 
 function EvidenceItem({
   index,
   answer,
+  defaultOpen = false,
 }: {
   index: number;
+  defaultOpen?: boolean;
   answer: {
     providerAnswer: string;
     sourceTitle: string;
@@ -435,7 +437,7 @@ function EvidenceItem({
   };
 }) {
   return (
-    <details className="evidence-item-row">
+    <details className="evidence-item-row" open={defaultOpen}>
       <summary className="evidence-item-summary">
         <span className="evidence-item-index">{index + 1}</span>
         <span className="evidence-item-title">{answer.sourceTitle}</span>
@@ -480,13 +482,41 @@ function EvidenceItem({
   );
 }
 
+function buildBriefSummary(pkg: NonNullable<Task["providerPackage"]>): {
+  headline: string;
+  sourceLine: string;
+  caveat: string;
+} {
+  const first = pkg.answers[0];
+  if (!first) {
+    return {
+      headline: "专家未返回可读结论。",
+      sourceLine: "没有来源条目。",
+      caveat: "缺少来源支撑，不能进入结算。"
+    };
+  }
+
+  const sourceLine = `共 ${pkg.answers.length} 条来源支撑，首条来源为《${first.sourceTitle}》。`;
+  const caveat =
+    pkg.answers
+      .map((a) => a.relevanceExplanation)
+      .find((text) => /不能|无法|局限|但|however|cannot|does not/i.test(text)) ??
+    "这份简报只能支持当前覆盖声明内的研究判断，不能证明全领域完整性。";
+
+  return {
+    headline: first.providerAnswer,
+    sourceLine,
+    caveat
+  };
+}
+
 // Renders a tx row for challenge-related records.
 function ChallengeTxRow({ record }: { record: TxRecord }) {
   const labelMap: Record<string, string> = {
-    approveDeposit: "授权押金 + 审判费",
+    approveDeposit: "授权押金 + 陪审费",
     openChallenge: "发起挑战（链上）",
     defense: "提交应辩书（链上）",
-    castVote: "审判投票（链上）",
+    castVote: "陪审投票（链上）",
     resolve: "执行裁决（链上）"
   };
   const label = labelMap[record.label] ?? record.label;
@@ -574,10 +604,10 @@ function ChallengeStage1({
           </div>
         </div>
         <div className="data-row" style={{ marginTop: 6 }}>
-          <span className="data-label">审判费 F</span>
+          <span className="data-label">陪审费 F</span>
           <div className="data-value">
             <span className="dot danger" style={{ verticalAlign: "middle", marginRight: 6 }} aria-hidden="true" />
-            0.5 mUSDC 已锁定（审判团均分；挑战成功则由扣罚承担、全额退回）
+            0.5 mUSDC 已锁定（陪审团均分；挑战成功则由扣罚承担、全额退回）
           </div>
         </div>
         <div className="data-row" style={{ marginTop: 6 }}>
@@ -615,7 +645,7 @@ function ChallengeStage1({
               disabled={isBusy}
               aria-busy={isBusy ? "true" : undefined}
             >
-              {isBusy ? "审判团裁决中（等待应辩窗口结束 + 三票上链）…" : "请求审判团裁决"}
+              {isBusy ? "陪审团裁决中（等待应辩窗口结束 + 三票上链）…" : "请求陪审团裁决"}
             </button>
           </div>
         )}
@@ -624,7 +654,7 @@ function ChallengeStage1({
   );
 }
 
-// Stage 2: 审判团投票已完成 (status = ChallengeWon)
+// Stage 2: 陪审团投票已完成 (status = ChallengeWon)
 function ChallengeStage2({
   task,
   challenge,
@@ -644,17 +674,17 @@ function ChallengeStage2({
   const dissent = votes.length - faultVotes;
 
   return (
-    <div className="challenge-stage" aria-label="审判团投票结果">
+    <div className="challenge-stage" aria-label="陪审团投票结果">
       <div className="challenge-stage-header">
         <span className="dot danger" aria-hidden="true" />
         <strong>
-          审判团投票 {faultVotes} : {dissent} — ProviderFault（覆盖声明漏检，挑战成立）
+          陪审团投票 {faultVotes} : {dissent} — ProviderFault（覆盖声明漏检，挑战成立）
         </strong>
       </div>
 
       <div className="challenge-stage-body">
         <p className="small muted tight" style={{ margin: "0 0 8px" }}>
-          三个相互独立的审判方各自核对原文后投票，理由书哈希随票上链。
+          三个相互独立的陪审方各自核对原文后投票，理由书哈希随票上链。
           多数决生效——异议票也完整留痕。
         </p>
         <div className="evidence-items-list">
@@ -663,7 +693,7 @@ function ChallengeStage2({
           ))}
         </div>
         <p className="small muted tight" style={{ marginTop: 8 }}>
-          每个审判方注册时已把模型版本与审判 prompt 的哈希承诺上链，任何人可按承诺参数离线重跑复核任一票。
+          每个陪审方注册时已把模型版本与陪审规程的哈希承诺上链，任何人可按承诺参数离线重跑复核任一票。
         </p>
 
         {/* Materials panel (still visible for reference) */}
@@ -721,11 +751,11 @@ function ChallengeStage3({
           </div>
           <div className="challenge-fund-row">
             <span className="challenge-fund-icon" aria-hidden="true">—</span>
-            <span>挑战者押金 + 审判费全额退回</span>
+            <span>挑战者押金 + 陪审费全额退回</span>
           </div>
           <div className="challenge-fund-row">
             <span className="challenge-fund-icon" aria-hidden="true">—</span>
-            <span>审判费 0.5 mUSDC 由扣罚承担，三位审判方均分，余额归入金库</span>
+            <span>陪审费 0.5 mUSDC 由扣罚承担，三位陪审方均分，余额归入金库</span>
           </div>
         </div>
 
@@ -794,6 +824,7 @@ export function Step5Evidence({
       : null;
 
   const challenge = task?.challenge ?? null;
+  const briefSummary = providerPackage ? buildBriefSummary(providerPackage) : null;
 
   // Determine which challenge stage we are in
   const isChallenged = status === "Challenged";
@@ -833,7 +864,7 @@ export function Step5Evidence({
       subtitle={
         isInChallengeFlow
           ? "挑战流程进行中——查看挑战状态与资金动作。"
-          : "专家已交付研究简报：关键摘录、来源定位与研究摘要。核验通过后即可结算；若发现问题可发起挑战。"
+          : "专家已交付研究简报：结论、来源定位与限长摘录，不含任何全文。核验通过后即可结算；若发现问题可发起挑战。"
       }
       primary={primary}
       secondary={secondary}
@@ -841,8 +872,33 @@ export function Step5Evidence({
       {/* ── 证据包 ─────────────────────────────────── */}
       {providerPackage ? (
         <div className="evidence-section">
-          <p className="section-kicker" style={{ margin: "0 0 8px" }}>
-            研究简报
+          {briefSummary ? (
+            <div className="brief-summary">
+              <p className="section-kicker" style={{ margin: "0 0 8px" }}>
+                简报摘要
+              </p>
+              <div className="data-grid">
+                <div className="data-row">
+                  <span className="data-label">主要结论</span>
+                  <div className="data-value">{briefSummary.headline}</div>
+                </div>
+                <div className="data-row">
+                  <span className="data-label">来源规模</span>
+                  <div className="data-value">{briefSummary.sourceLine}</div>
+                </div>
+                <div className="data-row">
+                  <span className="data-label">不能得出</span>
+                  <div className="data-value muted">{briefSummary.caveat}</div>
+                </div>
+              </div>
+            </div>
+          ) : null}
+
+          <p className="section-kicker" style={{ margin: "0 0 4px" }}>
+            来源条目
+          </p>
+          <p className="small muted tight" style={{ margin: "0 0 10px" }}>
+            简报只含定位与限长摘录，研报类条目按订阅条款转述——原文不出授权边界，核对由持授权方在各自边界内完成。
           </p>
 
           {/* Provider header */}
@@ -861,7 +917,12 @@ export function Step5Evidence({
           {providerPackage.answers.length > 0 ? (
             <div className="evidence-items-list">
               {providerPackage.answers.map((answer, i) => (
-                <EvidenceItem key={answer.sourceLocator} index={i} answer={answer} />
+                <EvidenceItem
+                  key={answer.sourceLocator}
+                  index={i}
+                  answer={answer}
+                  defaultOpen={i === 0}
+                />
               ))}
             </div>
           ) : (
@@ -992,13 +1053,13 @@ export function Step5Evidence({
 
           {/* ChallengeWon but no votes yet (edge case in real mode, show waiting) */}
           {isChallengeWon && (!challenge.votes || challenge.votes.length === 0) && (
-            <div className="challenge-stage" aria-label="等待审判结果">
+            <div className="challenge-stage" aria-label="等待陪审结果">
               <div className="challenge-stage-header">
                 <span className="dot pending" aria-hidden="true" />
-                <strong>等待审判团投票…</strong>
+                <strong>等待陪审团投票…</strong>
               </div>
               <div className="challenge-stage-body">
-                <div className="info-strip">审判团正在处理，请稍候。</div>
+                <div className="info-strip">陪审团正在处理，请稍候。</div>
               </div>
             </div>
           )}
@@ -1020,13 +1081,13 @@ export function Step5Evidence({
             {windowRemaining > 0 ? (
               <>
                 挑战窗口剩余 <span className="mono">{formatCountdown(windowRemaining)}</span>
-                ，窗口结束前合约拒绝放款。
+                ，买方可选择挑战，或直接验收结算。
               </>
             ) : task?.challengeWindowEndsAt ? (
               <>挑战窗口已结束，订单可正常结算。</>
             ) : null}
-            {" "}若对简报有异议，可发起挑战：锁定押金 + 审判费 → 专家应辩 →
-            审判团（3 个独立审判方）多数决 → 链上扣罚 / 退款，全过程上链可查。
+            {" "}若对简报有异议，可发起挑战：锁定押金 + 陪审费 → 专家应辩 →
+            陪审团（本案 3 个独立陪审方）多数决 → 链上扣罚 / 退款，全过程上链可查。
           </span>
         </div>
       )}
