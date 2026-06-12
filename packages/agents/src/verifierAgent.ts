@@ -63,7 +63,7 @@ export function verifyPackage(
 
   const hasBlockStm = providerPackage.answers.some(
     (item) =>
-      item.sourceLocator === "arXiv:2203.06871" ||
+      item.sourceLocator === "doi:10.1145/3572848.3577524" ||
       item.sourceTitle.toLowerCase().includes("block-stm")
   );
 

@@ -11,13 +11,15 @@ export const defaultQuestion = "请调研近几年区块链交易执行加速的
  */
 export const presetCounterEvidence = {
   challengeType: "CoverageMiss",
-  sourceLocator: "arXiv:2203.06871",
-  // Real paper title (arXiv:2203.06871) — counter-evidence must be verifiable
-  // by anyone who follows the locator, so the title cannot be paraphrased.
+  // Real publication venue (ACM PPoPP '23) — counter-evidence must be
+  // verifiable by anyone holding ACM DL access, so locator and title are the
+  // real ones, not paraphrased. A SUBSCRIPTION library on purpose: open
+  // archives the user could search themselves; juror assignment must match
+  // jurors that actually hold ACM DL access.
+  sourceLocator: "doi:10.1145/3572848.3577524",
   sourceTitle:
     "Block-STM: Scaling Blockchain Execution by Turning Ordering Curse to a Performance Blessing",
-  /** 反证所在库：开放获取，审判方无需订阅即可调原文核对。 */
-  sourceLibrary: "arxiv",
+  sourceLibrary: "acm-dl",
   claim:
     "专家声明覆盖 2021-2026 年区块链执行加速方向，但交付的研究简报中遗漏了 Block-STM——该声明范围内公认的代表性工作。"
 } as const;
@@ -29,16 +31,18 @@ export const presetCounterEvidence = {
  */
 export const presetChallengeDocument = {
   statement:
-    "交付的研究简报未包含 Block-STM（arXiv:2203.06871）——区块链并行执行方向被广泛引用的代表性工作，" +
-    "且该专家未在覆盖声明中排除该子方向。属于承诺范围内漏检（CoverageMiss）。",
+    "交付的研究简报未包含 Block-STM（ACM PPoPP '23，doi:10.1145/3572848.3577524）——区块链并行执行方向被广泛引用的代表性工作，" +
+    "且该专家未在覆盖声明中排除该子方向，属于承诺范围内漏检（CoverageMiss）。" +
+    "另：查准抽检发现简报第 1 条《A Survey of Blockchain Performance Optimization Techniques》的摘录与原文结论相反" +
+    "（原文归因执行层并行化，简报改写为共识与硬件主导），作为佐证一并提交审判团。",
   hitCoverageClause:
-    "覆盖声明：『广泛覆盖 2021-2026 年区块链执行加速方向的学术论文（接入 IEEE Xplore / Elsevier ScienceDirect / arXiv）』",
+    "覆盖声明：『广泛覆盖 2021-2026 年区块链执行加速方向的学术论文（持有 IEEE Xplore / ACM Digital Library 订阅）』",
   /**
    * 指派依据：审判方必须持有反证所在库的访问权限，才能自行调取原文核对，
-   * 不必轻信挑战者提交件。本案反证在 arXiv（开放获取），三位注册审判方均可达。
+   * 不必轻信挑战者提交件。本案反证在 ACM DL（订阅库），库授权匹配是硬条件。
    */
   juryAssignmentBasis:
-    "反证位于 arXiv（开放获取）；三位注册审判方均持有 arXiv 与声明范围库（IEEE Xplore / Elsevier ScienceDirect）的访问权限，全部入席。"
+    "反证位于 ACM Digital Library（订阅库）；三位注册审判方均持有 ACM DL 与 IEEE Xplore 订阅授权，可独立调取原文，全部入席。"
 } as const;
 
 /**
@@ -48,7 +52,7 @@ export const presetChallengeDocument = {
 export const presetDefense: Omit<ChallengeDefense, "txHash"> = (() => {
   const statement =
     "检索按声明的关键词字面执行，未触达 Block-STM 一文；该文属并行执行子方向，" +
-    "我方认为不构成对『执行加速』整体声明的漏检。";
+    "我方认为不构成对『执行加速』整体声明的漏检。关于综述摘录，系我方对原文的概括性改写，并非引用错误。";
   return { statement, defenseHash: stableHash({ defense: statement }) };
 })();
 
@@ -72,7 +76,7 @@ export const presetJurors = [
     modelFamily: "OpenAI GPT 系",
     modelTag: "gpt-5",
     promptTag: "proofmarket-jury-prompt-v1",
-    libraryAccess: ["ieee-xplore", "sciencedirect", "arxiv", "usenix"]
+    libraryAccess: ["ieee-xplore", "acm-dl", "sciencedirect", "usenix"]
   },
   {
     jurorId: "juror-google",
@@ -96,7 +100,7 @@ export function presetJuryVotes(jurorAddresses: readonly string[]): JuryVote[] {
       reasonCode: "COVERAGE_MISS",
       reasonBook: {
         sourceCheck:
-          "已凭自有 arXiv 访问权限调取 arXiv:2203.06871 原文：该文真实存在，主题为区块链交易乐观并行执行；其对应叶子哈希不在被挑战简报承诺根的任何叶子中，缺失属实。",
+          "已凭自有 ACM Digital Library 订阅调取 doi:10.1145/3572848.3577524 原文：该文真实存在，主题为区块链交易乐观并行执行；逐一核对被挑战简报全部条目，均不含该文，缺失属实。",
         inScope:
           "是。Block-STM 直接研究区块链交易并行执行加速，落在声明的『执行加速』范围内。",
         hitsDeclaredQuery:
@@ -111,7 +115,7 @@ export function presetJuryVotes(jurorAddresses: readonly string[]): JuryVote[] {
       reasonCode: "COVERAGE_MISS",
       reasonBook: {
         sourceCheck:
-          "已自行检索 arXiv 确认反证原文存在且与挑战书描述一致；逐一核对简报各叶子，均不含该文。",
+          "已凭 ACM DL 订阅确认反证原文存在且与挑战书描述一致，简报确未包含；另核对挑战书所附综述摘录问题：原文结论归因执行层并行化，简报摘录确与原文相悖，佐证其检索质量缺陷。",
         inScope: "是。该文为执行加速方向被广泛引用的代表性工作。",
         hitsDeclaredQuery: "是。声明覆盖语句按字面即包含交易执行优化。",
         notReturnedNotExcluded:
@@ -124,7 +128,7 @@ export function presetJuryVotes(jurorAddresses: readonly string[]): JuryVote[] {
       reasonCode: "SCOPE_AMBIGUOUS",
       reasonBook: {
         sourceCheck:
-          "已调取 arXiv 原文确认其存在、确认简报未包含——事实无分歧，分歧在声明范围的解释。",
+          "已凭 ACM DL 订阅调取原文确认其存在、确认简报未包含——事实无分歧，分歧在声明范围的解释。",
         inScope: "存疑。『执行加速』未逐项列举子方向，对并行执行的涵盖存在解释空间。",
         hitsDeclaredQuery: "部分。字面检索词未直接包含 Block-STM 同义词。",
         notReturnedNotExcluded: "是，未返回亦未排除。",
@@ -155,7 +159,7 @@ export const providerProfiles: ProviderProfile[] = [
     role: "recommended",
     coverage:
       "持有 IEEE Xplore、ACM Digital Library 与 Elsevier ScienceDirect 论文库授权，订阅 Messari Pro 与 Delphi Digital 行业研报库；专注交易执行、并行/投机执行与共识优化方向，简报逐条附来源库、来源定位与关键摘录。",
-    libraries: ["ieee-xplore", "acm-dl", "sciencedirect", "arxiv", "messari-pro", "delphi-digital"],
+    libraries: ["ieee-xplore", "acm-dl", "sciencedirect", "messari-pro", "delphi-digital"],
     price: "1 mUSDC",
     stake: "10 mUSDC",
     reputationScore: 970,
@@ -169,8 +173,8 @@ export const providerProfiles: ProviderProfile[] = [
     name: "文献速查 Agent",
     role: "risky",
     coverage:
-      "接入 IEEE Xplore、Elsevier ScienceDirect 与 arXiv，按关键词快速检索区块链性能方向论文，当天交付，价格实惠。",
-    libraries: ["ieee-xplore", "sciencedirect", "arxiv"],
+      "持有 IEEE Xplore 与 ACM Digital Library 订阅，按关键词快速检索区块链性能方向论文，当天交付，价格实惠。",
+    libraries: ["ieee-xplore", "acm-dl"],
     price: "0.2 mUSDC",
     stake: "2 mUSDC",
     reputationScore: 620,
@@ -184,8 +188,8 @@ export const providerProfiles: ProviderProfile[] = [
     name: "共识层研究专家 Agent",
     role: "comparison",
     coverage:
-      "持有 IEEE Xplore 论文库授权，覆盖 USENIX 与 arXiv 开放论文，专注共识与网络层方向（BFT 共识、P2P 网络、出块与传播）；执行层论文覆盖有限。",
-    libraries: ["ieee-xplore", "usenix", "arxiv"],
+      "持有 IEEE Xplore 论文库授权并覆盖 USENIX 系统会议论文，专注共识与网络层方向（BFT 共识、P2P 网络、出块与传播）；执行层论文覆盖有限。",
+    libraries: ["ieee-xplore", "usenix"],
     price: "0.1 mUSDC",
     stake: "1 mUSDC",
     reputationScore: 800,

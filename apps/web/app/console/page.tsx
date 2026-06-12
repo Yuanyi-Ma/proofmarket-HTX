@@ -22,6 +22,7 @@ type ActionName =
   | "provider"
   | "verify"
   | "settle"
+  | "rate"
   | "denial-demo"
   | "open-challenge"
   | "challenge-win"
@@ -270,6 +271,7 @@ export default function Page() {
           <Step6Done
             task={task}
             onSettle={() => runAction("settle")}
+            onRate={(score) => runAction("rate", { score })}
             onReset={resetTask}
             onOpenAudit={() => setAuditExpanded(true)}
             isBusy={isBusy}

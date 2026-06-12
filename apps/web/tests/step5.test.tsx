@@ -466,89 +466,118 @@ describe("Step5Evidence — legacy status badges (status labels)", () => {
   });
 });
 
-// ── 我方 Agent 抽查核验 + Merkle 承诺 ────────────────────────────────────────
+// ── 我方 Agent 抽查核验 + 链上存证（真实计算） ─────────────────────────────
 import { buildPackageCommitment } from "@proofmarket/shared/src/merkle";
 
-/** 同一内容、真实承诺根：抽查面板的 Merkle 路径验证是真实计算。 */
+/** 同一内容、真实承诺根：抽查与存证校验都是真实计算。 */
 function withRealRoot(p: ProviderAnswerPackage): ProviderAnswerPackage {
   const { packageHash: _ignored, ...preimage } = p;
   return { ...p, packageHash: buildPackageCommitment(preimage).root };
 }
 
+// 与 lib/localCorpus.ts 的英文存档段落逐字一致——查准内容比对是真实子串匹配。
 const expertPkg: ProviderAnswerPackage = withRealRoot({
   ...pkg,
   coverageStatement:
-    "本简报基于论文库与行业研报库，覆盖 2021-2026 年区块链交易执行加速方向。",
+    "本简报基于订阅论文库与行业研报库，覆盖 2021-2026 年区块链交易执行加速方向。",
   answers: [
     {
       ...pkg.answers[0],
-      // 与 lib/localCorpus.ts 的存档段落逐字一致——查准内容比对是真实子串匹配
+      sourceTitle:
+        "Block-STM: Scaling Blockchain Execution by Turning Ordering Curse to a Performance Blessing",
+      sourceLocator: "doi:10.1145/3572848.3577524",
+      sourceLibrary: "acm-dl",
       excerptOrSummary:
-        "Block-STM 利用乐观并行执行与冲突检测，在保持确定性结果的前提下并发执行有序的区块链交易。"
+        "Block-STM exploits optimistic concurrency control with a collaborative scheduler to execute ordered blockchain transactions in parallel while guaranteeing deterministic results."
     },
     {
       providerAnswer: "状态热点约束并行收益。",
-      sourceTitle: "高吞吐智能合约执行中的状态热点",
+      sourceTitle: "State Hotspots in High-Throughput Smart-Contract Execution",
       sourceLocator: "delphi:state-hotspots-2025",
       sourceLibrary: "delphi-digital",
       sourceMetadata: { year: 2025, type: "report" },
-      excerptOrSummary: "状态热点与存储 I/O 仍可能主导执行延迟。",
+      excerptOrSummary:
+        "Bench data shows serialization fallbacks on hot accounts erase most of the parallel speedup once contention crosses a modest threshold.",
       relevanceExplanation: "约束过度宣称。"
     }
   ]
 });
 
+// 速查包：双问题——answers[0] 摘录与本地存档相悖（查准红），且漏 Block-STM（查全红）。
 const shallowPkg: ProviderAnswerPackage = withRealRoot({
   ...pkg,
   providerId: "shallow-search-provider",
   providerName: "文献速查 Agent",
   coverageStatement:
-    "自报广泛覆盖 2021-2026 年区块链执行加速方向的学术论文（接入 IEEE Xplore / Elsevier ScienceDirect / arXiv）。",
+    "自报广泛覆盖 2021-2026 年区块链执行加速方向的学术论文（持有 IEEE Xplore / ACM Digital Library 订阅）。",
   answers: [
     {
       providerAnswer: "性能提升主要来自共识与硬件。",
-      sourceTitle: "通用区块链性能综述",
-      sourceLocator: "web:generic-performance-overview",
-      sourceLibrary: "open-web",
-      sourceMetadata: { year: 2024, type: "report" },
-      excerptOrSummary: "通用公开网页摘要。",
-      relevanceExplanation: "相关但遗漏执行层专项工作。"
+      sourceTitle: "A Survey of Blockchain Performance Optimization Techniques",
+      sourceLocator: "doi:10.1109/COMST.2023.3310992",
+      sourceLibrary: "ieee-xplore",
+      sourceMetadata: { year: 2023, type: "paper" },
+      excerptOrSummary:
+        "The survey concludes that consensus upgrades and hardware improvements are the dominant sources of recent blockchain performance gains.",
+      relevanceExplanation: "综述类来源。"
+    },
+    {
+      providerAnswer: "吞吐基准由共识参数决定。",
+      sourceTitle: "Consensus Throughput Benchmarks Revisited",
+      sourceLocator: "doi:10.1109/INFOCOM.2024.1187",
+      sourceLibrary: "ieee-xplore",
+      sourceMetadata: { year: 2024, type: "paper" },
+      excerptOrSummary:
+        "Benchmark variance is explained primarily by consensus parameters.",
+      relevanceExplanation: "支撑以共识为中心的叙事。"
     }
   ]
 });
 
-describe("Step5Evidence — Agent spot check (scope-matched, real Merkle proofs)", () => {
-  it("expert package: both samples in scope and present, no failure strip", () => {
+describe("Step5Evidence — Agent spot check (scope-matched, real computations)", () => {
+  it("expert package: samples in scope and present, no failure strip", () => {
     render(<Step5Evidence task={task({ providerPackage: expertPkg })} {...defaultProps} />);
     expect(screen.getByTestId("agent-spot-check")).toBeTruthy();
     expect(screen.queryByTestId("spot-check-failed")).toBeNull();
     expect(screen.getAllByText(/已包含在简报中/).length).toBe(2);
   });
 
-  it("expert package: 查准 rows do both real checks — corpus match and Merkle proof", () => {
+  it("expert package: 查准 rows pass the real corpus comparison", () => {
     render(<Step5Evidence task={task({ providerPackage: expertPkg })} {...defaultProps} />);
-    expect(screen.getAllByText(/Merkle 路径折算回承诺根，验证通过/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/摘录与本地资料库存档段落逐字一致/).length).toBeGreaterThan(0);
-    expect(screen.queryByText(/Merkle 路径验证失败/)).toBeNull();
+    expect(screen.getAllByText(/摘录与本地资料库存档一致/).length).toBe(2);
+    expect(screen.queryByText(/摘录与本地存档原文不符/)).toBeNull();
   });
 
   it("a tampered excerpt fails the corpus comparison (red, not copy)", () => {
     const tampered = withRealRoot({
       ...expertPkg,
       answers: [
-        { ...expertPkg.answers[0], excerptOrSummary: "Block-STM 可让所有工作负载获得线性加速。" },
+        {
+          ...expertPkg.answers[0],
+          excerptOrSummary:
+            "Block-STM guarantees linear speedup for every workload."
+        },
         expertPkg.answers[1]
       ]
     });
     render(<Step5Evidence task={task({ providerPackage: tampered })} {...defaultProps} />);
-    expect(screen.getAllByText(/摘录在本地资料库中比对失败/).length).toBe(1);
+    expect(screen.getAllByText(/摘录与本地存档原文不符/).length).toBe(1);
+    expect(screen.getByTestId("spot-check-failed").textContent).toContain("查准");
   });
 
-  it("shallow package: in-scope paper miss is red, out-of-scope report sample is excluded", () => {
+  it("shallow package: dual failure — excerpt mismatch AND in-scope coverage miss", () => {
     render(<Step5Evidence task={task({ providerPackage: shallowPkg })} {...defaultProps} />);
-    expect(screen.getByTestId("spot-check-failed")).toBeTruthy();
+    const strip = screen.getByTestId("spot-check-failed");
+    expect(strip.textContent).toContain("查准");
+    expect(strip.textContent).toContain("查全");
+    expect(screen.getAllByText(/摘录与本地存档原文不符/).length).toBe(1);
     expect(screen.getAllByText(/未出现在简报中——且在其覆盖声明范围内/).length).toBe(1);
     expect(screen.getAllByText(/不在其覆盖声明范围/).length).toBe(1);
+  });
+
+  it("sources absent from the local corpus are skipped, not failed", () => {
+    render(<Step5Evidence task={task({ providerPackage: shallowPkg })} {...defaultProps} />);
+    expect(screen.getAllByText(/本地库未存档该来源，未抽查/).length).toBe(1);
   });
 
   it("shallow package: secondary action becomes 生成挑战包，发起挑战", () => {
@@ -561,15 +590,16 @@ describe("Step5Evidence — Agent spot check (scope-matched, real Merkle proofs)
     expect(screen.getByRole("button", { name: "发起挑战" })).toBeTruthy();
   });
 
-  it("链上一致性 lists the commitment structure: overview leaf + one leaf per answer", () => {
+  it("链上存证 shows a single real verification row, no structure internals", () => {
     render(<Step5Evidence task={task({ providerPackage: expertPkg })} {...defaultProps} />);
-    expect(screen.getAllByText(/总述与覆盖声明/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/叶 2/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/收到的简报与专家签名上链的哈希一致/).length).toBe(1);
+    expect(screen.queryByText(/承诺结构/)).toBeNull();
+    expect(screen.queryByText(/Merkle/)).toBeNull();
   });
 });
 
 describe("Step5Evidence — challenge materials rigor rows", () => {
-  it("挑战书 shows the counter-evidence library and jury assignment basis", () => {
+  it("挑战书 shows the counter-evidence library (subscription) and jury assignment basis", () => {
     render(
       <Step5Evidence
         task={task({ status: "Challenged", challenge: challengeFixture })}
@@ -578,7 +608,7 @@ describe("Step5Evidence — challenge materials rigor rows", () => {
     );
     expect(screen.getAllByText(/反证所在库/).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/审判方指派依据/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/开放获取/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/订阅授权/).length).toBeGreaterThan(0);
   });
 
   it("every jury vote card carries an 原文核对 row", () => {
@@ -592,6 +622,6 @@ describe("Step5Evidence — challenge materials rigor rows", () => {
       />
     );
     expect(screen.getAllByText("原文核对").length).toBe(votesFixture.length);
-    expect(screen.getAllByText(/已凭自有 arXiv 访问权限调取/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/已凭自有 ACM Digital Library 订阅调取/).length).toBeGreaterThan(0);
   });
 });

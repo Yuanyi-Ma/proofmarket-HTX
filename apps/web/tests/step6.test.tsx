@@ -109,6 +109,7 @@ describe("Step6Done — final answer (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -121,6 +122,7 @@ describe("Step6Done — final answer (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -133,6 +135,7 @@ describe("Step6Done — final answer (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -147,6 +150,7 @@ describe("Step6Done — 凭证清单 (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -164,6 +168,7 @@ describe("Step6Done — 凭证清单 (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -180,6 +185,7 @@ describe("Step6Done — 凭证清单 (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -192,6 +198,7 @@ describe("Step6Done — 凭证清单 (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -204,6 +211,7 @@ describe("Step6Done — 凭证清单 (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -218,6 +226,7 @@ describe("Step6Done — 凭证清单 (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -233,6 +242,7 @@ describe("Step6Done — actions (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -246,6 +256,7 @@ describe("Step6Done — actions (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -259,6 +270,7 @@ describe("Step6Done — actions (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={onReset}
         onOpenAudit={noop}
       />
@@ -273,6 +285,7 @@ describe("Step6Done — actions (settled)", () => {
       <Step6Done
         task={task()}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={onOpenAudit}
       />
@@ -288,6 +301,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
       <Step6Done
         task={task({ status: "Verified" })}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -300,6 +314,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
       <Step6Done
         task={task({ status: "Verified" })}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -312,6 +327,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
       <Step6Done
         task={task({ status: "Verified" })}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -325,6 +341,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
       <Step6Done
         task={task({ status: "Verified" })}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
         isBusy={true}
@@ -341,6 +358,7 @@ describe("Step6Done — Audited state", () => {
       <Step6Done
         task={task({ status: "Audited" })}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -356,6 +374,7 @@ describe("Step6Done — challenge window gate (W_c)", () => {
       <Step6Done
         task={task({ status: "Verified", challengeWindowEndsAt: endsAt })}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />
@@ -371,6 +390,7 @@ describe("Step6Done — challenge window gate (W_c)", () => {
       <Step6Done
         task={task({ status: "Verified", challengeWindowEndsAt: endsAt })}
         onSettle={noop}
+        onRate={noop}
         onReset={noop}
         onOpenAudit={noop}
       />

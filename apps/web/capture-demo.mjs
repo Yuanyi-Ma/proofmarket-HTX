@@ -113,6 +113,12 @@ async function main() {
   if (!settled) throw new Error("settle failed after 3 attempts");
   await page.waitForTimeout(800);
   await shot("08-step6-settled");
+
+  log("rate the service (publishes on-chain reputation feedback)…");
+  await clickBtn("提交评分");
+  await page.getByText("已评分，已记入专家链上信誉").waitFor({ state: "visible", timeout: 300_000 });
+  await page.waitForTimeout(800);
+  await shot("09-step6-rated");
   } // end success path
 
   // ─────────────────────────── CHALLENGE PATH ───────────────────────────

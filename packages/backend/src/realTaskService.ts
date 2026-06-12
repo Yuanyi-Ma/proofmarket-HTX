@@ -1149,7 +1149,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
         const settled = transition(taskRef.task, "Settled");
 
-        const settledTask = save(
+        // Reputation feedback is NOT auto-published here: the user rates the
+        // service explicitly on the completion page (rate() below), which is
+        // what publishes the on-chain feedback.
+        return save(
           withAudit(
             settled,
             audit({
@@ -1162,17 +1165,28 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             })
           )
         );
-
-        // Post-settlement: positive on-chain reputation feedback for the
-        // provider (real tx, rater key, non-fatal on failure — see helper).
-        return publishReputationFeedback(settledTask, {
-          value: FEEDBACK_POSITIVE_VALUE,
-          tag2: "job.completed",
-          sentiment: "好评"
-        });
       } finally {
         inFlight.delete(id);
       }
+    },
+
+    async rate(id: string, score: number): Promise<Task> {
+      const task = store.getTask(id);
+      assertStatus(task, ["Settled", "Audited"], "rate");
+      if (!Number.isInteger(score) || score < 1 || score > 5) {
+        throw new Error("score must be an integer in 1-5");
+      }
+      if (task.txRecords.some((r) => r.label === "feedback")) {
+        throw new Error("This task has already been rated");
+      }
+      // Map 1-5 stars onto the ERC-8004 feedback value scale (5★ = the former
+      // FEEDBACK_POSITIVE_VALUE, so reputation reads stay on the same scale).
+      const value = score * (FEEDBACK_POSITIVE_VALUE / 5);
+      return publishReputationFeedback(task, {
+        value,
+        tag2: "job.completed",
+        sentiment: score >= 3 ? "好评" : "差评"
+      });
     },
 
     // ── Deterministic challenge flow (P2-c): real protocol + funds, preset

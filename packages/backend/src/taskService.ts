@@ -38,6 +38,8 @@ export type TaskService = {
   runProvider(id: string, providerId: ProviderId): Promise<Task>;
   verify(id: string): Promise<Task>;
   settle(id: string): Promise<Task>;
+  /** User rating after settlement (1-5); publishes on-chain reputation feedback in real mode. */
+  rate(id: string, score: number): Promise<Task>;
   openChallenge(id: string): Promise<Task>;
   winChallenge(id: string): Promise<Task>;
   refundOrSlash(id: string): Promise<Task>;
@@ -379,6 +381,32 @@ export function createTaskService(store: InMemoryStore): TaskService {
             type: "settled",
             result: "success",
             message: "已向专家结算付款。",
+            jobId: task.jobId
+          })
+        )
+      );
+    },
+
+    async rate(id: string, score: number): Promise<Task> {
+      const task = store.getTask(id);
+      if (task.status !== "Settled" && task.status !== "Audited") {
+        throw new Error("Cannot rate before settlement");
+      }
+      if (!Number.isInteger(score) || score < 1 || score > 5) {
+        throw new Error("score must be an integer in 1-5");
+      }
+      if (task.audit.some((e) => e.type === "reputation_feedback_published")) {
+        throw new Error("This task has already been rated");
+      }
+      return save(
+        withAudit(
+          task,
+          audit({
+            taskId: id,
+            source: "user",
+            type: "reputation_feedback_published",
+            result: "success",
+            message: `用户评分 ${score}/5，已记入专家信誉（本地模拟）。`,
             jobId: task.jobId
           })
         )

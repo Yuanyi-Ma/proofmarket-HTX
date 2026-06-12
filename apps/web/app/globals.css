@@ -905,6 +905,39 @@ button.stepper-link:hover {
   color: var(--pending);
 }
 
+/* 服务评分：克制的星标选择器，选中近黑、未选浅灰，无圆泡 */
+.rating-row {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rating-stars {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.rating-star {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0 2px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--border);
+  cursor: pointer;
+}
+
+.rating-star.active {
+  color: var(--text-1, #16181c);
+}
+
+.rating-star:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 /* 资料库授权标签：中性灰 chip，一行可多枚 */
 .lib-tag-row {
   display: flex;

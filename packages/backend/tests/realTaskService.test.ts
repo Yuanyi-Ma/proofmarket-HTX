@@ -693,7 +693,7 @@ describe("real task service", () => {
     ).toContain("无 agentId");
   });
 
-  it("settle publishes positive on-chain feedback for the job's provider", async () => {
+  it("user rating (not settle) publishes the on-chain feedback for the job's provider", async () => {
     const deps = makeDeps();
     const service = createRealTaskService(createInMemoryStore(), deps);
     const active = await driveToPactActive(service);
@@ -702,15 +702,34 @@ describe("real task service", () => {
     await service.verify(active.id);
     const settled = await service.settle(active.id);
     expect(settled.status).toBe("Settled");
-    // agentId 6388 (execution-research-expert), 500 = 5.00, tag2 job.completed
+    // settle alone publishes nothing — the explicit user rating does.
+    expect(settled.txRecords.some((r) => r.label === "feedback")).toBe(false);
+    const rated = await service.rate(active.id, 5);
+    // agentId 6388 (execution-research-expert), 5★ → 500 = 5.00, tag2 job.completed
     expect(deps.calls).toContain("publishFeedback:6388:500:job.completed");
-    const record = settled.txRecords.find((r) => r.label === "feedback");
+    const record = rated.txRecords.find((r) => r.label === "feedback");
     expect(record?.status).toBe("confirmed");
     expect(record?.txHash).toBe(`0x${"f".repeat(64)}`);
-    const event = settled.audit.find((e) => e.type === "reputation_feedback_published");
+    const event = rated.audit.find((e) => e.type === "reputation_feedback_published");
     expect(event?.txHash).toBe(`0x${"f".repeat(64)}`);
     expect(event?.message).toContain("好评");
     expect(event?.message).toContain("5.00");
+  });
+
+  it("rate guards: not before settlement, integer 1-5 only, no double rating", async () => {
+    const deps = makeDeps();
+    const service = createRealTaskService(createInMemoryStore(), deps);
+    const active = await driveToPactActive(service);
+    await service.executeEscrow(active.id);
+    await service.runProvider(active.id, "execution-research-expert");
+    await service.verify(active.id);
+    await expect(service.rate(active.id, 5)).rejects.toThrow(/rate/);
+    await service.settle(active.id);
+    await expect(service.rate(active.id, 0)).rejects.toThrow(/1-5/);
+    await expect(service.rate(active.id, 4.5)).rejects.toThrow(/1-5/);
+    await service.rate(active.id, 4);
+    expect(deps.calls).toContain("publishFeedback:6388:400:job.completed");
+    await expect(service.rate(active.id, 5)).rejects.toThrow(/already been rated/);
   });
 
   it("refundOrSlash publishes negative feedback for the at-fault provider", async () => {
@@ -745,10 +764,11 @@ describe("real task service", () => {
     await service.verify(active.id);
     const settled = await service.settle(active.id); // must NOT throw
     expect(settled.status).toBe("Settled");
-    const record = settled.txRecords.find((r) => r.label === "feedback");
+    const rated = await service.rate(active.id, 5); // must NOT throw either
+    const record = rated.txRecords.find((r) => r.label === "feedback");
     expect(record?.status).toBe("failed");
     expect(record?.txHash).toBe(""); // no fabrication
-    const event = settled.audit.find((e) => e.type === "reputation_feedback_failed");
+    const event = rated.audit.find((e) => e.type === "reputation_feedback_failed");
     expect(event?.message).toContain("rater out of gas");
     expect(event?.message).toContain("非致命");
   });
@@ -763,9 +783,10 @@ describe("real task service", () => {
     await service.verify(active.id);
     const settled = await service.settle(active.id);
     expect(settled.status).toBe("Settled");
+    const rated = await service.rate(active.id, 5);
     expect(deps.calls.some((c) => c.startsWith("publishFeedback:"))).toBe(false);
-    expect(settled.txRecords.some((r) => r.label === "feedback")).toBe(false);
-    expect(settled.audit.some((e) => e.type === "reputation_feedback_skipped")).toBe(true);
+    expect(rated.txRecords.some((r) => r.label === "feedback")).toBe(false);
+    expect(rated.audit.some((e) => e.type === "reputation_feedback_skipped")).toBe(true);
   });
 
   it("fails the record and names the poll count when polls are exhausted", async () => {

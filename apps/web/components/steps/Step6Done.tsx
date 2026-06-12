@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import type { Task } from "@proofmarket/shared/src/types";
 import { isFullTxHash, sepoliaTxUrl, shortHash } from "../../lib/links";
 import { formatCountdown, useCountdown } from "../../lib/useCountdown";
@@ -7,10 +7,121 @@ import { StepShell } from "../StepShell";
 type Step6DoneProps = {
   task: Task | null;
   onSettle: () => void;
+  onRate: (score: number) => void;
   onReset: () => void;
   onOpenAudit: () => void;
   isBusy?: boolean;
 };
+
+// User rating panel — the act of rating is what publishes the on-chain
+// reputation feedback (rate endpoint), so the score is a real protocol event,
+// not decorative stars. Facts above the picker are derived from task state.
+function RatingPanel({
+  task,
+  onRate,
+  isBusy
+}: {
+  task: Task;
+  onRate: (score: number) => void;
+  isBusy: boolean;
+}) {
+  const [score, setScore] = useState(5);
+  const feedbackRecord = task.txRecords.find((r) => r.label === "feedback");
+  const rated =
+    Boolean(feedbackRecord) ||
+    task.audit.some((e) => e.type === "reputation_feedback_published");
+  const feedbackLink =
+    feedbackRecord && isFullTxHash(feedbackRecord.txHash)
+      ? sepoliaTxUrl(feedbackRecord.txHash)
+      : null;
+
+  const facts = [
+    "核验通过：摘录、来源定位与覆盖声明一致",
+    "挑战窗口内无人发起挑战",
+    "按预算结算，无超支"
+  ];
+
+  return (
+    <div className="rating-section" style={{ marginTop: 28 }} data-testid="rating-panel">
+      <p className="section-kicker" style={{ margin: "0 0 12px" }}>
+        服务评分
+      </p>
+      <div className="data-grid">
+        <div className="data-row">
+          <span className="data-label">本单回顾</span>
+          <div className="data-value">
+            {facts.map((fact) => (
+              <div key={fact} className="dot-inline-wrap" style={{ marginBottom: 2 }}>
+                <span className="dot ok" aria-hidden="true" />
+                <span className="small">{fact}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="data-row" style={{ marginTop: 6 }}>
+          <span className="data-label">总体评分</span>
+          <div className="data-value">
+            {rated ? (
+              <span className="dot-inline-wrap">
+                <span className="dot ok" aria-hidden="true" />
+                <span className="small">
+                  已评分，已记入专家链上信誉
+                  {feedbackLink ? (
+                    <>
+                      {" "}·{" "}
+                      <a className="hash" href={feedbackLink} target="_blank" rel="noreferrer">
+                        查看信誉反馈交易
+                      </a>
+                    </>
+                  ) : null}
+                </span>
+              </span>
+            ) : (
+              <span className="rating-row">
+                <span
+                  className="rating-stars"
+                  role="radiogroup"
+                  aria-label="选择评分（1-5 分）"
+                >
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <button
+                      key={n}
+                      type="button"
+                      className={`rating-star${n <= score ? " active" : ""}`}
+                      role="radio"
+                      aria-checked={n === score}
+                      aria-label={`${n} 分`}
+                      disabled={isBusy}
+                      onClick={() => setScore(n)}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </span>
+                <span className="mono small" style={{ margin: "0 10px 0 6px" }}>
+                  {score} / 5
+                </span>
+                <button
+                  type="button"
+                  onClick={() => onRate(score)}
+                  disabled={isBusy}
+                  aria-busy={isBusy ? "true" : undefined}
+                >
+                  {isBusy ? "评分上链中…" : "提交评分"}
+                </button>
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+      {!rated ? (
+        <p className="small muted tight" style={{ marginTop: 8 }}>
+          评分作为信誉反馈写入链上注册表，累积成下一位委托人看到的信誉分——它和挑战记录一样，专家自己改不了。
+        </p>
+      ) : null}
+    </div>
+  );
+}
 
 // Chinese labels for each tx record label.
 const TX_LABEL_ZH: Record<string, string> = {
@@ -98,6 +209,7 @@ function buildFinalAnswer(task: Task | null): {
 export function Step6Done({
   task,
   onSettle,
+  onRate,
   onReset,
   onOpenAudit,
   isBusy = false,
@@ -198,6 +310,9 @@ export function Step6Done({
               <div className="data-value muted">{cannotConclude}</div>
             </div>
           </div>
+
+          {/* ── 服务评分 ─────────────────────────────────── */}
+          {task && <RatingPanel task={task} onRate={onRate} isBusy={isBusy} />}
 
           {/* ── 凭证清单 ─────────────────────────────────── */}
           <div className="receipt-section" style={{ marginTop: 28 }}>
