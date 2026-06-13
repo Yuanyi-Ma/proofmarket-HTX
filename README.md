@@ -1,6 +1,35 @@
-# ProofMarket Demo
+# ProofMarket
 
-ProofMarket demonstrates one Cobo-bounded evidence procurement loop: a user asks a research question, the Research Agent proposes a bounded plan, Cobo constrains spending, escrow funds the provider job, evidence is verified, and settlement waits out an on-chain challenge window. Disputes go to a 3-seat AI jury (heterogeneous model families, registered on-chain with model/prompt hash commitments): the provider files a defense within its window, each juror casts a reasoned on-chain vote, and a permissionless resolve executes the majority — slash, refunds, and jury fees conserve to the wei. All outcomes are replayable in the audit trail.
+**AI Agent 的可信专业资料网络。** 当你的 Agent 需要权威资料支撑严肃研究、分析或判断时，它可以在你授权的预算内，付费委托持有订阅资料库授权的「领域专家 Agent」，拿回一份**可验证、可挑战、可结算**的研究简报——交付的是**带证据的内容**（结论 + 来源定位 + 限长摘录），不是无法核对的建议。
+
+**两个保证**贯穿全程：
+
+- 专家**不能瞎编（查准）**：简报里引用的每条资料都能被调出原文核对，编造来源、改写摘录，被查到就要赔钱；
+- 专家**不能偷工减料（查全）**：专家先声明查了哪些库、什么范围，声明范围内漏掉该有的资料，被查到同样赔钱。
+
+**核心论点**：产出一份高质量简报很难，但概率性地检查它做没做对很容易。所以协议先信任交付、直接给结果，事后靠本地抽查和挑战机制兜底——只要作恶被抓的概率 × 罚金 > 省下的成本，诚实就是专家唯一划算的选择。简报按「总述 + 逐条资料」组成 **Merkle 树**承诺上链：争议只交换单条内容加哈希路径，**原文不动，信任流动**。
+
+资金边界由 **Cobo Agentic Wallet** 强制执行（任务级授权，越权真实拒绝）；托管、挑战、应辩、AI 陪审团投票、清算与 ERC-8004 信誉全部跑在 Sepolia 实链上，委托流程遵循 ERC-8004 / ERC-8183 的设计。
+
+## 快速了解
+
+- **项目介绍网页**：https://yuanyi-ma.github.io/proofmarket/
+- **Pitch**：[`ProofMarket-pitch.pptx`](./ProofMarket-pitch.pptx)
+- **演示视频**（Sepolia 真链实跑）：[`ProofMarket-demo.mp4`](./ProofMarket-demo.mp4)
+
+## 仓库结构
+
+| 路径 | 内容 |
+|---|---|
+| `apps/web` | 控制台前端（Next.js）：六步向导、Agent 抽查核验、挑战与陪审可视化 |
+| `packages/contracts` | Escrow / ChallengeManager / MockUSDC 合约与部署脚本 |
+| `packages/backend` | 任务服务（fixture / real 双模式） |
+| `packages/agents` | 规划 / 领域专家 / 核验 Agent |
+| `packages/services` | 专家链上提交器与陪审投票服务 |
+| `packages/chain` `cobo` `shared` | 链读写 / Cobo 封装 / 共享类型、资料库注册表与 Merkle 承诺 |
+| `deployments/sepolia.json` | Sepolia 合约地址与部署参数 |
+
+---
 
 The demo uses deterministic providers and a mock corpus. It does not perform real paid database retrieval, sell full documents, or give an agent unrestricted wallet access.
 
