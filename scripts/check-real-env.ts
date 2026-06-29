@@ -1,6 +1,6 @@
 /**
  * scripts/check-real-env.ts
- * Preflight checks for real-mode (Sepolia + Cobo + Claude Code) operation.
+ * Preflight checks for real-mode (Injective/Sepolia + restricted signer + Codex/Claude) operation.
  *
  * Usage:
  *   pnpm preflight
@@ -16,15 +16,19 @@ import { promisify } from "node:util";
 
 import { createPublicClient, formatEther, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { sepolia } from "viem/chains";
 
+import { getViemChainByChainId } from "@proofmarket/chain/src/chains";
 import { challengeManagerAbi, erc20Abi } from "@proofmarket/chain/src/escrowAbi";
+import { getProofMarketNetworkByChainId, getProofMarketNetworkByName } from "@proofmarket/shared/src/chains";
 import { parseDeploymentArtifact } from "@proofmarket/shared/src/realMode";
 
 const execFileAsync = promisify(execFile);
 
 const REPO_ROOT = resolve(import.meta.dirname ?? new URL(".", import.meta.url).pathname, "..");
-const ARTIFACT_PATH = resolve(REPO_ROOT, "deployments", "sepolia.json");
+const requestedNetwork = process.env.PROOFMARKET_NETWORK ?? "injective-testnet";
+const ARTIFACT_PATH = process.env.PROOFMARKET_DEPLOYMENT_PATH
+  ? resolve(process.env.PROOFMARKET_DEPLOYMENT_PATH)
+  : resolve(REPO_ROOT, "deployments", getProofMarketNetworkByName(requestedNetwork).deploymentFile);
 
 let failed = false;
 
@@ -58,59 +62,12 @@ async function runCommand(
   }
 }
 
-async function checkCawInstalled(): Promise<void> {
-  const name = "caw_installed";
-  const result = await runCommand("caw", ["version"]);
-  if (result.code !== 0) {
-    fail(name, `caw not found or errored: ${result.stderr || result.stdout}. Install from https://docs.cobo.com/cobo-waas2/get-started`);
-    return;
-  }
-  pass(name, result.stdout || "found");
-}
-
-async function checkCawWalletStatus(): Promise<void> {
-  const name = "caw_wallet_status";
-  const result = await runCommand("caw", ["status"]);
-  if (result.code !== 0) {
-    fail(name, `caw status failed (exit ${result.code}): ${result.stderr || result.stdout}`);
-    return;
-  }
-
-  let parsed: Record<string, unknown> = {};
-  try {
-    parsed = JSON.parse(result.stdout) as Record<string, unknown>;
-  } catch {
-    fail(name, `caw status returned non-JSON: ${result.stdout}`);
-    return;
-  }
-
-  const healthy = parsed.healthy as boolean | undefined;
-  const walletStatus = parsed.wallet_status as string | undefined;
-  const walletPaired = parsed.wallet_paired as boolean | undefined;
-
-  if (!healthy) {
-    fail(name, `caw daemon not healthy. wallet_status=${walletStatus ?? "unknown"}. Ensure caw daemon is running.`);
-    return;
-  }
-  if (walletStatus !== "active") {
-    fail(name, `wallet_status="${walletStatus}" — expected "active". Check caw daemon and wallet setup.`);
-    return;
-  }
-
-  const pairingDetail = walletPaired
-    ? "paired (pact approval is MANUAL — approve in the Cobo app when prompted)"
-    : "unpaired (pacts auto-approve; fully automated run)";
-
-  pass(name, `healthy, wallet_status=active`);
-  info("caw_pairing", pairingDetail);
-}
-
 async function checkDeploymentArtifact(): Promise<ReturnType<typeof parseDeploymentArtifact> | null> {
   const name = "deployment_artifact";
   if (!existsSync(ARTIFACT_PATH)) {
     fail(
       name,
-      `deployments/sepolia.json not found. Run: cd packages/contracts && set -a; source ../../.env; set +a; pnpm hardhat run scripts/deploy-sepolia.ts --network sepolia`
+      `${ARTIFACT_PATH} not found. Deploy the contract stack for ${requestedNetwork} first.`
     );
     return null;
   }
@@ -119,7 +76,7 @@ async function checkDeploymentArtifact(): Promise<ReturnType<typeof parseDeploym
   try {
     raw = JSON.parse(readFileSync(ARTIFACT_PATH, "utf8"));
   } catch (err) {
-    fail(name, `deployments/sepolia.json is not valid JSON: ${String(err)}`);
+    fail(name, `${ARTIFACT_PATH} is not valid JSON: ${String(err)}`);
     return null;
   }
 
@@ -128,20 +85,21 @@ async function checkDeploymentArtifact(): Promise<ReturnType<typeof parseDeploym
     pass(name, `chainId=${artifact.chainId}, deployer=${artifact.deployer}, MockUSDC=${artifact.contracts.MockUSDC}`);
     return artifact;
   } catch (err) {
-    fail(name, `deployments/sepolia.json failed validation: ${String(err)}. Re-run the deploy command above.`);
+    fail(name, `${ARTIFACT_PATH} failed validation: ${String(err)}. Re-run the deploy command above.`);
     return null;
   }
 }
 
-function checkEnvVars(): void {
+function checkEnvVars(rpcEnvVar: string): void {
   const required = [
-    "SEPOLIA_RPC_URL",
-    "COBO_WALLET_ADDRESS",
+    rpcEnvVar,
+    "POLICY_SIGNER_WALLET_ADDRESS",
+    "POLICY_SIGNER_PRIVATE_KEY",
     "PROVIDER_SIGNER_ADDRESS",
     "PROVIDER_SIGNER_PRIVATE_KEY"
   ] as const;
   // Vars whose values must never be printed — show only presence
-  const secretVars = new Set(["PROVIDER_SIGNER_PRIVATE_KEY"]);
+  const secretVars = new Set(["POLICY_SIGNER_PRIVATE_KEY", "PROVIDER_SIGNER_PRIVATE_KEY"]);
   for (const varName of required) {
     const value = process.env[varName];
     if (!value) {
@@ -186,6 +144,38 @@ function checkProviderKeyMatchesAddress(): void {
   pass(name, `private key derives ${derived} (matches PROVIDER_SIGNER_ADDRESS)`);
 }
 
+function checkPolicySignerKeyMatchesAddress(): void {
+  const name = "policy_signer_key_matches_address";
+  const privateKey = process.env.POLICY_SIGNER_PRIVATE_KEY;
+  const address = process.env.POLICY_SIGNER_WALLET_ADDRESS;
+  if (!privateKey || !address) {
+    fail(
+      name,
+      "POLICY_SIGNER_PRIVATE_KEY or POLICY_SIGNER_WALLET_ADDRESS is not set — cannot verify the restricted signer identity."
+    );
+    return;
+  }
+  let derived: string;
+  try {
+    derived = privateKeyToAccount(privateKey as `0x${string}`).address;
+  } catch (err) {
+    const hint = /^[0-9a-fA-F]{64}$/.test(privateKey)
+      ? " It looks like a 64-char hex key missing the 0x prefix — add 0x in .env."
+      : "";
+    fail(name, `POLICY_SIGNER_PRIVATE_KEY is not a valid private key: ${String(err)}.${hint}`);
+    return;
+  }
+  if (derived.toLowerCase() !== address.toLowerCase()) {
+    fail(
+      name,
+      `POLICY_SIGNER_PRIVATE_KEY derives ${derived}, but POLICY_SIGNER_WALLET_ADDRESS is ${address}. ` +
+        "restricted signing would submit from the wrong account."
+    );
+    return;
+  }
+  pass(name, `private key derives ${derived} (matches POLICY_SIGNER_WALLET_ADDRESS)`);
+}
+
 async function checkGasBalance(
   client: ReturnType<typeof createPublicClient>,
   label: string,
@@ -199,7 +189,7 @@ async function checkGasBalance(
     if (ethVal < minEth) {
       fail(
         name,
-        `${address} has ${ethVal.toFixed(6)} SETH, need ≥ ${minEth} SETH. Top up via: caw faucet deposit`
+        `${address} has ${ethVal.toFixed(6)} SETH, need ≥ ${minEth} SETH. Top up the signer address from a Sepolia faucet or another test account.`
       );
     } else {
       pass(name, `${address} has ${ethVal.toFixed(6)} SETH (≥ ${minEth} required)`);
@@ -211,26 +201,26 @@ async function checkGasBalance(
 
 async function checkMockUsdcBalance(
   client: ReturnType<typeof createPublicClient>,
-  coboAddress: `0x${string}`,
+  policySignerAddress: `0x${string}`,
   usdcAddress: `0x${string}`
 ): Promise<void> {
-  const name = "usdc_balance_cobo_wallet";
+  const name = "usdc_balance_policy_signer";
   const MIN_RAW = 5_000_000n;
   try {
     const raw = await client.readContract({
       address: usdcAddress,
       abi: erc20Abi,
       functionName: "balanceOf",
-      args: [coboAddress]
+      args: [policySignerAddress]
     });
     const balance = raw as bigint;
     if (balance < MIN_RAW) {
       fail(
         name,
-        `Cobo wallet MockUSDC balance ${balance} raw < ${MIN_RAW} required. Mint more via the deploy script or re-deploy.`
+        `Restricted signer MockUSDC balance ${balance} raw < ${MIN_RAW} required. Mint more via the deploy script or re-deploy.`
       );
     } else {
-      pass(name, `Cobo wallet MockUSDC balance = ${balance} raw (≥ ${MIN_RAW} required)`);
+      pass(name, `Restricted signer MockUSDC balance = ${balance} raw (≥ ${MIN_RAW} required)`);
     }
   } catch (err) {
     fail(name, `Failed to read MockUSDC balanceOf: ${String(err)}`);
@@ -319,82 +309,102 @@ async function checkServicesReachable(): Promise<void> {
   }
 }
 
-async function checkClaudeBin(): Promise<void> {
-  const name = "claude_binary";
-  const claudeBin = process.env.CLAUDE_BIN ?? "claude";
-  const result = await runCommand(claudeBin, ["--version"]);
+async function checkResearchAgentBin(): Promise<void> {
+  const source = process.env.PROOFMARKET_PLAN_SOURCE ?? "codex";
+  if (source === "preset") {
+    info("research_agent_binary", "PROOFMARKET_PLAN_SOURCE=preset — no external agent binary required");
+    return;
+  }
+
+  const name = source === "claude" ? "claude_binary" : "codex_binary";
+  const bin = source === "claude" ? process.env.CLAUDE_BIN ?? "claude" : process.env.CODEX_BIN ?? "codex";
+  const result = await runCommand(bin, ["--version"]);
   if (result.code !== 0) {
     fail(
       name,
-      `"${claudeBin} --version" failed (exit ${result.code}): ${result.stderr || result.stdout}. Set CLAUDE_BIN in .env to the Claude Code binary path.`
+      `"${bin} --version" failed (exit ${result.code}): ${result.stderr || result.stdout}. Set ${source === "claude" ? "CLAUDE_BIN" : "CODEX_BIN"} in .env to the correct binary path.`
     );
   } else {
-    pass(name, `${claudeBin} — ${result.stdout || "ok"}`);
+    pass(name, `${bin} — ${result.stdout || "ok"}`);
+  }
+
+  if (source === "codex") {
+    const tier = process.env.PROOFMARKET_CODEX_SERVICE_TIER ?? "fast";
+    if (tier !== "fast" && tier !== "flex") {
+      fail(
+        "codex_service_tier",
+        `PROOFMARKET_CODEX_SERVICE_TIER must be fast or flex, got ${tier}`
+      );
+    } else {
+      pass("codex_service_tier", tier);
+    }
   }
 }
 
 async function main(): Promise<void> {
   console.log("=== ProofMarket Real-Mode Preflight ===\n");
 
-  // 1. caw installed
-  await checkCawInstalled();
-
-  // 2. caw wallet status (healthy + active); pairing is INFO not a gate
-  await checkCawWalletStatus();
-
-  // 3. Deployment artifact
+  // 1. Deployment artifact
   const artifact = await checkDeploymentArtifact();
 
-  // 4. Env vars
-  checkEnvVars();
+  const network = artifact
+    ? getProofMarketNetworkByChainId(artifact.chainId)
+    : getProofMarketNetworkByName(requestedNetwork);
 
-  // 4b. Provider signer key must derive the configured provider address
+  // 2. Env vars
+  checkEnvVars(network.rpcEnvVar);
+
+  // 2b. Signer keys must derive the configured addresses.
+  checkPolicySignerKeyMatchesAddress();
   checkProviderKeyMatchesAddress();
 
-  // 5-8: On-chain checks — only run if we have the RPC URL
-  const rpcUrl = process.env.SEPOLIA_RPC_URL;
+  // 3-6: On-chain checks — only run if we have the RPC URL
+  const rpcUrl = process.env[network.rpcEnvVar];
   if (rpcUrl) {
-    const client = createPublicClient({ chain: sepolia, transport: http(rpcUrl) });
+    const client = createPublicClient({
+      chain: getViemChainByChainId(artifact?.chainId ?? network.chainId),
+      transport: http(rpcUrl)
+    });
 
-    const coboAddress = process.env.COBO_WALLET_ADDRESS as `0x${string}` | undefined;
+    const policySignerAddress = process.env.POLICY_SIGNER_WALLET_ADDRESS as `0x${string}` | undefined;
     const providerSignerAddress = process.env.PROVIDER_SIGNER_ADDRESS as `0x${string}` | undefined;
 
-    // 5. Cobo wallet gas
-    if (coboAddress) {
-      await checkGasBalance(client, "cobo_wallet", coboAddress, 0.005);
+    // 3. Restricted signer gas
+    if (policySignerAddress) {
+      await checkGasBalance(client, "policy_signer", policySignerAddress, 0.005);
     } else {
-      fail("gas_cobo_wallet", "COBO_WALLET_ADDRESS not set — skipped balance check");
+      fail("gas_policy_signer", "POLICY_SIGNER_WALLET_ADDRESS not set — skipped balance check");
     }
 
-    // 6. Deployer gas — derived from artifact
+    // 4. Deployer gas — derived from artifact
     if (artifact) {
       await checkGasBalance(client, "deployer", artifact.deployer as `0x${string}`, 0.003);
     } else {
       fail("gas_deployer", "Deployment artifact missing — cannot check deployer balance");
     }
 
-    // 7. Provider signer gas
+    // 5. Provider signer gas
     if (providerSignerAddress) {
       await checkGasBalance(client, "provider_signer", providerSignerAddress, 0.001);
     } else {
       fail("gas_provider_signer", "PROVIDER_SIGNER_ADDRESS not set — skipped balance check");
     }
 
-    // 8. Cobo wallet MockUSDC balance
-    if (artifact && coboAddress) {
+    // 6. Restricted signer MockUSDC balance
+    if (artifact && policySignerAddress) {
       await checkMockUsdcBalance(
         client,
-        coboAddress,
+        policySignerAddress,
         artifact.contracts.MockUSDC as `0x${string}`
       );
     } else {
       fail(
-        "usdc_balance_cobo_wallet",
-        "Artifact or COBO_WALLET_ADDRESS missing — cannot check MockUSDC balance"
+        "usdc_balance_policy_signer",
+        "Artifact or POLICY_SIGNER_WALLET_ADDRESS missing — cannot check MockUSDC balance"
       );
     }
 
-    // 8b. Provider free stake must cover one more createJob lock.
+    // 6b. Provider free stake must cover one more createJob lock.
     const challengeManagerAddress = artifact?.contracts.ProofMarketChallengeManager;
     if (challengeManagerAddress && providerSignerAddress) {
       await checkProviderFreeStake(
@@ -409,16 +419,16 @@ async function main(): Promise<void> {
       );
     }
   } else {
-    for (const n of ["gas_cobo_wallet", "gas_deployer", "gas_provider_signer", "usdc_balance_cobo_wallet", "provider_free_stake"]) {
-      fail(n, "SEPOLIA_RPC_URL not set — skipped on-chain check");
+    for (const n of ["gas_policy_signer", "gas_deployer", "gas_provider_signer", "usdc_balance_policy_signer", "provider_free_stake"]) {
+      fail(n, `${network.rpcEnvVar} not set — skipped on-chain check`);
     }
   }
 
-  // 9. Services reachable
+  // 7. Services reachable
   await checkServicesReachable();
 
-  // 10. Claude binary
-  await checkClaudeBin();
+  // 8. Research agent binary
+  await checkResearchAgentBin();
 
   console.log("\n=== Preflight complete ===");
   if (failed) {

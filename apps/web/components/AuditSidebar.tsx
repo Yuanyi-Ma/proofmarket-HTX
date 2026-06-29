@@ -1,16 +1,7 @@
 import React, { useState } from "react";
 import type { AuditEvent, AuditResult, AuditSource, Task } from "@proofmarket/shared/src/types";
-import { isFullTxHash, sepoliaTxUrl } from "../lib/links";
-
-const sourceLabels: Record<AuditSource, string> = {
-  user: "用户",
-  "research-agent": "研究 Agent",
-  provider: "专家",
-  verifier: "核验",
-  cobo: "Cobo",
-  chain: "链上",
-  settlement: "结算"
-};
+import { isFullTxHash, injectiveTxUrl } from "../lib/links";
+import { useI18n } from "./I18nProvider";
 
 const dotClass: Record<AuditResult, string> = {
   success: "dot ok",
@@ -24,7 +15,7 @@ function EventHash({ event }: { event: AuditEvent }) {
     return (
       <a
         className="hash"
-        href={sepoliaTxUrl(event.txHash)}
+        href={injectiveTxUrl(event.txHash)}
         target="_blank"
         rel="noreferrer"
       >
@@ -34,12 +25,12 @@ function EventHash({ event }: { event: AuditEvent }) {
   }
 
   const fallback =
-    event.txHash ?? event.pactId ?? (event.jobId !== null ? `job:${event.jobId}` : null);
+    event.txHash ?? event.policyId ?? (event.jobId !== null ? `job:${event.jobId}` : null);
   return fallback ? <span className="hash">{fallback}</span> : null;
 }
 
-function formatTime(value: string): string {
-  return new Date(value).toLocaleTimeString("zh-CN", {
+function formatTime(value: string, locale: "en" | "zh"): string {
+  return new Date(value).toLocaleTimeString(locale === "zh" ? "zh-CN" : "en-US", {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit"
@@ -62,6 +53,7 @@ type AuditSidebarProps = {
 };
 
 export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSidebarProps) {
+  const { locale, t } = useI18n();
   const [internalExpanded, setInternalExpanded] = useState(true);
   // Controlled if expandedProp is provided; uncontrolled otherwise.
   const expanded = expandedProp !== undefined ? expandedProp : internalExpanded;
@@ -80,17 +72,17 @@ export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSi
   return (
     <aside
       className={`audit-sidebar${expanded ? "" : " collapsed"}`}
-      aria-label="审计日志"
+      aria-label={t.audit.sidebarAria}
     >
       <div className="audit-sidebar-header">
-        <h2>审计日志</h2>
+        <h2>{t.audit.title}</h2>
         <button
           type="button"
           className="audit-toggle"
           aria-expanded={expanded}
           onClick={handleToggle}
         >
-          {expanded ? "收起" : "展开"}
+          {expanded ? t.common.collapse : t.common.expand}
         </button>
       </div>
 
@@ -100,11 +92,11 @@ export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSi
             <details className="audit-denial-note">
               <summary>
                 <span className="dot ok" aria-hidden="true" />
-                Cobo 越权拦截记录 — 请求被策略引擎阻断，零资金流出
+                {t.audit.denialSummary}
               </summary>
               <div className="audit-denial-body">
                 <span className="small muted">
-                  被拦截的动作：{denial.attemptedAction}（exit {denial.exitCode}）
+                  {t.audit.blockedAction}: {denial.attemptedAction} (exit {denial.exitCode})
                 </span>
                 <pre className="denial-output">{denial.rawOutput}</pre>
               </div>
@@ -118,13 +110,13 @@ export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSi
                 <article className="audit-event" key={event.id}>
                   <div className="audit-event-meta">
                     <span className={dotClass[event.result]} aria-hidden="true" />
-                    <span>{sourceLabels[event.source] ?? event.source}</span>
-                    <span className="muted">{formatTime(event.createdAt)}</span>
+                    <span>{t.audit.sourceLabels[event.source] ?? event.source}</span>
+                    <span className="muted">{formatTime(event.createdAt, locale)}</span>
                   </div>
                   <span>{message.summary}</span>
                   {message.full ? (
                     <details className="audit-message-full">
-                      <summary>查看完整记录</summary>
+                      <summary>{t.audit.fullRecord}</summary>
                       <p>{message.full}</p>
                     </details>
                   ) : null}
@@ -133,7 +125,7 @@ export function AuditSidebar({ task, expanded: expandedProp, onToggle }: AuditSi
               );
             })
           ) : (
-            <p className="small muted">尚无审计记录</p>
+            <p className="small muted">{t.common.noRecords}</p>
           )}
         </div>
       ) : null}

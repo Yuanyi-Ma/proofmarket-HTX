@@ -1,0 +1,98 @@
+{
+  "chainId": 1439,
+  "network": "injective-testnet",
+  "deployer": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
+  "blockNumber": 131585653,
+  "policySignerAddress": "0xe527DD6C3D8852665F3ebb6389EDD2C9a1AdfBf0",
+  "contracts": {
+    "MockUSDC": "0x8bd19cf98C3edb4D613106A20cEbB58FAfb22dA6",
+    "ProofMarketEscrow": "0xBfc04B657D8Be8102eA64B38028b98114fD0dC51",
+    "ProofMarketChallengeManager": "0xD50Ff11692054bC409D00d35Fd4bD9457dbd6D4a"
+  },
+  "paymentToken": {
+    "symbol": "USDC",
+    "displayName": "Injective test USDC",
+    "address": "0x8bd19cf98C3edb4D613106A20cEbB58FAfb22dA6",
+    "decimals": 6,
+    "source": "ProofMarket demo MockUSDC deployed on Injective EVM testnet"
+  },
+  "challengeManagerParams": {
+    "minStake": "10000000",
+    "challengeDeposit": "2000000",
+    "slashBps": "5000",
+    "slashRewardBps": "5000",
+    "juryFee": "500000",
+    "defenseWindow": "120",
+    "jurySize": "3"
+  },
+  "escrowParams": {
+    "challengeWindow": "300"
+  },
+  "resolver": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
+  "treasury": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
+  "challenger": {
+    "address": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
+    "mintedUsdc": "5000000"
+  },
+  "providers": {
+    "execution-research-expert": {
+      "address": "0x0866e2b066d1D04e4a5A4Cccc380E7Da2c1c2f3a",
+      "mintedUsdc": "20000000",
+      "stakedAmount": "20000000",
+      "stakePending": false,
+      "agentId": 1,
+      "agentURI": "proofmarket://agent/execution-research-expert"
+    },
+    "shallow-search-provider": {
+      "address": "0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC",
+      "mintedUsdc": "20000000",
+      "stakedAmount": "0",
+      "stakePending": true,
+      "stakePendingReason": "No private key held by deploy script; provider self-stakes later",
+      "agentId": 2,
+      "agentURI": "proofmarket://agent/shallow-search-provider"
+    },
+    "general-web-summary": {
+      "address": "0x90F79bf6EB2c4f870365E785982E1f101E93b906",
+      "mintedUsdc": "20000000",
+      "stakedAmount": "0",
+      "stakePending": true,
+      "stakePendingReason": "No private key held by deploy script; provider self-stakes later",
+      "agentId": 3,
+      "agentURI": "proofmarket://agent/general-web-summary"
+    }
+  },
+  "mint": {
+    "to": "0xe527DD6C3D8852665F3ebb6389EDD2C9a1AdfBf0",
+    "rawAmount": "100000000",
+    "txHash": "0x686bd3b0063a299951e6fb8ff5af8cc603d409c322f52c2636ca641f92f81076"
+  },
+  "deployedAt": "2026-06-26T06:27:50.994Z",
+  "jurors": [
+    {
+      "jurorId": "juror-anthropic",
+      "address": "0x4992F1Cdc37A6c99ef72f75351272063b567648C",
+      "modelFamily": "Anthropic Claude 系",
+      "modelTag": "claude-sonnet-4-6",
+      "promptTag": "proofmarket-jury-prompt-v1"
+    },
+    {
+      "jurorId": "juror-openai",
+      "address": "0x0d2B4B9d28812C7BF6Aa072860bdEA04C3BCCD85",
+      "modelFamily": "OpenAI GPT 系",
+      "modelTag": "gpt-5",
+      "promptTag": "proofmarket-jury-prompt-v1"
+    },
+    {
+      "jurorId": "juror-google",
+      "address": "0x8B310B8bf8347A108557DeC9041eFfC0A1A41d4c",
+      "modelFamily": "Google Gemini 系",
+      "modelTag": "gemini-2.5-pro",
+      "promptTag": "proofmarket-jury-prompt-v1"
+    }
+  ],
+  "erc8004": {
+    "identityRegistry": "0x87AF814a6Ce2c93Af33C27cE9454C34835d802bF",
+    "reputationRegistry": "0x9FE6DAECfA6710ccA2cae9cE8181f8bC48e69F75"
+  }
+}

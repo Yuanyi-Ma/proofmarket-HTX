@@ -1,9 +1,12 @@
 /**
- * Headless driver for the REAL deterministic challenge path against Sepolia.
+ * Headless driver for the REAL deterministic challenge path.
  * Drives a fresh task to Delivered, then walks the challenge:
  *   openChallenge -> winChallenge (resolver vote) -> refundOrSlash (on-chain resolve).
  * Server must be running with PROOFMARKET_MODE=real. WEB_URL overrides localhost:3000.
  */
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
 const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
 
 type TaskLike = {
@@ -42,8 +45,26 @@ function post(path: string, body: unknown = {}): Promise<Response> {
   });
 }
 
+function explorerTxBase(): string {
+  const explicit = process.env.PROOFMARKET_DEPLOYMENT_PATH;
+  const candidates = explicit
+    ? [explicit]
+    : [
+        join(process.cwd(), "deployments", "injective.json"),
+        join(process.cwd(), "deployments", "sepolia.json")
+      ];
+  for (const path of candidates) {
+    if (!existsSync(path)) continue;
+    const artifact = JSON.parse(readFileSync(path, "utf8")) as { chainId?: number };
+    return artifact.chainId === 1439
+      ? "https://testnet.blockscout.injective.network/tx"
+      : "https://sepolia.etherscan.io/tx";
+  }
+  return "https://testnet.blockscout.injective.network/tx";
+}
+
 function tx(label: string, hash: string): string {
-  return `        ${label}: ${hash} → https://sepolia.etherscan.io/tx/${hash}`;
+  return `        ${label}: ${hash} → ${explorerTxBase()}/${hash}`;
 }
 
 async function main() {
@@ -57,20 +78,20 @@ async function main() {
 
   console.log("[2] Plan");
   task = await readTaskResponse(await post(`/api/tasks/${id}/plan`));
-  const providerId = task.plan?.recommendedProviderId ?? "execution-research-expert";
+  const providerId = process.env.PROOFMARKET_CHALLENGE_PROVIDER_ID ?? "shallow-search-provider";
   console.log(`      provider=${providerId}`);
 
-  console.log("[3] Pact");
-  task = await readTaskResponse(await post(`/api/tasks/${id}/pact`));
-  for (let i = 0; i < 30 && task.status !== "PactActive"; i += 1) {
+  console.log("[3] Policy");
+  task = await readTaskResponse(await post(`/api/tasks/${id}/policy`));
+  for (let i = 0; i < 30 && task.status !== "PolicyActive"; i += 1) {
     await new Promise((r) => setTimeout(r, 10000));
-    task = await readTaskResponse(await post(`/api/tasks/${id}/pact-status`));
-    if (task.status !== "PactActive") console.log("      waiting for Cobo approval…");
+    task = await readTaskResponse(await post(`/api/tasks/${id}/policy-status`));
+    if (task.status !== "PolicyActive") console.log("      waiting for restricted signing policy activation…");
   }
   console.log(`      status=${task.status}`);
 
   console.log("[4] Execute escrow (4 txs)");
-  task = await readTaskResponse(await post(`/api/tasks/${id}/execute`));
+  task = await readTaskResponse(await post(`/api/tasks/${id}/execute`, { providerId }));
   for (const r of task.txRecords ?? []) console.log(tx(r.label, r.txHash));
   console.log(`      status=${task.status}`);
 

@@ -18,7 +18,7 @@ let serverWithJury: RunningServer;
 
 // Records every on-chain call the jury/defense stubs receive.
 const castCalls: { challengeId: bigint; result: number; reasonHash: string }[] = [];
-const defenseCalls: { challengeId: bigint; defenseHash: string }[] = [];
+const defenseCalls: { providerId: string; challengeId: bigint; defenseHash: string }[] = [];
 const stubJurors: JuryVoterEntry[] = [0, 1, 2].map((i) => ({
   jurorAddress: `0x${String(i + 1).repeat(40)}`,
   castVote: async (input) => {
@@ -89,7 +89,11 @@ describe("provider endpoint", () => {
     const response = await fetch(`${server.url}/provider/submit`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jobId: "1", deliverableHash: "0x" + "a".repeat(64) })
+      body: JSON.stringify({
+        providerId: "execution-research-expert",
+        jobId: "1",
+        deliverableHash: "0x" + "a".repeat(64)
+      })
     });
     expect(response.status).toBe(503);
   });
@@ -206,7 +210,7 @@ describe("defense endpoint (/provider/defend)", () => {
     const response = await fetch(`${serverWithJury.url}/provider/defend`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ challengeId: "3" })
+      body: JSON.stringify({ providerId: "execution-research-expert", challengeId: "3" })
     });
     expect(response.status).toBe(200);
     const body = await response.json() as Record<string, unknown>;
@@ -214,7 +218,11 @@ describe("defense endpoint (/provider/defend)", () => {
     expect(body.defenseHash).toBe(presetDefense.defenseHash);
     expect(body.txHash).toMatch(/^0x[0-9a-f]{64}$/);
     expect(defenseCalls).toEqual([
-      { challengeId: 3n, defenseHash: presetDefense.defenseHash }
+      {
+        providerId: "execution-research-expert",
+        challengeId: 3n,
+        defenseHash: presetDefense.defenseHash
+      }
     ]);
   });
 
@@ -222,14 +230,14 @@ describe("defense endpoint (/provider/defend)", () => {
     const noSigner = await fetch(`${server.url}/provider/defend`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ challengeId: "3" })
+      body: JSON.stringify({ providerId: "execution-research-expert", challengeId: "3" })
     });
     expect(noSigner.status).toBe(503);
 
     const bad = await fetch(`${serverWithJury.url}/provider/defend`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ challengeId: "abc" })
+      body: JSON.stringify({ providerId: "execution-research-expert", challengeId: "abc" })
     });
     expect(bad.status).toBe(400);
   });
@@ -312,7 +320,11 @@ describe("input validation — /provider/submit", () => {
     const response = await fetch(`${serverWithSigner.url}/provider/submit`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jobId: "abc", deliverableHash: "0x" + "a".repeat(64) })
+      body: JSON.stringify({
+        providerId: "execution-research-expert",
+        jobId: "abc",
+        deliverableHash: "0x" + "a".repeat(64)
+      })
     });
     expect(response.status).toBe(400);
     const body = await response.json() as Record<string, unknown>;
@@ -323,7 +335,11 @@ describe("input validation — /provider/submit", () => {
     const response = await fetch(`${serverWithSigner.url}/provider/submit`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jobId: "42", deliverableHash: "not-a-hash" })
+      body: JSON.stringify({
+        providerId: "execution-research-expert",
+        jobId: "42",
+        deliverableHash: "not-a-hash"
+      })
     });
     expect(response.status).toBe(400);
     const body = await response.json() as Record<string, unknown>;
@@ -334,7 +350,11 @@ describe("input validation — /provider/submit", () => {
     const response = await fetch(`${serverWithSigner.url}/provider/submit`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ jobId: "99", deliverableHash: "0x" + "b".repeat(64) })
+      body: JSON.stringify({
+        providerId: "execution-research-expert",
+        jobId: "99",
+        deliverableHash: "0x" + "b".repeat(64)
+      })
     });
     expect(response.status).toBe(200);
     const body = await response.json() as Record<string, unknown>;

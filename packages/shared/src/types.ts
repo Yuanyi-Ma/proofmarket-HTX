@@ -1,11 +1,11 @@
 export type TaskStatus =
   | "Created"
   | "Planned"
-  | "PactSubmitted"
-  | "PactActive"
-  | "PactRejected"
+  | "PolicySubmitted"
+  | "PolicyActive"
+  | "PolicyRejected"
   | "JobFunded"
-  | "DeniedByCobo"
+  | "DeniedByPolicy"
   | "Delivered"
   | "Verified"
   | "Challenged"
@@ -20,7 +20,7 @@ export type AuditSource =
   | "research-agent"
   | "provider"
   | "verifier"
-  | "cobo"
+  | "policy-signer"
   | "chain"
   | "settlement";
 
@@ -39,7 +39,7 @@ export type EvidenceItem = {
   sourceLibrary: import("./libraries").LibraryId;
   sourceMetadata: {
     year: number;
-    type: "paper" | "report" | "chain-data";
+    type: "paper" | "report";
   };
   excerptOrSummary: string;
   relevanceExplanation: string;
@@ -128,7 +128,7 @@ export type ProcurementPlan = {
   candidates?: PlanCandidate[];
 };
 
-export type PactSummary = {
+export type PolicySummary = {
   intent: string;
   totalBudget: string;
   perJobCap: string;
@@ -136,7 +136,7 @@ export type PactSummary = {
   allowedFunctions: string[];
   denyRules: string[];
   expiresInMinutes: number;
-  pactId: string;
+  policyId: string;
   status: "draft" | "submitted" | "active" | "rejected";
 };
 
@@ -148,7 +148,7 @@ export type AuditEvent = {
   result: AuditResult;
   message: string;
   txHash: string | null;
-  pactId: string | null;
+  policyId: string | null;
   jobId: number | null;
   createdAt: string;
 };
@@ -208,11 +208,18 @@ export type TaskChallenge = {
 export type Task = {
   id: string;
   userQuestion: string;
+  locale?: import("./locale").Locale;
   status: TaskStatus;
   budgetLimit: string;
   selectedProviderIds: ProviderId[];
+  /**
+   * The Provider selected by the user for the funded job. In real mode this
+   * must match the provider address used in createJob and the signer used for
+   * submit/defense.
+   */
+  selectedProviderId?: ProviderId | null;
   plan: ProcurementPlan | null;
-  pact: PactSummary | null;
+  policy: PolicySummary | null;
   providerPackage: ProviderAnswerPackage | null;
   /** Optional for backwards compatibility: absent until a challenge is opened. */
   challenge?: TaskChallenge | null;
@@ -227,7 +234,7 @@ export type Task = {
   mode: "fixture" | "real";
   txRecords: import("./realMode").TxRecord[];
   claudePlanRaw: string | null;
-  denial: import("./realMode").CoboDenialRecord | null;
+  denial: import("./realMode").PolicyDenialRecord | null;
   createdAt: string;
   updatedAt: string;
 };

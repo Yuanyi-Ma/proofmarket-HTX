@@ -8,8 +8,8 @@ async function main(): Promise<void> {
   const service = createTaskService(createInMemoryStore());
   const task = await service.createTask(DEFAULT_QUESTION, DEFAULT_BUDGET);
   await service.plan(task.id);
-  await service.submitPact(task.id);
-  await service.activatePact(task.id);
+  await service.submitPolicy(task.id);
+  await service.activatePolicy(task.id);
   await service.executeEscrow(task.id);
   await service.runProvider(task.id, "shallow-search-provider");
   // Explicit deterministic challenge flow (spec 08): the user challenges the

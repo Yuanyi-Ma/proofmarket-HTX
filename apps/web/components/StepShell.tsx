@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import type { ReactNode } from "react";
+import { useI18n } from "./I18nProvider";
 
 export type StepAction = {
   label: string;
@@ -25,10 +28,14 @@ export function StepShell({
   primary,
   secondary
 }: StepShellProps) {
+  const { locale } = useI18n();
+  const stepLabel = locale === "zh" ? `第 ${stepNo} 步` : `Step ${stepNo}`;
+  const ariaLabel = locale === "zh" ? `第 ${stepNo} 步：${title}` : `Step ${stepNo}: ${title}`;
+
   return (
-    <section className="step-shell" aria-label={`第 ${stepNo} 步：${title}`}>
+    <section className="step-shell" aria-label={ariaLabel}>
       <header>
-        <p className="step-kicker">第 {stepNo} 步</p>
+        <p className="step-kicker">{stepLabel}</p>
         <h2 className="step-title">{title}</h2>
         {subtitle ? <p className="step-subtitle">{subtitle}</p> : null}
       </header>

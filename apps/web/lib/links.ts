@@ -1,15 +1,16 @@
 const TX_HASH_PATTERN = /^0x[0-9a-fA-F]{64}$/;
+const INJECTIVE_EXPLORER_BASE_URL = "https://testnet.blockscout.injective.network";
 
 export function isFullTxHash(value: string | null | undefined): value is string {
   return typeof value === "string" && TX_HASH_PATTERN.test(value);
 }
 
-export function sepoliaTxUrl(txHash: string): string {
-  return `https://sepolia.etherscan.io/tx/${txHash}`;
+export function injectiveTxUrl(txHash: string): string {
+  return `${INJECTIVE_EXPLORER_BASE_URL}/tx/${txHash}`;
 }
 
-export function sepoliaAddressUrl(address: string): string {
-  return `https://sepolia.etherscan.io/address/${address}`;
+export function injectiveAddressUrl(address: string): string {
+  return `${INJECTIVE_EXPLORER_BASE_URL}/address/${address}`;
 }
 
 /** Shorten a wallet address for display: 0x + 6 chars … last 4 chars. */

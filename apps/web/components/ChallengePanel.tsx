@@ -11,7 +11,7 @@ type ChallengePanelProps = {
 };
 
 const challengeText =
-  "The provider claimed coverage of 2021-2026 blockchain transaction execution acceleration papers, but missed Block-STM, a directly relevant paper in the declared scope.";
+  "The Provider committed to cover 2021-2026 blockchain transaction execution acceleration papers but missed Block-STM, a directly relevant in-scope paper.";
 
 function verifierEvent(task: Task | null): AuditEvent | undefined {
   return task?.audit.find((event) => event.type === "verification_failed");
@@ -27,7 +27,7 @@ function refundEvent(task: Task | null): AuditEvent | undefined {
 
 function resultHash(message: string | undefined): string {
   const match = message?.match(/resultHash=([^ ]+)/);
-  return match?.[1] ?? "Pending verifier result hash";
+  return match?.[1] ?? "Waiting for verification result hash";
 }
 
 export function ChallengePanel({
@@ -44,16 +44,16 @@ export function ChallengePanel({
   const refund = refundEvent(task);
   const providerCoverage =
     task?.providerPackage?.coverageStatement ??
-    "Provider original coverage statement appears after delivery.";
+    "The Provider's original coverage commitment appears after delivery.";
 
   return (
     <Section
-      title="Challenge panel"
-      kicker="Accountability path"
+      title="Challenge Panel"
+      kicker="Accountability Path"
       action={
         isRealMode ? (
           <span className="small muted">
-            Local mechanism demo — not available in real mode
+            Local mechanism demo; unavailable in real mode
           </span>
         ) : (
           <>
@@ -62,14 +62,14 @@ export function ChallengePanel({
               onClick={onWinChallenge}
               disabled={!canWinChallenge}
             >
-              Win challenge
+              Uphold Challenge
             </button>
             <button
               className="danger"
               onClick={onRefundOrSlash}
               disabled={!canRefundOrSlash}
             >
-              Refund or slash
+              Refund or Slash
             </button>
           </>
         )
@@ -85,21 +85,21 @@ export function ChallengePanel({
           label="Provider original coverage"
           value={providerCoverage}
         />
-        <DataRow label="Challenge reason" value={challengeText} />
+        <DataRow label="Challenge rationale" value={challengeText} />
         <DataRow
-          label="Verifier verdict"
-          value={verifier?.message ?? "Waiting for shallow package verification."}
+          label="Verification result"
+          value={verifier?.message ?? "Waiting for Evidence Service Package verification."}
         />
         <DataRow
           label="Refund or slash result"
-          value={refund?.message ?? "Pending challenge win and settlement action."}
+          value={refund?.message ?? "Waiting for challenge verdict and settlement action."}
         />
         <DataRow
           label="Reputation change"
           value={
             task?.status === "RefundedOrSlashed"
               ? "Provider reputation decrease recorded."
-              : "Pending verifier verdict."
+              : "Waiting for verification result."
           }
         />
         <DataRow
@@ -111,15 +111,15 @@ export function ChallengePanel({
           value={
             challenge
               ? `${challenge.id}: ${challenge.message}`
-              : "Challenge audit event pending."
+              : "Waiting for challenge audit event."
           }
         />
         <DataRow
-          label="Refund/slash money action"
+          label="Refund / slash funds action"
           value={
             task?.status === "RefundedOrSlashed"
-              ? "Rule: challenge won after provider fault. Target: ProofMarketEscrow slash path. Amount: 1 test USDC. Result: refund or provider slash executed."
-              : "Rule: requires challenge win. Target: ProofMarketEscrow slash path. Amount: 1 test USDC. Result: waiting."
+              ? "Rule: challenge upheld due to Provider fault. Target: ProofMarketEscrow slash path. Amount: 1 USDC. Result: refund or slash executed."
+              : "Rule: challenge must be upheld first. Target: ProofMarketEscrow slash path. Amount: 1 USDC. Result: waiting for execution."
           }
         />
       </div>

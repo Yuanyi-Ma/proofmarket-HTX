@@ -1,7 +1,8 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { verifyPackage } from "@proofmarket/agents/src/verifierAgent";
 import { runProvider } from "@proofmarket/agents/src/providers";
-import { presetDefense, presetJuryVotes } from "@proofmarket/shared/src/fixtures";
+import { getPresetDefense, presetJuryVotes } from "@proofmarket/shared/src/fixtures";
+import { normalizeLocale } from "@proofmarket/shared/src/locale";
 import type { JuryVote, ProviderAnswerPackage, ProviderId } from "@proofmarket/shared/src/types";
 
 const VALID_PROVIDER_IDS = new Set<ProviderId>([
@@ -15,11 +16,13 @@ const DELIVERABLE_HASH_RE = /^0x[0-9a-fA-F]{64}$/;
 const BODY_SIZE_LIMIT = 1 * 1024 * 1024; // 1 MiB
 
 export type SubmitOnChain = (input: {
+  providerId: ProviderId;
   jobId: bigint;
   deliverableHash: `0x${string}`;
 }) => Promise<{ txHash: string }>;
 
 export type DefenseOnChain = (input: {
+  providerId: ProviderId;
   challengeId: bigint;
   defenseHash: `0x${string}`;
 }) => Promise<{ txHash: string }>;
@@ -100,7 +103,8 @@ export async function startServicesServer(options: {
         }
         const providerId = rawProviderId as ProviderId;
         const taskId = String(body.taskId ?? "");
-        const pkg = runProvider(taskId, providerId);
+        const locale = normalizeLocale(body.locale);
+        const pkg = runProvider(taskId, providerId, locale);
         send(response, 200, { ...pkg, jobId: String(body.jobId ?? "") });
         return;
       }
@@ -108,6 +112,11 @@ export async function startServicesServer(options: {
       if (request.method === "POST" && request.url === "/provider/submit") {
         if (!options.submitOnChain) {
           send(response, 503, { error: "provider signer not configured" });
+          return;
+        }
+        const rawProviderId = String(body.providerId ?? "");
+        if (!VALID_PROVIDER_IDS.has(rawProviderId as ProviderId)) {
+          send(response, 400, { error: `unknown providerId: ${rawProviderId}` });
           return;
         }
         const rawJobId = String(body.jobId ?? "");
@@ -121,6 +130,7 @@ export async function startServicesServer(options: {
           return;
         }
         const result = await options.submitOnChain({
+          providerId: rawProviderId as ProviderId,
           jobId: BigInt(rawJobId),
           deliverableHash: rawHash as `0x${string}`
         });
@@ -146,10 +156,11 @@ export async function startServicesServer(options: {
 
         const evidencePackage = raw as unknown as ProviderAnswerPackage;
         const jobId = String(body.jobId ?? "");
+        const locale = normalizeLocale(body.locale);
 
         let result: ReturnType<typeof verifyPackage>;
         try {
-          result = verifyPackage(evidencePackage);
+          result = verifyPackage(evidencePackage, locale);
         } catch (err) {
           // verifyPackage throws "Provider package hash mismatch" when the package
           // has been tampered with.  This is a non-valid outcome — route to Challenged.
@@ -198,18 +209,26 @@ export async function startServicesServer(options: {
           send(response, 503, { error: "provider signer not configured" });
           return;
         }
+        const rawProviderId = String(body.providerId ?? "");
+        if (!VALID_PROVIDER_IDS.has(rawProviderId as ProviderId)) {
+          send(response, 400, { error: `unknown providerId: ${rawProviderId}` });
+          return;
+        }
         const rawChallengeId = String(body.challengeId ?? "");
         if (!JOB_ID_RE.test(rawChallengeId)) {
           send(response, 400, { error: `challengeId must be a numeric string, got: ${rawChallengeId}` });
           return;
         }
+        const locale = normalizeLocale(body.locale);
+        const defense = getPresetDefense(locale);
         const result = await options.defenseOnChain({
+          providerId: rawProviderId as ProviderId,
           challengeId: BigInt(rawChallengeId),
-          defenseHash: presetDefense.defenseHash as `0x${string}`
+          defenseHash: defense.defenseHash as `0x${string}`
         });
         send(response, 200, {
-          statement: presetDefense.statement,
-          defenseHash: presetDefense.defenseHash,
+          statement: defense.statement,
+          defenseHash: defense.defenseHash,
           txHash: result.txHash
         });
         return;
@@ -252,7 +271,8 @@ export async function startServicesServer(options: {
           }
         }
 
-        const votes = presetJuryVotes(options.juryVoters.map((v) => v.jurorAddress));
+        const locale = normalizeLocale(body.locale);
+        const votes = presetJuryVotes(options.juryVoters.map((v) => v.jurorAddress), locale);
         const cast: (JuryVote & { txHash: string | null })[] = [];
         for (const [i, vote] of votes.entries()) {
           try {

@@ -7,16 +7,18 @@ import {
   encodeOpenChallenge,
   encodeSetBudget
 } from "@proofmarket/chain/src/calldata";
-import { buildRealPactSubmission } from "@proofmarket/cobo/src/pactPolicy";
+import { buildRealPolicySubmission } from "@proofmarket/policy-signer/src/policy";
 import { createAuditEvent } from "@proofmarket/shared/src/audit";
+import { getProofMarketNetworkByChainId } from "@proofmarket/shared/src/chains";
 import {
-  presetChallengeDocument,
-  presetCounterEvidence,
-  providerProfiles
+  getPresetChallengeDocument,
+  getPresetCounterEvidence,
+  getProviderProfiles
 } from "@proofmarket/shared/src/fixtures";
 import { stableHash } from "@proofmarket/shared/src/hash";
+import { normalizeLocale, type Locale } from "@proofmarket/shared/src/locale";
 import type {
-  CoboDenialRecord,
+  PolicyDenialRecord,
   DeploymentArtifact,
   ResearchPlanOutput,
   TxRecord
@@ -27,7 +29,7 @@ import type {
   AuditResult,
   AuditSource,
   JuryVote,
-  PactSummary,
+  PolicySummary,
   ProcurementPlan,
   ProviderAnswerPackage,
   ProviderId,
@@ -51,24 +53,24 @@ export type RealDeps = {
       specialties: string[];
       price: string;
     }>;
-    pactSummary: string;
-  }): Promise<{ plan: ResearchPlanOutput; rawStdout: string; attempts: number }>;
-  cobo: {
-    submitPact(submission: unknown): Promise<{ pactId: string; status: string; raw: string }>;
-    getPactStatus(pactId: string): Promise<{ pactId: string; status: string; raw: string }>;
+    policySummary: string;
+  }): Promise<{ plan: ResearchPlanOutput; rawStdout: string; attempts: number; agentName?: string }>;
+  policySigner: {
+    submitPolicy(submission: unknown): Promise<{ policyId: string; status: string; raw: string }>;
+    getPolicyStatus(policyId: string): Promise<{ policyId: string; status: string; raw: string }>;
     callContract(input: {
-      pactId: string;
+      policyId: string;
       contract: string;
       calldata: string;
       requestId: string;
       description: string;
-    }): Promise<{ coboTxId: string; status: string; raw: string }>;
-    getTx(coboTxId: string): Promise<{ raw: string; parsed: Record<string, unknown> }>;
+    }): Promise<{ policySignerRequestId: string; status: string; raw: string }>;
+    getTx(policySignerRequestId: string): Promise<{ raw: string; parsed: Record<string, unknown> }>;
     attemptDeniedTransfer(input: {
-      pactId: string;
+      policyId: string;
       dstAddress: string;
       amount: string;
-    }): Promise<CoboDenialRecord>;
+    }): Promise<PolicyDenialRecord>;
   };
   chain: {
     waitForReceipt(
@@ -88,12 +90,12 @@ export type RealDeps = {
   /**
    * Executes ChallengeManager.resolve(challengeId) with the backend's resolver
    * key. v2: permissionless majority execution — the outcome comes from the
-   * on-chain juror votes, not from this call. Does NOT go through Cobo.
+   * on-chain juror votes, not from this call. Does NOT go through PolicySigner.
    */
   resolveChallenge(input: { challengeId: bigint }): Promise<{ txHash: string }>;
   /**
    * Publishes ERC-8004 reputation feedback signed directly by the rater key
-   * (PROVIDER_SIGNER — must NOT be the agent owner), not Cobo. `value` is on
+   * (PROVIDER_SIGNER — must NOT be the agent owner), not PolicySigner. `value` is on
    * the 0-500 raw scale (valueDecimals 2 → 500 = 5.00/5.00).
    */
   publishFeedback(input: {
@@ -113,8 +115,10 @@ export type RealDeps = {
       jobId: string;
       providerId: ProviderId;
       question: string;
+      locale?: Locale;
     }): Promise<ProviderAnswerPackage>;
     submitDeliverable(input: {
+      providerId: ProviderId;
       jobId: string;
       deliverableHash: string;
     }): Promise<{ txHash: string }>;
@@ -124,6 +128,7 @@ export type RealDeps = {
       evidencePackageHash: string;
       evidencePackage: unknown;
       successCriteria: string[];
+      locale?: Locale;
     }): Promise<{
       judgeId: string;
       jobId: string;
@@ -136,7 +141,7 @@ export type RealDeps = {
      * Provider's defense filing (preset content, real provider-signed
      * submitDefense tx). Returns the plaintext for the audit/UI layer.
      */
-    providerDefend(input: { challengeId: string }): Promise<{
+    providerDefend(input: { providerId: ProviderId; challengeId: string; locale?: Locale }): Promise<{
       statement: string;
       defenseHash: string;
       txHash: string;
@@ -146,7 +151,7 @@ export type RealDeps = {
      * castVote transactions (preset 2:1 verdict) and returns the reasoned
      * votes in casting order.
      */
-    juryVote(input: { challengeId: string; openedAtMs: number }): Promise<{
+    juryVote(input: { challengeId: string; openedAtMs: number; locale?: Locale }): Promise<{
       votes: (JuryVote & { txHash: string })[];
     }>;
   };
@@ -180,19 +185,19 @@ function leadingDecimal(budgetLimit: string): string {
   return match[1];
 }
 
-function formatMUSDC(raw: bigint): string {
+function formatToken(raw: bigint, symbol: string): string {
   const sign = raw < 0n ? "-" : "";
   const value = raw < 0n ? -raw : raw;
   const whole = value / 1_000_000n;
   const fractional = (value % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "");
-  return `${sign}${whole}${fractional ? `.${fractional}` : ""} mUSDC`;
+  return `${sign}${whole}${fractional ? `.${fractional}` : ""} ${symbol}`;
 }
 
 export function createRealTaskService(store: InMemoryStore, deps: RealDeps): TaskService {
   let taskCounter = 0;
   let auditCounter = 0;
   // Per-instance suffix so requestIds stay unique across process restarts:
-  // a restarted server replays task/attempt counters from zero, and Cobo
+  // a restarted server replays task/attempt counters from zero, and PolicySigner
   // deduplicates by requestId — a reused id would silently drop the call.
   const instanceSuffix = Date.now().toString(36);
   // Judge verdict hashes live only between verify() and settle() in one process.
@@ -204,12 +209,57 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
   const inFlight = new Set<string>();
 
   const escrowAddress = deps.deployment.contracts.ProofMarketEscrow as `0x${string}`;
-  const tokenAddress = deps.deployment.contracts.MockUSDC as `0x${string}`;
+  const tokenAddress = (deps.deployment.paymentToken?.address ??
+    deps.deployment.contracts.MockUSDC) as `0x${string}`;
+  const network = getProofMarketNetworkByChainId(deps.deployment.chainId);
+  const assetSymbol = deps.deployment.paymentToken?.symbol ?? network.assetSymbol;
   const pollDelayMs = deps.pollDelayMs ?? 5000;
   // Challenge window W_c (escrow complete gate), in ms. 0 when the artifact
   // predates v2 — then no gating is applied client-side either.
   const challengeWindowMs =
     Number(deps.deployment.escrowParams?.challengeWindow ?? 0) * 1000;
+
+  function formatPayment(raw: bigint): string {
+    return formatToken(raw, assetSymbol);
+  }
+
+  function resolveJobProvider(task: Task, requestedProviderId?: ProviderId): {
+    providerId: ProviderId;
+    address: `0x${string}`;
+    agentId: bigint;
+  } {
+    const providerId =
+      requestedProviderId ?? task.selectedProviderId ?? task.plan?.recommendedProviderId ?? null;
+    if (!providerId) {
+      throw new Error("Cannot resolve Provider before a procurement plan exists");
+    }
+
+    const artifactEntry = deps.deployment.providers?.[providerId];
+    const fallbackAddress =
+      providerId === "execution-research-expert" ? deps.providerAddress : undefined;
+    const address = artifactEntry?.address ?? fallbackAddress;
+    if (!address) {
+      throw new Error(
+        `Provider ${providerId} has no address in the deployment artifact; cannot create a real on-chain job for it`
+      );
+    }
+
+    const profileAgentId = getProviderProfiles(normalizeLocale(task.locale)).find(
+      (profile) => profile.id === providerId
+    )?.agentId;
+    const agentId = artifactEntry?.agentId ?? profileAgentId;
+    if (agentId == null) {
+      throw new Error(
+        `Provider ${providerId} has no ERC-8004 agentId in the deployment artifact or fixture profile`
+      );
+    }
+
+    return {
+      providerId,
+      address: address as `0x${string}`,
+      agentId: BigInt(agentId)
+    };
+  }
 
   function nextId(prefix: string, counter: number): string {
     return `${prefix}_${counter.toString().padStart(3, "0")}`;
@@ -227,7 +277,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
     result: AuditResult;
     message: string;
     txHash?: string | null;
-    pactId?: string | null;
+    policyId?: string | null;
     jobId?: number | null;
   }): AuditEvent {
     auditCounter += 1;
@@ -280,11 +330,15 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
    */
   async function publishReputationFeedback(
     task: Task,
-    input: { value: number; tag2: string; sentiment: "好评" | "差评" }
+    input: { value: number; tag2: string; sentiment: string }
   ): Promise<Task> {
+    const locale = normalizeLocale(task.locale);
     // The provider that actually ran the job (not necessarily the recommended one).
     const providerId =
-      task.providerPackage?.providerId ?? task.plan?.recommendedProviderId ?? null;
+      task.providerPackage?.providerId ??
+      task.selectedProviderId ??
+      task.plan?.recommendedProviderId ??
+      null;
     const agentId = providerId
       ? deps.deployment.providers?.[providerId]?.agentId
       : undefined;
@@ -299,9 +353,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "reputation_feedback_skipped",
             result: "failed",
             message:
-              `未发布链上信誉反馈（${input.sentiment}）：Provider ` +
-              `${providerId ?? "未知"} 在部署 artifact 中没有 ERC-8004 agentId` +
-              "（非致命，结算结果不受影响）。",
+              locale === "zh"
+                ? `未发布链上信誉反馈（${input.sentiment}）：Provider ${providerId ?? "未知"} 在部署 artifact 中没有 ERC-8004 agentId（非致命，结算结果不受影响）。`
+                : `Skipped on-chain reputation feedback (${input.sentiment}): Provider ${providerId ?? "unknown"} has no ERC-8004 agentId in the deployment artifact (non-fatal; settlement is unaffected).`,
             jobId: task.jobId
           })
         )
@@ -316,7 +370,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       });
       const record: TxRecord = {
         label: "feedback",
-        coboTxId: null,
+        policySignerRequestId: null,
         txHash,
         status: "confirmed"
       };
@@ -329,8 +383,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "reputation_feedback_published",
             result: "success",
             message:
-              `已发布链上信誉反馈（${input.sentiment}）：agentId ${agentId}，` +
-              `分值 ${(input.value / 100).toFixed(2)}/5.00，标签 ${input.tag2}。`,
+              locale === "zh"
+                ? `已发布链上信誉反馈（${input.sentiment}）：agentId ${agentId}，分值 ${(input.value / 100).toFixed(2)}/5.00，标签 ${input.tag2}。`
+                : `Published on-chain reputation feedback (${input.sentiment}): agentId ${agentId}, score ${(input.value / 100).toFixed(2)}/5.00, tag ${input.tag2}.`,
             txHash,
             jobId: task.jobId
           })
@@ -339,7 +394,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
     } catch (error) {
       const failedRecord: TxRecord = {
         label: "feedback",
-        coboTxId: null,
+        policySignerRequestId: null,
         txHash: "",
         status: "failed"
       };
@@ -352,8 +407,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "reputation_feedback_failed",
             result: "failed",
             message:
-              `链上信誉反馈（${input.sentiment}）发布失败（非致命，结算结果不受影响）：` +
-              `${error instanceof Error ? error.message : String(error)}`,
+              locale === "zh"
+                ? `链上信誉反馈（${input.sentiment}）发布失败（非致命，结算结果不受影响）：${error instanceof Error ? error.message : String(error)}`
+                : `Failed to publish on-chain reputation feedback (${input.sentiment}); non-fatal and settlement is unaffected: ${error instanceof Error ? error.message : String(error)}`,
             jobId: task.jobId
           })
         )
@@ -376,7 +432,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
     );
   }
 
-  function summarizeCoboTx(parsed: Record<string, unknown>): string {
+  function summarizePolicySignerTx(parsed: Record<string, unknown>): string {
     const fields = [
       "status",
       "sub_status",
@@ -398,7 +454,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
     return parts.length > 0 ? parts.join(", ") : "no parsed failure detail";
   }
 
-  async function assertProviderStakeAvailable(taskRef: { task: Task }): Promise<void> {
+  async function assertProviderStakeAvailable(
+    taskRef: { task: Task },
+    provider: { providerId: ProviderId; address: `0x${string}` }
+  ): Promise<void> {
     const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
     if (!challengeManagerAddress) {
       return;
@@ -406,17 +465,17 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     const stake = await deps.chain.readProviderStake(
       challengeManagerAddress as `0x${string}`,
-      deps.providerAddress as `0x${string}`
+      provider.address
     );
     if (stake.freeStake >= stake.minStake) return;
 
     const message =
-      "专家可用质押不足，无法创建新的托管订单：" +
-      `总质押 ${formatMUSDC(stake.stake)}，` +
-      `已锁定 ${formatMUSDC(stake.lockedStake)}，` +
-      `可用 ${formatMUSDC(stake.freeStake)}，` +
-      `新任务至少需要 ${formatMUSDC(stake.minStake)}。` +
-      "请先释放未终结订单，或补充专家质押后再继续。";
+      `Provider 可用质押不足（${provider.providerId}），无法创建新的托管订单：` +
+      `总质押 ${formatPayment(stake.stake)}，` +
+      `已锁定 ${formatPayment(stake.lockedStake)}，` +
+      `可用 ${formatPayment(stake.freeStake)}，` +
+      `新任务至少需要 ${formatPayment(stake.minStake)}。` +
+      "请先释放未终结订单，或补充 Provider 质押后再继续。";
     taskRef.task = save(
       withAudit(
         taskRef.task,
@@ -426,7 +485,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           type: "provider_stake_insufficient",
           result: "failed",
           message,
-          pactId: taskRef.task.pact?.pactId ?? null,
+          policyId: taskRef.task.policy?.policyId ?? null,
           jobId: taskRef.task.jobId
         })
       )
@@ -435,25 +494,25 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
   }
 
   /**
-   * Executes one contract call through Cobo, persisting incremental progress:
+   * Executes one contract call through PolicySigner, persisting incremental progress:
    * the record is saved as pending before the call, and confirmed (or failed)
    * as soon as the chain settles it.
    */
-  async function coboCall(
+  async function policySignerCall(
     taskRef: { task: Task },
     label: TxRecord["label"],
     contract: string,
     calldata: string
   ): Promise<{ logs: unknown[]; transactionHash: string }> {
-    const pactId = taskRef.task.pact?.pactId;
-    if (!pactId) {
-      throw new Error("Cannot execute a Cobo call without a pact");
+    const policyId = taskRef.task.policy?.policyId;
+    if (!policyId) {
+      throw new Error("Cannot execute a PolicySigner call without a policy");
     }
 
     // Attempt-unique idempotency suffix: a retried label gets a new index
     // because the failed record from the previous attempt stays in txRecords.
     const attemptIndex = taskRef.task.txRecords.length;
-    const pending: TxRecord = { label, coboTxId: null, txHash: "", status: "pending" };
+    const pending: TxRecord = { label, policySignerRequestId: null, txHash: "", status: "pending" };
     taskRef.task = save({
       ...taskRef.task,
       txRecords: [...taskRef.task.txRecords, pending],
@@ -478,17 +537,17 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "chain_tx_failed",
             result: "failed",
             message: `${label} 执行失败：${error instanceof Error ? error.message : String(error)}`,
-            pactId,
+            policyId,
             jobId: taskRef.task.jobId
           })
         )
       );
     }
 
-    let call: { coboTxId: string; status: string; raw: string };
+    let call: { policySignerRequestId: string; status: string; raw: string };
     try {
-      call = await deps.cobo.callContract({
-        pactId,
+      call = await deps.policySigner.callContract({
+        policyId,
         contract,
         calldata,
         requestId: `${taskRef.task.id}-${label}-${attemptIndex}-${instanceSuffix}`,
@@ -499,16 +558,16 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       auditFailure(error);
       throw error;
     }
-    // Persist the Cobo identifier immediately so a crash mid-poll is traceable.
-    patchRecord({ coboTxId: call.coboTxId });
+    // Persist the PolicySigner identifier immediately so a crash mid-poll is traceable.
+    patchRecord({ policySignerRequestId: call.policySignerRequestId });
 
     let txHash: string | null = null;
     for (let attempt = 0; attempt < MAX_TX_POLLS; attempt += 1) {
-      const { parsed } = await deps.cobo.getTx(call.coboTxId);
+      const { parsed } = await deps.policySigner.getTx(call.policySignerRequestId);
       if (isFailedTxStatus(parsed)) {
         patchRecord({ status: "failed" });
         const error = new Error(
-          `Cobo transaction ${call.coboTxId} (${label}) failed: ${summarizeCoboTx(parsed)}`
+          `PolicySigner transaction ${call.policySignerRequestId} (${label}) failed: ${summarizePolicySignerTx(parsed)}`
         );
         auditFailure(error);
         throw error;
@@ -520,7 +579,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
     if (!txHash) {
       patchRecord({ status: "failed" });
       const error = new Error(
-        `Cobo transaction ${call.coboTxId} (${label}) produced no tx hash after ${MAX_TX_POLLS} polls`
+        `PolicySigner transaction ${call.policySignerRequestId} (${label}) produced no tx hash after ${MAX_TX_POLLS} polls`
       );
       auditFailure(error);
       throw error;
@@ -548,9 +607,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           source: "chain",
           type: "chain_tx_confirmed",
           result: "success",
-          message: `${label} 交易已在 Sepolia 上确认。`,
+          message: `${label} 交易已在 ${network.chainName} 上确认。`,
           txHash,
-          pactId,
+          policyId,
           jobId: taskRef.task.jobId
         })
       )
@@ -568,17 +627,19 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       return store.listTasks();
     },
 
-    async createTask(question: string, budget: string): Promise<Task> {
+    async createTask(question: string, budget: string, localeInput: Locale = "en"): Promise<Task> {
       const timestamp = deps.now();
       const id = nextTaskId();
+      const locale = normalizeLocale(localeInput);
       const task: Task = {
         id,
         userQuestion: question,
+        locale,
         status: "Created",
         budgetLimit: budget,
         selectedProviderIds: [],
         plan: null,
-        pact: null,
+        policy: null,
         providerPackage: null,
         audit: [],
         jobId: null,
@@ -598,7 +659,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "user",
             type: "task_created",
             result: "success",
-            message: `用户创建任务，预算 ${budget}。`
+            message:
+              locale === "zh"
+                ? `用户创建任务，预算 ${budget}。`
+                : `User created the task with a ${budget} budget.`
           })
         )
       );
@@ -606,15 +670,17 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async plan(id: string): Promise<Task> {
       const task = store.getTask(id);
+      const locale = normalizeLocale(task.locale);
       assertStatus(task, ["Created"], "plan");
       const budgetAmount = leadingDecimal(task.budgetLimit);
+      const profiles = getProviderProfiles(locale);
       // Read on-chain reputation FIRST — it is a probabilistic prior the
       // research agent must weigh when recommending. A degraded read (or a
       // missing agentId) falls back to the fixture score; it must never block
       // planning. Mapped to the 0-1000 scale.
       const providerReputations: ProviderReputation[] = [];
       const reputationFallbacks: string[] = [];
-      for (const profile of providerProfiles) {
+      for (const profile of profiles) {
         const agentId = deps.deployment.providers?.[profile.id]?.agentId;
         if (agentId == null) {
           providerReputations.push({
@@ -622,7 +688,11 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             score: profile.reputationScore,
             source: "fixture"
           });
-          reputationFallbacks.push(`${profile.id}（artifact 中无 agentId）`);
+          reputationFallbacks.push(
+            locale === "zh"
+              ? `${profile.id}（artifact 中无 agentId）`
+              : `${profile.id} (missing agentId in deployment artifact)`
+          );
           continue;
         }
         try {
@@ -635,7 +705,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "fixture"
           });
           reputationFallbacks.push(
-            `${profile.id}（${error instanceof Error ? error.message : String(error)}）`
+            locale === "zh"
+              ? `${profile.id}（${error instanceof Error ? error.message : String(error)}）`
+              : `${profile.id} (${error instanceof Error ? error.message : String(error)})`
           );
         }
       }
@@ -645,32 +717,35 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       // The catalog the agent reasons over: self-DECLARED coverage + price +
       // on-chain reputation/history. Deliberately no post-purchase facts — the
       // agent recommends on priors, the Judge verifies actual delivery later.
-      const providerCatalog = providerProfiles.map((profile) => ({
+      const providerCatalog = profiles.map((profile) => ({
         providerId: profile.id,
         displayName: profile.name,
         specialties: [profile.coverage],
         price: profile.price,
         reputation: repOf(profile.id),
-        challengeHistory: `被挑战 ${profile.challengeStats.challenged} 次 / 成立 ${profile.challengeStats.upheld} 次`
+        challengeHistory:
+          locale === "zh"
+            ? `被挑战 ${profile.challengeStats.challenged} 次 / 成立 ${profile.challengeStats.upheld} 次`
+            : `${profile.challengeStats.challenged} challenges / ${profile.challengeStats.upheld} upheld`
       }));
       const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
-      const pactSummary = challengeManagerAddress
-        ? "A Cobo pact restricts execution to the ProofMarketEscrow, MockUSDC and " +
-          "ProofMarketChallengeManager contracts on Sepolia, " +
+      const policySummary = challengeManagerAddress
+        ? "A PolicySigner policy restricts execution to the ProofMarketEscrow, payment token and " +
+          `ProofMarketChallengeManager contracts on ${network.chainName}, ` +
           "with a cap of 10 transactions and a 90 minute expiry."
-        : "A Cobo pact restricts execution to the ProofMarketEscrow and MockUSDC " +
-          "contracts on Sepolia, with a 90 minute expiry.";
+        : "A PolicySigner policy restricts execution to the ProofMarketEscrow and payment token " +
+          `contracts on ${network.chainName}, with a 90 minute expiry.`;
 
       // On research agent failure: rethrow untouched — never fabricate a plan.
-      const { plan, rawStdout } = await deps.runResearchAgent({
+      const { plan, rawStdout, agentName = "Research Agent" } = await deps.runResearchAgent({
         taskId: task.id,
         question: task.userQuestion,
         budgetAmount,
         providerCatalog,
-        pactSummary
+        policySummary
       });
 
-      const recommendedProfile = providerProfiles.find(
+      const recommendedProfile = profiles.find(
         (profile) => profile.id === plan.recommendedProviderId
       );
 
@@ -690,13 +765,18 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         taskId: task.id,
         userQuestion: task.userQuestion,
         evidenceNeed: plan.reason,
-        totalBudget: `${plan.maxPayment} mUSDC`,
-        perJobCap: `${plan.maxPayment} mUSDC`,
+        totalBudget: `${plan.maxPayment} ${assetSymbol}`,
+        perJobCap: `${plan.maxPayment} ${assetSymbol}`,
         recommendedProviderId: plan.recommendedProviderId as ProviderId,
         providerCount: 3,
-        coverage: recommendedProfile?.coverage ?? "专项资料覆盖",
+        coverage:
+          recommendedProfile?.coverage ??
+          (locale === "zh" ? "专项资料覆盖" : "specialized evidence coverage"),
         returnType: "provider-answer-package",
-        verificationMethod: "确定性 Judge 校验端点",
+        verificationMethod:
+          locale === "zh"
+            ? "确定性 Judge 校验端点"
+            : "Deterministic Judge verification endpoint",
         providerReputations,
         candidates
       };
@@ -706,7 +786,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           ...task,
           plan: procurementPlan,
           claudePlanRaw: rawStdout,
-          selectedProviderIds: providerProfiles.map((profile) => profile.id)
+          selectedProviderIds: profiles.map((profile) => profile.id)
         },
         "Planned"
       );
@@ -720,8 +800,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "procurement_plan_created",
             result: "success",
             message:
-              `Claude 研究 Agent 推荐 ${plan.recommendedProviderId}` +
-              `（最高支付 ${plan.maxPayment} mUSDC）：${plan.reason}`
+              locale === "zh"
+                ? `${agentName} 推荐 ${plan.recommendedProviderId}（最高支付 ${plan.maxPayment} ${assetSymbol}）：${plan.reason}`
+                : `${agentName} recommended ${plan.recommendedProviderId} (max payment ${plan.maxPayment} ${assetSymbol}): ${plan.reason}`
           })
         )
       );
@@ -737,9 +818,13 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "reputation_loaded",
               result: "success",
               message:
-                "已从 ERC-8004 信誉注册表读取链上信誉分：" +
-                onchainScores.map((r) => `${r.providerId}=${r.score}`).join("，") +
-                "。"
+                locale === "zh"
+                  ? "已从 ERC-8004 信誉注册表读取链上信誉分：" +
+                    onchainScores.map((r) => `${r.providerId}=${r.score}`).join("，") +
+                    "。"
+                  : "Loaded on-chain reputation from the ERC-8004 registry: " +
+                    onchainScores.map((r) => `${r.providerId}=${r.score}`).join(", ") +
+                    "."
             })
           )
         );
@@ -754,8 +839,11 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "reputation_read_fallback",
               result: "failed",
               message:
-                "链上信誉读取失败，以下 Provider 已回退本地预设分（非致命）：" +
-                reputationFallbacks.join("；")
+                locale === "zh"
+                  ? "链上信誉读取失败，以下 Provider 已回退本地预设分（非致命）：" +
+                    reputationFallbacks.join("；")
+                  : "On-chain reputation read failed; these Providers fell back to local preset scores (non-fatal): " +
+                    reputationFallbacks.join("; ")
             })
           )
         );
@@ -763,24 +851,30 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       return result;
     },
 
-    async submitPact(id: string): Promise<Task> {
+    async submitPolicy(id: string): Promise<Task> {
       const task = store.getTask(id);
-      assertStatus(task, ["Planned"], "submit pact");
+      const locale = normalizeLocale(task.locale);
+      assertStatus(task, ["Planned"], "submit policy");
       const budgetAmount = leadingDecimal(task.budgetLimit);
       const challengeManagerAddress = deps.deployment.contracts.ProofMarketChallengeManager;
-      const submission = buildRealPactSubmission({
+      const submission = buildRealPolicySubmission({
         escrowAddress,
         tokenAddress,
         challengeManagerAddress,
         budgetAmount,
-        taskId: task.id
+        taskId: task.id,
+        network: {
+          policyChainId: network.policyChainId,
+          label: network.chainName,
+          assetSymbol
+        }
       });
 
-      const result = await deps.cobo.submitPact(submission);
-      const pact: PactSummary = {
+      const result = await deps.policySigner.submitPolicy(submission);
+      const policy: PolicySummary = {
         intent: submission.intent,
-        totalBudget: `${budgetAmount} mUSDC`,
-        perJobCap: `${budgetAmount} mUSDC`,
+        totalBudget: `${budgetAmount} ${assetSymbol}`,
+        perJobCap: `${budgetAmount} ${assetSymbol}`,
         allowedTargets: [
           escrowAddress,
           tokenAddress,
@@ -795,14 +889,14 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           "openChallenge"
         ],
         denyRules: [
-          "默认禁止任何直接转账（无转账策略）",
-          "最多 10 笔交易",
-          "90 分钟后自动过期"
+          locale === "zh" ? "默认禁止任何直接转账（无转账策略）" : "Direct transfers are denied by default",
+          locale === "zh" ? "最多 10 笔交易" : "At most 10 transactions",
+          locale === "zh" ? "90 分钟后自动过期" : "Automatically expires after 90 minutes"
         ],
         expiresInMinutes: 90,
-        pactId: result.pactId,
-        // Even if Cobo auto-approves immediately, stay in PactSubmitted here;
-        // activatePact is the explicit activation gate. Strict equality so
+        policyId: result.policyId,
+        // Even if PolicySigner auto-approves immediately, stay in PolicySubmitted here;
+        // activatePolicy is the explicit activation gate. Strict equality so
         // "inactive"/"deactivated" never read as active.
         status: result.status.trim().toLowerCase() === "active" ? "active" : "submitted"
       };
@@ -810,9 +904,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       const submitted = transition(
         {
           ...task,
-          pact
+          policy
         },
-        "PactSubmitted"
+        "PolicySubmitted"
       );
 
       return save(
@@ -820,23 +914,27 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           submitted,
           audit({
             taskId: id,
-            source: "cobo",
-            type: "pact_submitted",
+            source: "policy-signer",
+            type: "policy_submitted",
             result: "success",
-            message: `已提交 Cobo 授权策略（Pact ${pact.pactId}），状态 ${result.status}。`,
-            pactId: pact.pactId
+            message:
+              locale === "zh"
+                ? `已提交受限签名策略 ${policy.policyId}，状态 ${result.status}。`
+                : `Submitted Policy Signer policy ${policy.policyId}; status ${result.status}.`,
+            policyId: policy.policyId
           })
         )
       );
     },
 
-    async activatePact(id: string): Promise<Task> {
+    async activatePolicy(id: string): Promise<Task> {
       const task = store.getTask(id);
-      if (!task.pact) {
-        throw new Error("Cannot activate pact before submission");
+      const locale = normalizeLocale(task.locale);
+      if (!task.policy) {
+        throw new Error("Cannot activate policy before submission");
       }
 
-      const status = await deps.cobo.getPactStatus(task.pact.pactId);
+      const status = await deps.policySigner.getPolicyStatus(task.policy.policyId);
       // Strict equality: "inactive"/"deactivated" must NOT count as active.
       const isActive = status.status.trim().toLowerCase() === "active";
       if (!isActive) {
@@ -845,13 +943,14 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             task,
             audit({
               taskId: id,
-              source: "cobo",
-              type: "pact_activation_pending",
+              source: "policy-signer",
+              type: "policy_activation_pending",
               result: "pending",
               message:
-                `Pact ${task.pact.pactId} 尚未激活（状态 ${status.status}）。` +
-                `原始返回：${truncate(status.raw)}`,
-              pactId: task.pact.pactId
+                locale === "zh"
+                  ? `受限签名策略 ${task.policy.policyId} 尚未激活（状态 ${status.status}）。原始返回：${truncate(status.raw)}`
+                  : `Policy Signer policy ${task.policy.policyId} is not active yet (status ${status.status}). Raw response: ${truncate(status.raw)}`,
+              policyId: task.policy.policyId
             })
           )
         );
@@ -860,9 +959,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       const activated = transition(
         {
           ...task,
-          pact: { ...task.pact, status: "active" }
+          policy: { ...task.policy, status: "active" }
         },
-        "PactActive"
+        "PolicyActive"
       );
 
       return save(
@@ -870,31 +969,36 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           activated,
           audit({
             taskId: id,
-            source: "cobo",
-            type: "pact_activated",
+            source: "policy-signer",
+            type: "policy_activated",
             result: "success",
-            message: `Pact ${task.pact.pactId} 已激活。`,
-            pactId: task.pact.pactId
+            message:
+              locale === "zh"
+                ? `受限签名策略 ${task.policy.policyId} 已激活。`
+                : `Policy Signer policy ${task.policy.policyId} is active.`,
+            policyId: task.policy.policyId
           })
         )
       );
     },
 
-    async executeEscrow(id: string): Promise<Task> {
+    async executeEscrow(id: string, providerId?: ProviderId): Promise<Task> {
       const task = store.getTask(id);
-      // Both pre-states are legal per the state machine (DeniedByCobo -> JobFunded).
-      assertStatus(task, ["PactActive", "DeniedByCobo"], "execute escrow");
+      const locale = normalizeLocale(task.locale);
+      // Both pre-states are legal per the state machine (DeniedByPolicy -> JobFunded).
+      assertStatus(task, ["PolicyActive", "DeniedByPolicy"], "execute escrow");
       if (inFlight.has(id)) {
         throw new Error("operation already in progress for this task");
       }
       inFlight.add(id);
       try {
-        if (task.pact?.status !== "active") {
-          throw new Error("pact not active — approve it first");
+        if (task.policy?.status !== "active") {
+          throw new Error("policy not active — approve it first");
         }
         if (!task.plan) {
           throw new Error("Cannot execute escrow without a procurement plan");
         }
+        const jobProvider = resolveJobProvider(task, providerId);
 
         // Fund what the plan says: perJobCap carries the Claude-validated
         // maxPayment, already checked against budgetLimit (the user ceiling)
@@ -903,9 +1007,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         const budgetRaw = BigInt(Math.round(Number(budgetAmount) * 1e6));
         const taskRef = { task };
 
-        await assertProviderStakeAvailable(taskRef);
+        await assertProviderStakeAvailable(taskRef, jobProvider);
 
-        await coboCall(
+        await policySignerCall(
           taskRef,
           "approve",
           tokenAddress,
@@ -913,15 +1017,15 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         );
 
         const unixNow = Math.floor(Date.parse(deps.now()) / 1000);
-        const createJobReceipt = await coboCall(
+        const createJobReceipt = await policySignerCall(
           taskRef,
           "createJob",
           escrowAddress,
           encodeCreateJob({
-            providerAgentId: 1n,
-            provider: deps.providerAddress as `0x${string}`,
+            providerAgentId: jobProvider.agentId,
+            provider: jobProvider.address,
             verifierAgentId: 3n,
-            evaluator: deps.deployment.coboWallet as `0x${string}`,
+            evaluator: deps.deployment.policySignerAddress as `0x${string}`,
             token: tokenAddress,
             expiredAt: BigInt(unixNow + 7200),
             descriptionHash: stableHash({
@@ -935,12 +1039,13 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         const jobId = deps.chain.extractJobId(createJobReceipt, escrowAddress);
         taskRef.task = save({
           ...taskRef.task,
+          selectedProviderId: jobProvider.providerId,
           jobId: Number(jobId),
           updatedAt: deps.now()
         });
 
-        await coboCall(taskRef, "setBudget", escrowAddress, encodeSetBudget(jobId, budgetRaw));
-        await coboCall(taskRef, "fund", escrowAddress, encodeFund(jobId, budgetRaw));
+        await policySignerCall(taskRef, "setBudget", escrowAddress, encodeSetBudget(jobId, budgetRaw));
+        await policySignerCall(taskRef, "fund", escrowAddress, encodeFund(jobId, budgetRaw));
 
         // Post-fund readback: the chain is the source of truth, not the
         // sequence of confirmed receipts. State 1 = Funded. Public RPC
@@ -972,8 +1077,11 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               source: "chain",
               type: "escrow_funded_verified",
               result: "success",
-              message: `链上回读确认订单 ${jobId} 已注资（Funded），预算 ${jobState.budget} 原始单位。`,
-              pactId: task.pact.pactId,
+              message:
+                locale === "zh"
+                  ? `链上回读确认订单 ${jobId} 已注资（Funded），预算 ${jobState.budget} 原始单位。`
+                  : `On-chain readback confirmed job ${jobId} is funded with budget ${jobState.budget} raw units.`,
+              policyId: task.policy.policyId,
               jobId: Number(jobId)
             })
           )
@@ -986,11 +1094,14 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             funded,
             audit({
               taskId: id,
-              source: "cobo",
+              source: "policy-signer",
               type: "escrow_executed",
               result: "success",
-              message: `托管订单 ${jobId} 已在 Sepolia 上注资 ${budgetAmount} mUSDC。`,
-              pactId: task.pact.pactId,
+              message:
+                locale === "zh"
+                  ? `托管订单 ${jobId} 已在 ${network.chainName} 上为 Provider ${jobProvider.providerId} 注资 ${budgetAmount} ${assetSymbol}。`
+                  : `Escrow job ${jobId} was funded for Provider ${jobProvider.providerId} with ${budgetAmount} ${assetSymbol} on ${network.chainName}.`,
+              policyId: task.policy.policyId,
               jobId: Number(jobId)
             })
           )
@@ -1002,15 +1113,16 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async triggerDenial(id: string): Promise<Task> {
       const task = store.getTask(id);
-      // Gate BEFORE the cobo side effect: a denial attempt against an
-      // unapproved pact would prove nothing about the policy.
-      assertStatus(task, ["PactActive"], "trigger denial");
-      if (!task.pact) {
-        throw new Error("Cannot trigger a denial demo without a pact");
+      const locale = normalizeLocale(task.locale);
+      // Gate before the policy signer side effect: a denial attempt against an
+      // unapproved policy would prove nothing about the policy.
+      assertStatus(task, ["PolicyActive"], "trigger denial");
+      if (!task.policy) {
+        throw new Error("Cannot trigger a denial demo without a policy");
       }
 
-      const denial = await deps.cobo.attemptDeniedTransfer({
-        pactId: task.pact.pactId,
+      const denial = await deps.policySigner.attemptDeniedTransfer({
+        policyId: task.policy.policyId,
         dstAddress: "0x000000000000000000000000000000000000dEaD",
         amount: "0.001"
       });
@@ -1020,7 +1132,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           ...task,
           denial
         },
-        "DeniedByCobo"
+        "DeniedByPolicy"
       );
 
       return save(
@@ -1028,14 +1140,15 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           denied,
           audit({
             taskId: id,
-            source: "cobo",
+            source: "policy-signer",
             type: "escrow_denied",
             result: "denied",
-            // rawOutput 是 caw CLI 的真实返回（真实证据），保持原文不翻译。
+            // rawOutput is the signer refusal detail; keep it intact as evidence.
             message:
-              `Cobo 已拒绝 ${denial.attemptedAction}（退出码 ${denial.exitCode}）。` +
-              `原始输出：${truncate(denial.rawOutput)}`,
-            pactId: task.pact.pactId
+              locale === "zh"
+                ? `策略签名器已拒绝 ${denial.attemptedAction}（退出码 ${denial.exitCode}）。原始输出：${truncate(denial.rawOutput)}`
+                : `Policy Signer rejected ${denial.attemptedAction} (exit ${denial.exitCode}). Raw output: ${truncate(denial.rawOutput)}`,
+            policyId: task.policy.policyId
           })
         )
       );
@@ -1043,9 +1156,16 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async runProvider(id: string, providerId: ProviderId): Promise<Task> {
       const task = store.getTask(id);
+      const locale = normalizeLocale(task.locale);
       assertStatus(task, ["JobFunded"], "run provider");
       if (task.jobId === null) {
         throw new Error("Cannot run provider before the job is funded");
+      }
+      const selectedProviderId = task.selectedProviderId ?? task.plan?.recommendedProviderId ?? null;
+      if (selectedProviderId && providerId !== selectedProviderId) {
+        throw new Error(
+          `Provider mismatch: job was funded for ${selectedProviderId}, cannot run ${providerId}`
+        );
       }
       const jobId = String(task.jobId);
 
@@ -1053,7 +1173,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         taskId: task.id,
         jobId,
         providerId,
-        question: task.userQuestion
+        question: task.userQuestion,
+        locale
       });
 
       let current = save(
@@ -1064,19 +1185,23 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "provider",
             type: "provider_package_delivered",
             result: "success",
-            message: `专家 ${providerId} 交付研究简报 ${providerPackage.packageHash}。`,
+            message:
+              locale === "zh"
+                ? `Provider ${providerId} 交付证据服务包 ${providerPackage.packageHash}。`
+                : `Provider ${providerId} delivered Evidence Service Package ${providerPackage.packageHash}.`,
             jobId: task.jobId
           })
         )
       );
 
       const submitted = await deps.services.submitDeliverable({
+        providerId,
         jobId,
         deliverableHash: providerPackage.packageHash
       });
       const submitRecord: TxRecord = {
         label: "submit",
-        coboTxId: null,
+        policySignerRequestId: null,
         txHash: submitted.txHash,
         status: "confirmed"
       };
@@ -1092,7 +1217,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             source: "chain",
             type: "deliverable_submitted",
             result: "success",
-            message: `专家已将简报哈希 ${providerPackage.packageHash} 提交上链。`,
+            message:
+              locale === "zh"
+                ? `Provider 已将证据服务包哈希 ${providerPackage.packageHash} 提交上链。`
+                : `Provider submitted package hash ${providerPackage.packageHash} on-chain.`,
             txHash: submitted.txHash,
             jobId: task.jobId
           })
@@ -1133,8 +1261,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "challenge_window_opened",
               result: "success",
               message:
-                `挑战窗口开启：${Math.round(challengeWindowMs / 60000)} 分钟内可对简报发起挑战，` +
-                "买方也可以直接验收结算，结算交易即表示不发起挑战。",
+                locale === "zh"
+                  ? `挑战窗口开启：${Math.round(challengeWindowMs / 60000)} 分钟内可对证据服务包发起挑战，买方也可以直接验收结算，结算交易即表示不发起挑战。`
+                  : `Challenge window opened: the package can be challenged for ${Math.round(challengeWindowMs / 60000)} minutes. The buyer can also accept and settle immediately; the settlement transaction is the no-challenge signal.`,
               jobId: task.jobId
             })
           )
@@ -1146,6 +1275,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async verify(id: string): Promise<Task> {
       const task = store.getTask(id);
+      const locale = normalizeLocale(task.locale);
       assertStatus(task, ["Delivered"], "verify");
       if (!task.providerPackage) {
         throw new Error("Cannot verify before provider delivery");
@@ -1160,7 +1290,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           "at least 3 evidence items",
           "every item has a source locator",
           "answer explains evidence relevance"
-        ]
+        ],
+        locale
       });
 
       verdicts.set(task.id, verdict.verdictHash);
@@ -1177,8 +1308,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             result: verdict.decision === "valid" ? "success" : "failed",
             // 步骤 5/6 用 verdictHash= 前缀正则提取哈希，保持该字段格式不变。
             message:
-              `Judge ${verdict.judgeId} 判定 ${verdict.decision}` +
-              `（${verdict.reasonCode}）verdictHash=${verdict.verdictHash}`,
+              locale === "zh"
+                ? `Judge ${verdict.judgeId} 判定 ${verdict.decision}（${verdict.reasonCode}）verdictHash=${verdict.verdictHash}`
+                : `Judge ${verdict.judgeId} returned ${verdict.decision} (${verdict.reasonCode}) verdictHash=${verdict.verdictHash}`,
             jobId: task.jobId
           })
         )
@@ -1187,6 +1319,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async settle(id: string): Promise<Task> {
       const task = store.getTask(id);
+      const locale = normalizeLocale(task.locale);
       assertStatus(task, ["Verified"], "settle");
       if (inFlight.has(id)) {
         throw new Error("operation already in progress for this task");
@@ -1196,7 +1329,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         if (task.jobId === null) {
           throw new Error("Cannot settle before verification");
         }
-        // In the live demo the Cobo wallet is both client and evaluator. If the
+        // In the live demo the PolicySigner wallet is both client and evaluator. If the
         // client sends complete() before W_c expires, that transaction is the
         // explicit "I will not challenge" acceptance signal; separate evaluators
         // still have to wait for the on-chain window to close.
@@ -1206,7 +1339,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         }
 
         const taskRef = { task };
-        await coboCall(
+        await policySignerCall(
           taskRef,
           "complete",
           escrowAddress,
@@ -1226,7 +1359,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               source: "settlement",
               type: "settled",
               result: "success",
-              message: `已向专家结算付款，verdict 哈希 ${verdictHash}。`,
+              message:
+                locale === "zh"
+                  ? `已向 Provider 结算付款，verdict 哈希 ${verdictHash}。`
+                  : `Payment was settled to the Provider with verdict hash ${verdictHash}.`,
               jobId: task.jobId
             })
           )
@@ -1251,7 +1387,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       return publishReputationFeedback(task, {
         value,
         tag2: "job.completed",
-        sentiment: score >= 3 ? "好评" : "差评"
+        sentiment: score >= 3 ? (normalizeLocale(task.locale) === "zh" ? "好评" : "positive") : (normalizeLocale(task.locale) === "zh" ? "差评" : "negative")
       });
     },
 
@@ -1260,6 +1396,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async openChallenge(id: string): Promise<Task> {
       const task = store.getTask(id);
+      const locale = normalizeLocale(task.locale);
       // Delivered-only by design: the user challenge targets the freshly
       // delivered package (spec 08 step 1); after Verified the demo settles.
       assertStatus(task, ["Delivered"], "open challenge");
@@ -1290,6 +1427,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         }
 
         // Preset counter-evidence: only its hash goes on-chain (spec 08 step 2).
+        const presetCounterEvidence = getPresetCounterEvidence(locale);
+        const presetChallengeDocument = getPresetChallengeDocument(locale);
         const counterEvidenceHash = stableHash(presetCounterEvidence) as `0x${string}`;
         const opened = save(
           withAudit(
@@ -1309,19 +1448,18 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "challenge_opened",
               result: "success",
               message:
-                `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。` +
-                `挑战者为 Cobo 钱包（订单 client），将锁定挑战押金 ${Number(depositRaw) / 1e6} mUSDC + ` +
-                `陪审费 ${Number(juryFeeRaw) / 1e6} mUSDC 并冻结托管订单。` +
-                `陪审方指派：${presetChallengeDocument.juryAssignmentBasis}`,
+                locale === "zh"
+                  ? `用户发起挑战：类型 CoverageMiss，反证哈希 ${counterEvidenceHash}。挑战者为 PolicySigner 钱包（订单 client），将锁定挑战押金 ${formatPayment(BigInt(depositRaw))} + 陪审费 ${formatPayment(BigInt(juryFeeRaw))} 并冻结托管订单。陪审方指派：${presetChallengeDocument.juryAssignmentBasis}`
+                  : `User opened a CoverageMiss challenge with counter-evidence hash ${counterEvidenceHash}. The challenger is the Policy Signer wallet (the job client), locking challenge deposit ${formatPayment(BigInt(depositRaw))} plus jury fee ${formatPayment(BigInt(juryFeeRaw))} and freezing the escrow order. Jury assignment: ${presetChallengeDocument.juryAssignmentBasis}`,
               jobId: task.jobId
             })
           )
         );
 
-        // Both calls are Cobo-routed (Pact-bounded): the Cobo wallet is the job
+        // Both calls are PolicySigner-routed (Policy-bounded): the PolicySigner wallet is the job
         // client, satisfying the contract's challenger ∈ {client, evaluator}.
         const taskRef = { task: opened };
-        await coboCall(
+        await policySignerCall(
           taskRef,
           "approveDeposit",
           tokenAddress,
@@ -1329,7 +1467,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         );
         // One call: the contract's openChallenge locks deposit + jury fee AND
         // calls escrow.markChallenged itself, freezing the job.
-        const receipt = await coboCall(
+        const receipt = await policySignerCall(
           taskRef,
           "openChallenge",
           challengeManagerAddress,
@@ -1354,8 +1492,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "challenge_onchain_opened",
               result: "success",
               message:
-                `挑战已上链：ChallengeManager 已锁定押金与陪审费并冻结订单 ${task.jobId}` +
-                `（challengeId ${challengeId}）。专家应辩窗口开启。`,
+                locale === "zh"
+                  ? `挑战已上链：ChallengeManager 已锁定押金与陪审费并冻结订单 ${task.jobId}（challengeId ${challengeId}）。Provider 应辩窗口开启。`
+                  : `Challenge is on-chain: ChallengeManager locked deposit and jury fee, froze job ${task.jobId}, and opened the Provider defense window (challengeId ${challengeId}).`,
               jobId: task.jobId
             })
           )
@@ -1365,12 +1504,21 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         // Non-fatal on failure — skipping the defense forfeits it (合约语义),
         // the jury still waits out R_w before voting.
         try {
+          const challengedProviderId =
+            challenged.providerPackage?.providerId ??
+            challenged.selectedProviderId ??
+            challenged.plan?.recommendedProviderId;
+          if (!challengedProviderId) {
+            throw new Error("Cannot submit provider defense without a selected Provider");
+          }
           const defense = await deps.services.providerDefend({
-            challengeId: String(challengeId)
+            providerId: challengedProviderId,
+            challengeId: String(challengeId),
+            locale
           });
           const defenseRecord: TxRecord = {
             label: "defense",
-            coboTxId: null,
+            policySignerRequestId: null,
             txHash: defense.txHash,
             status: "confirmed"
           };
@@ -1395,8 +1543,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
                 type: "defense_submitted",
                 result: "success",
                 message:
-                  `专家已在应辩窗口内提交应辩书（哈希 ${defense.defenseHash}）：` +
-                  `${defense.statement}`,
+                  locale === "zh"
+                    ? `Provider 已在应辩窗口内提交应辩书（哈希 ${defense.defenseHash}）：${defense.statement}`
+                    : `Provider submitted a Defense Statement within the defense window (hash ${defense.defenseHash}): ${defense.statement}`,
                 txHash: defense.txHash,
                 jobId: task.jobId
               })
@@ -1412,8 +1561,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
                 type: "defense_skipped",
                 result: "failed",
                 message:
-                  `专家应辩提交失败（视同放弃应辩，裁决照常进行）：` +
-                  `${error instanceof Error ? error.message : String(error)}`,
+                  locale === "zh"
+                    ? `Provider 应辩提交失败（视同放弃应辩，裁决照常进行）：${error instanceof Error ? error.message : String(error)}`
+                    : `Provider defense submission failed; this is treated as waived defense and the verdict proceeds: ${error instanceof Error ? error.message : String(error)}`,
                 jobId: task.jobId
               })
             )
@@ -1426,6 +1576,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async winChallenge(id: string): Promise<Task> {
       const task = store.getTask(id);
+      const locale = normalizeLocale(task.locale);
       assertStatus(task, ["Challenged"], "win challenge");
       if (inFlight.has(id)) {
         throw new Error("operation already in progress for this task");
@@ -1454,7 +1605,8 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       }
       const { votes } = await deps.services.juryVote({
         challengeId: String(task.challenge.challengeId),
-        openedAtMs
+        openedAtMs,
+        locale
       });
       const faultVotes = votes.filter((vote) => vote.vote === "ProviderFault").length;
       const majority = Math.floor(votes.length / 2) + 1;
@@ -1467,7 +1619,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
       let current: Task = { ...task, challenge: { ...task.challenge, votes } };
       const voteRecords: TxRecord[] = votes.map((vote) => ({
         label: "castVote" as const,
-        coboTxId: null,
+        policySignerRequestId: null,
         txHash: vote.txHash ?? "",
         status: "confirmed" as const
       }));
@@ -1481,9 +1633,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "jury_vote",
             result: "success",
             message:
-              `陪审方 ${vote.jurorAddress.slice(0, 10)}… 投票 ${vote.vote}` +
-              `（${vote.reasonCode}），理由书哈希 ${vote.reasonHash} 已随票上链。` +
-              `结论：${vote.reasonBook.conclusion}`,
+              locale === "zh"
+                ? `陪审方 ${vote.jurorAddress.slice(0, 10)}… 投票 ${vote.vote}（${vote.reasonCode}），理由书哈希 ${vote.reasonHash} 已随票上链。结论：${vote.reasonBook.conclusion}`
+                : `Juror ${vote.jurorAddress.slice(0, 10)}... voted ${vote.vote} (${vote.reasonCode}); reason-book hash ${vote.reasonHash} was committed with the vote. Conclusion: ${vote.reasonBook.conclusion}`,
             txHash: vote.txHash ?? null,
             jobId: task.jobId
           })
@@ -1501,8 +1653,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
             type: "challenge_won",
             result: "success",
             message:
-              `陪审团多数决 ${faultVotes}:${votes.length - faultVotes} 判 ProviderFault，挑战成立。` +
-              "多数已达成，任何人可执行链上裁决。",
+              locale === "zh"
+                ? `陪审团多数决 ${faultVotes}:${votes.length - faultVotes} 判 ProviderFault，挑战成立。多数已达成，任何人可执行链上裁决。`
+                : `Jury majority ${faultVotes}:${votes.length - faultVotes} found ProviderFault and upheld the challenge. Majority is final; anyone can execute the on-chain verdict.`,
             jobId: task.jobId
           })
         )
@@ -1514,6 +1667,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
     async refundOrSlash(id: string): Promise<Task> {
       const task = store.getTask(id);
+      const locale = normalizeLocale(task.locale);
       assertStatus(task, ["ChallengeWon"], "refund or slash");
       if (inFlight.has(id)) {
         throw new Error("operation already in progress for this task");
@@ -1527,7 +1681,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
         // resolve(challengeId) executes the on-chain vote majority — it is
         // permissionless, signed here by the backend's resolver key (not
-        // Cobo). On-chain it slashes the provider stake, pays the challenger
+        // PolicySigner). On-chain it slashes the provider stake, pays the challenger
         // (deposit + fee refund + reward), pays the jury fee out of the slash,
         // sends the remainder to the treasury and refunds the buyer.
         let resolved: { txHash: string };
@@ -1539,7 +1693,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
           // No fabrication: surface the failure with a failed record + audit.
           const failedRecord: TxRecord = {
             label: "resolve",
-            coboTxId: null,
+            policySignerRequestId: null,
             txHash: "",
             status: "failed"
           };
@@ -1551,7 +1705,10 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
                 source: "chain",
                 type: "chain_tx_failed",
                 result: "failed",
-                message: `resolve 执行失败：${error instanceof Error ? error.message : String(error)}`,
+                message:
+                  locale === "zh"
+                    ? `resolve 执行失败：${error instanceof Error ? error.message : String(error)}`
+                    : `resolve execution failed: ${error instanceof Error ? error.message : String(error)}`,
                 jobId: task.jobId
               })
             )
@@ -1561,7 +1718,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
 
         const resolveRecord: TxRecord = {
           label: "resolve",
-          coboTxId: null,
+          policySignerRequestId: null,
           txHash: resolved.txHash,
           status: "confirmed"
         };
@@ -1582,9 +1739,9 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
               type: "refund_or_slash",
               result: "success",
               message:
-                "链上裁决已执行：扣除专家质押 50%（挑战者得一半作奖励），" +
-                "托管资金退款买方，挑战者押金与陪审费全额退回，" +
-                "陪审费由扣罚承担、三位陪审方均分，余额归入金库。",
+                locale === "zh"
+                  ? "链上裁决已执行：扣除 Provider 质押 50%（挑战者得一半作奖励），托管资金退款买方，挑战者押金与陪审费全额退回，陪审费由扣罚承担、三位陪审方均分，余额归入金库。"
+                  : "On-chain verdict executed: 50% of the Provider bond was slashed, half of the slash rewards the challenger, escrowed funds return to the buyer, the challenge deposit and jury fee are fully returned, the jury fee is paid from the slash and split across three jurors, and the remainder goes to the treasury.",
               txHash: resolved.txHash,
               jobId: task.jobId
             })
@@ -1596,7 +1753,7 @@ export function createRealTaskService(store: InMemoryStore, deps: RealDeps): Tas
         return publishReputationFeedback(refundedTask, {
           value: FEEDBACK_NEGATIVE_VALUE,
           tag2: "challenge.coverage_miss",
-          sentiment: "差评"
+          sentiment: locale === "zh" ? "差评" : "negative"
         });
       } finally {
         inFlight.delete(id);

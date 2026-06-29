@@ -2,18 +2,19 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import LandingPage from "../app/page";
 import { AuditLog } from "../components/AuditLog";
 import { ChallengePanel } from "../components/ChallengePanel";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { ExecutionTimeline } from "../components/ExecutionTimeline";
 import { FinalAnswer } from "../components/FinalAnswer";
 import { ModeBadge } from "../components/ModeBadge";
-import { PactReview } from "../components/PactReview";
+import { PolicyReview } from "../components/PolicyReview";
 import { ProviderMarket } from "../components/ProviderMarket";
 import { TaskEntry } from "../components/TaskEntry";
 import type {
   AuditEvent,
-  PactSummary,
+  PolicySummary,
   ProviderAnswerPackage,
   Task
 } from "@proofmarket/shared/src/types";
@@ -44,10 +45,10 @@ function task(overrides: Partial<Task> = {}): Task {
     id: "task_001",
     userQuestion: "Question",
     status: "Created",
-    budgetLimit: "5 test USDC",
+    budgetLimit: "5 USDC",
     selectedProviderIds: [],
     plan: null,
-    pact: null,
+    policy: null,
     providerPackage: null,
     audit: [],
     jobId: null,
@@ -68,25 +69,25 @@ function auditEvent(overrides: Partial<AuditEvent> = {}): AuditEvent {
     source: "chain",
     type: "chain_tx_confirmed",
     result: "success",
-    message: "approve confirmed on Sepolia.",
+    message: "approve confirmed on Injective.",
     txHash: null,
-    pactId: null,
+    policyId: null,
     jobId: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     ...overrides
   };
 }
 
-function realPact(overrides: Partial<PactSummary> = {}): PactSummary {
+function realPolicy(overrides: Partial<PolicySummary> = {}): PolicySummary {
   return {
     intent: "Fund one provider research job.",
-    totalBudget: "5 mUSDC",
-    perJobCap: "5 mUSDC",
-    allowedTargets: ["ProofMarketEscrow", "MockUSDC"],
+    totalBudget: "5 USDC",
+    perJobCap: "5 USDC",
+    allowedTargets: ["ProofMarketEscrow", "Injective USDC"],
     allowedFunctions: ["approve", "createJob", "setBudget", "fund", "complete"],
     denyRules: ["direct transfers denied by default", "max 7 txs"],
     expiresInMinutes: 90,
-    pactId: "pact_real_001",
+    policyId: "policy_real_001",
     status: "submitted",
     ...overrides
   };
@@ -106,17 +107,28 @@ function timelineRowClass(html: string, state: string): string {
 describe("ProofMarket workflow UI content", () => {
   const noop = vi.fn();
 
+  it("positions the public site as ProofMarket with Injective infrastructure", () => {
+    const html = renderToStaticMarkup(<LandingPage />);
+
+    expect(html).toContain("Trusted Professional Evidence Network");
+    expect(html).toContain("Injective Testnet");
+    expect(html).toContain("escrowed payments");
+    expect(html).not.toContain("Sepolia");
+    expect(html).not.toContain("MockUSDC");
+    expect(html).not.toContain("mUSDC");
+    expect(html).not.toContain("sepolia.etherscan.io");
+  });
+
   it("renders the task entry empty state and required create action", () => {
     const html = renderToStaticMarkup(
       <TaskEntry task={null} onCreate={noop} isBusy={false} />
     );
 
-    expect(html).toContain("Ask one research question that needs evidence");
-    expect(html).toContain("Create task");
-    expect(html).toContain("Generate procurement plan");
+    expect(html).toContain("Submit a research question that needs evidence support");
+    expect(html).toContain("Create Task");
   });
 
-  it("renders exactly three provider candidates with expert and shallow actions", () => {
+  it("renders exactly three provider candidates with recommended and shallow actions", () => {
     const html = renderToStaticMarkup(
       <ProviderMarket
         task={null}
@@ -126,28 +138,28 @@ describe("ProofMarket workflow UI content", () => {
     );
 
     expect((html.match(/data-provider-card=/g) ?? [])).toHaveLength(3);
-    expect(html).toContain("区块链系统专家 Agent");
-    expect(html).toContain("文献速查 Agent");
-    expect(html).toContain("共识层研究专家 Agent");
-    expect(html).toContain("Run expert provider");
-    expect(html).toContain("Run shallow provider");
+    expect(html).toContain("Blockchain Systems Evidence Agent");
+    expect(html).toContain("Fast Literature Search Agent");
+    expect(html).toContain("Consensus Layer Research Agent");
+    expect(html).toContain("Run Recommended Provider");
+    expect(html).toContain("Run Low-Reputation Provider");
   });
 
-  it("renders Cobo boundaries and the CoverageMiss challenge path", () => {
-    const pactHtml = renderToStaticMarkup(
-      <PactReview task={null} onSubmit={noop} onFund={noop} onTriggerDenial={noop} />
+  it("renders policy signer boundaries and the CoverageMiss challenge path", () => {
+    const policyHtml = renderToStaticMarkup(
+      <PolicyReview task={null} onSubmit={noop} onFund={noop} onTriggerDenial={noop} />
     );
     const challengeHtml = renderToStaticMarkup(
       <ChallengePanel task={null} onWinChallenge={noop} onRefundOrSlash={noop} />
     );
 
-    expect(pactHtml).toContain("5 test USDC");
-    expect(pactHtml).toContain("Allowed targets");
-    expect(pactHtml).toContain("Trigger Cobo denial");
+    expect(policyHtml).toContain("5 USDC");
+    expect(policyHtml).toContain("Allowed contracts");
+    expect(policyHtml).toContain("Trigger Policy Signer Denial");
     expect(challengeHtml).toContain("CoverageMiss");
     expect(challengeHtml).toContain("Block-STM");
-    expect(challengeHtml).toContain("Win challenge");
-    expect(challengeHtml).toContain("Refund or slash");
+    expect(challengeHtml).toContain("Uphold Challenge");
+    expect(challengeHtml).toContain("Refund or Slash");
   });
 
   it("keeps branch timeline states inactive when a happy path task is settled", () => {
@@ -158,34 +170,34 @@ describe("ProofMarket workflow UI content", () => {
     expect(html).toContain("Happy path");
     expect(html).toContain("Challenge branch");
     expect(html).toContain("Denial branch");
-    expect(html).toContain("DeniedByCobo");
+    expect(html).toContain("DeniedByPolicy");
     expect(html).toContain("Challenged");
     expect(html).toContain("not-taken");
-    expect(timelineRowClass(html, "DeniedByCobo")).toBe("not-taken");
+    expect(timelineRowClass(html, "DeniedByPolicy")).toBe("not-taken");
     expect(timelineRowClass(html, "Challenged")).toBe("not-taken");
   });
 
-  it("shows ReturnedToEscrowPath on the denial branch after Cobo denial", () => {
+  it("shows ReturnedToEscrowPath on the denial branch after restricted signer denial", () => {
     const html = renderToStaticMarkup(
-      <ExecutionTimeline task={task({ status: "DeniedByCobo" })} />
+      <ExecutionTimeline task={task({ status: "DeniedByPolicy" })} />
     );
 
     expect(html).toContain("ReturnedToEscrowPath");
     expect(html).toContain("escrow can be funded next");
   });
 
-  it("renders the current backend Cobo policy without masking mismatches", () => {
+  it("renders the current backend signing policy without masking mismatches", () => {
     const html = renderToStaticMarkup(
-      <PactReview
+      <PolicyReview
         task={task({
-          status: "PactActive",
-          pact: {
+          status: "PolicyActive",
+          policy: {
             intent: "Backend intent",
-            totalBudget: "5 test USDC",
-            perJobCap: "1 test USDC",
+            totalBudget: "5 USDC",
+            perJobCap: "1 USDC",
             allowedTargets: [
               "ProofMarketEscrow",
-              "MockUSDC",
+              "Injective USDC",
               "ProofMarketChallengeManager"
             ],
             allowedFunctions: [
@@ -200,10 +212,10 @@ describe("ProofMarket workflow UI content", () => {
               "direct transfer",
               "non-whitelisted target",
               "amount above cap",
-              "expired pact"
+              "expired policy"
             ],
             expiresInMinutes: 30,
-            pactId: "pact_001",
+            policyId: "policy_001",
             status: "active"
           }
         })}
@@ -213,12 +225,12 @@ describe("ProofMarket workflow UI content", () => {
       />
     );
 
-    expect(html).toContain("ProofMarketEscrow, MockUSDC, ProofMarketChallengeManager");
+    expect(html).toContain("ProofMarketEscrow, Injective USDC, ProofMarketChallengeManager");
     expect(html).toContain("createJob, fund, submit, complete, reject, approve");
     expect(html).toContain("direct transfer");
     expect(html).toContain("non-whitelisted target");
     expect(html).toContain("amount above cap");
-    expect(html).toContain("expired pact");
+    expect(html).toContain("expired policy");
   });
 
   it("does not render the normal research conclusion before verification", () => {
@@ -230,7 +242,7 @@ describe("ProofMarket workflow UI content", () => {
       />
     );
 
-    expect(html).toContain("Waiting for verified evidence");
+    expect(html).toContain("Waiting for evidence verification");
     expect(html).not.toContain("Recent blockchain execution acceleration work centers");
   });
 
@@ -243,9 +255,9 @@ describe("ProofMarket workflow UI content", () => {
       />
     );
 
-    expect(html).toContain("Per-item verification status");
+    expect(html).toContain("Item verification status");
     expect(html).toContain("Verified");
-    expect(html).toContain("Per-item package hash");
+    expect(html).toContain("Item package hash");
     expect(html).toContain("0xpackagehash");
   });
 
@@ -257,9 +269,9 @@ describe("ProofMarket workflow UI content", () => {
       <TaskEntry task={null} onCreate={noop} isBusy />
     );
 
-    expect(existingTaskHtml).toContain("Create fresh task");
-    expect(existingTaskHtml).not.toMatch(/<button disabled[^>]*>Create fresh task/);
-    expect(busyHtml).toMatch(/<button disabled[^>]*>Create task/);
+    expect(existingTaskHtml).toContain("Create New Task");
+    expect(existingTaskHtml).not.toMatch(/<button disabled[^>]*>Create New Task/);
+    expect(busyHtml).toMatch(/<button disabled[^>]*>Create Task/);
   });
 
   it("renders a mode badge for fixture and real tasks and none without a task", () => {
@@ -267,13 +279,13 @@ describe("ProofMarket workflow UI content", () => {
     const realHtml = renderToStaticMarkup(<ModeBadge task={task({ mode: "real" })} />);
     const emptyHtml = renderToStaticMarkup(<ModeBadge task={null} />);
 
-    expect(fixtureHtml).toContain("本地模拟");
+    expect(fixtureHtml).toContain("Local simulation");
     expect(fixtureHtml).not.toContain("Sepolia");
-    expect(realHtml).toContain("Sepolia 测试网");
+    expect(realHtml).toContain("Injective Testnet");
     expect(emptyHtml).toBe("");
   });
 
-  it("links audit events with a full tx hash to Sepolia Etherscan", () => {
+  it("links audit events with a full tx hash to the Injective explorer", () => {
     const html = renderToStaticMarkup(
       <AuditLog
         task={task({
@@ -286,9 +298,10 @@ describe("ProofMarket workflow UI content", () => {
     );
 
     expect(html).toContain(
-      `href="https://sepolia.etherscan.io/tx/${sampleTxHash}"`
+      `href="https://testnet.blockscout.injective.network/tx/${sampleTxHash}"`
     );
-    expect((html.match(/sepolia\.etherscan\.io/g) ?? [])).toHaveLength(1);
+    expect((html.match(/testnet\.blockscout\.injective\.network/g) ?? [])).toHaveLength(1);
+    expect(html).not.toContain("sepolia.etherscan.io");
   });
 
   it("replaces challenge actions with a local-demo note in real mode", () => {
@@ -300,18 +313,18 @@ describe("ProofMarket workflow UI content", () => {
       />
     );
 
-    expect(html).toContain("Local mechanism demo — not available in real mode");
-    expect(html).not.toContain("Win challenge");
-    expect(html).not.toMatch(/<button[^>]*>Refund or slash<\/button>/);
+    expect(html).toContain("Local mechanism demo; unavailable in real mode");
+    expect(html).not.toMatch(/<button[^>]*>Uphold Challenge<\/button>/);
+    expect(html).not.toMatch(/<button[^>]*>Refund or Slash<\/button>/);
   });
 
-  it("offers a Cobo approval check while a real pact is submitted", () => {
+  it("offers a policy activation check while a real policy is submitted", () => {
     const html = renderToStaticMarkup(
-      <PactReview
+      <PolicyReview
         task={task({
           mode: "real",
-          status: "PactSubmitted",
-          pact: realPact({ status: "submitted" })
+          status: "PolicySubmitted",
+          policy: realPolicy({ status: "submitted" })
         })}
         onSubmit={noop}
         onFund={noop}
@@ -320,27 +333,27 @@ describe("ProofMarket workflow UI content", () => {
       />
     );
 
-    expect(html).toContain("Check Cobo approval");
-    expect(html).toContain("Approve the Pact in your Cobo wallet, then check.");
+    expect(html).toContain("Check Policy Activation");
+    expect(html).toContain("Wait for the Policy Signer policy to activate, then check again.");
   });
 
-  it("renders real Cobo denial details in the audit log", () => {
+  it("renders real restricted signer denial details in the audit log", () => {
     const html = renderToStaticMarkup(
       <AuditLog
         task={task({
           mode: "real",
-          status: "DeniedByCobo",
+          status: "DeniedByPolicy",
           denial: {
             denied: true,
             exitCode: 5,
-            attemptedAction: "transfer 0.001 mUSDC to 0x…dEaD",
+            attemptedAction: "transfer 0.001 USDC to 0x…dEaD",
             rawOutput: "Error: policy denied transfer (no transfer rule)"
           }
         })}
       />
     );
 
-    expect(html).toContain("transfer 0.001 mUSDC to 0x…dEaD");
+    expect(html).toContain("transfer 0.001 USDC to 0x…dEaD");
     expect(html).toContain("exit 5");
     expect(html).toContain("Error: policy denied transfer (no transfer rule)");
   });
@@ -352,8 +365,8 @@ describe("ProofMarket workflow UI content", () => {
           mode: "real",
           status: "JobFunded",
           txRecords: [
-            { label: "approve", coboTxId: "cobo_1", txHash: sampleTxHash, status: "confirmed" },
-            { label: "createJob", coboTxId: "cobo_2", txHash: "", status: "pending" }
+            { label: "approve", policySignerRequestId: "signer_1", txHash: sampleTxHash, status: "confirmed" },
+            { label: "createJob", policySignerRequestId: "signer_2", txHash: "", status: "pending" }
           ]
         })}
       />
@@ -364,7 +377,7 @@ describe("ProofMarket workflow UI content", () => {
     expect(html).toContain("confirmed");
     expect(html).toContain("pending");
     expect(html).toContain(
-      `href="https://sepolia.etherscan.io/tx/${sampleTxHash}"`
+      `href="https://testnet.blockscout.injective.network/tx/${sampleTxHash}"`
     );
   });
 });

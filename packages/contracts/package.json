@@ -5,7 +5,12 @@
   "type": "module",
   "scripts": {
     "build": "hardhat compile",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "deploy:injective": "hardhat run scripts/deploy-injective.ts --network injectiveTestnet",
+    "deploy:injective:erc8004": "hardhat run scripts/deploy-erc8004-injective.ts --network injectiveTestnet"
+  },
+  "dependencies": {
+    "@proofmarket/shared": "workspace:*"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^5.0.0",

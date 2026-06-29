@@ -30,7 +30,7 @@
  *   SEPOLIA_RPC_URL=http://127.0.0.1:8545 \
  *   DEPLOYER_PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \
  *   PROVIDER_SIGNER_PRIVATE_KEY=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d \
- *   COBO_WALLET_ADDRESS=0x70997970C51812dc3A010C7d01b50e0d17dc79C8 \
+ *   POLICY_SIGNER_WALLET_ADDRESS=0x70997970C51812dc3A010C7d01b50e0d17dc79C8 \
  *   pnpm hardhat run scripts/deploy-sepolia.ts --network sepolia
  */
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -39,8 +39,8 @@ import hre from "hardhat";
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
-const COBO_WALLET = process.env.COBO_WALLET_ADDRESS ?? "";
-const MINT_TO_COBO = 100_000_000n; // 100 mUSDC at 6 decimals
+const POLICY_SIGNER_WALLET = process.env.POLICY_SIGNER_WALLET_ADDRESS ?? "";
+const MINT_TO_POLICY_SIGNER = 100_000_000n; // 100 mUSDC at 6 decimals
 
 // ChallengeManager constructor params (match spec §合约参数)
 const MIN_STAKE         = 10_000_000n; // 10 mUSDC
@@ -75,8 +75,8 @@ async function main() {
   if (!process.env.SEPOLIA_RPC_URL)     throw new Error("SEPOLIA_RPC_URL not set");
   if (!process.env.DEPLOYER_PRIVATE_KEY) throw new Error("DEPLOYER_PRIVATE_KEY not set");
 
-  if (!COBO_WALLET.startsWith("0x") || COBO_WALLET.length !== 42) {
-    throw new Error("COBO_WALLET_ADDRESS must be a 42-char 0x address");
+  if (!POLICY_SIGNER_WALLET.startsWith("0x") || POLICY_SIGNER_WALLET.length !== 42) {
+    throw new Error("POLICY_SIGNER_WALLET_ADDRESS must be a 42-char 0x address");
   }
 
   const signers = await hre.ethers.getSigners();
@@ -146,11 +146,11 @@ async function main() {
   await wireTx2.wait();
   console.log("Wired: cm.setEscrow ✓");
 
-  // ── 5. Mint USDC to Cobo wallet (existing behaviour) ──────────────────────
-  const coboMintTx = await usdc.mint(COBO_WALLET, MINT_TO_COBO);
-  const coboMintReceipt = await coboMintTx.wait();
-  if (!coboMintReceipt) throw new Error("Cobo mint tx receipt is null");
-  console.log(`Minted 100 mUSDC to Cobo wallet (${COBO_WALLET}): ${coboMintReceipt.hash}`);
+  // ── 5. Mint USDC to the restricted signer address ────────────────────────
+  const signerMintTx = await usdc.mint(POLICY_SIGNER_WALLET, MINT_TO_POLICY_SIGNER);
+  const signerMintReceipt = await signerMintTx.wait();
+  if (!signerMintReceipt) throw new Error("restricted signer mint tx receipt is null");
+  console.log(`Minted 100 mUSDC to restricted signer (${POLICY_SIGNER_WALLET}): ${signerMintReceipt.hash}`);
 
   // ── 6. Expert provider: mint + depositStake ────────────────────────────────
   // Deployer mints to expert address.
@@ -196,7 +196,7 @@ async function main() {
     network: "sepolia",
     deployer: deployer.address,
     blockNumber: block,
-    coboWallet: COBO_WALLET,
+    policySignerAddress: POLICY_SIGNER_WALLET,
     contracts: {
       MockUSDC:                    usdcAddress,
       ProofMarketEscrow:           escrowAddress,
@@ -243,9 +243,9 @@ async function main() {
       }
     },
     mint: {
-      to:        COBO_WALLET,
-      rawAmount: MINT_TO_COBO.toString(),
-      txHash:    coboMintReceipt.hash
+      to:        POLICY_SIGNER_WALLET,
+      rawAmount: MINT_TO_POLICY_SIGNER.toString(),
+      txHash:    signerMintReceipt.hash
     },
     deployedAt: new Date().toISOString()
   };

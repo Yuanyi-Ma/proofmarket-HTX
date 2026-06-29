@@ -15,26 +15,26 @@ const pkg: ProviderAnswerPackage = {
   taskId: "task_001",
   providerAgentId: 1,
   providerId: "execution-research-expert",
-  providerName: "区块链执行研究专家",
-  coverageStatement: "覆盖 2021–2026 年区块链交易执行加速方向的论文",
+  providerName: "Execution Research Provider",
+  coverageStatement: "Covers 2021-2026 blockchain transaction execution acceleration papers",
   answers: [
     {
-      providerAnswer: "乐观并行执行是当前执行加速的核心方向。",
+      providerAnswer: "Optimistic parallel execution is the core direction for current execution acceleration.",
       sourceTitle: "Block-STM",
       sourceLocator: "arXiv:2203.06871",
       sourceLibrary: "arxiv",
       sourceMetadata: { year: 2022, type: "paper" },
-      excerptOrSummary: "Block-STM 通过乐观并发控制实现并行执行，减少冲突重执行。",
-      relevanceExplanation: "直接支持执行加速主题，但不能证明普遍适用所有工作负载。"
+      excerptOrSummary: "Block-STM uses optimistic concurrency control to execute ordered transactions in parallel and reduce conflict re-execution.",
+      relevanceExplanation: "Directly supports the execution-acceleration topic, but cannot prove universal applicability to all workloads."
     },
     {
-      providerAnswer: "投机执行可进一步降低延迟。",
+      providerAnswer: "Speculative execution can further reduce latency.",
       sourceTitle: "Speculative Execution Survey",
       sourceLocator: "arXiv:2301.09999",
       sourceLibrary: "arxiv",
       sourceMetadata: { year: 2023, type: "paper" },
-      excerptOrSummary: "综述了投机执行在区块链场景的应用与局限。",
-      relevanceExplanation: "与主题相关，但覆盖范围仅限于 EVM 兼容链。"
+      excerptOrSummary: "Surveys applications and limits of speculative execution in blockchain settings.",
+      relevanceExplanation: "Relevant to the topic, with coverage limited to EVM-compatible chains."
     }
   ],
   packageHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab"
@@ -45,8 +45,8 @@ const COUNTER_EVIDENCE_HASH =
 
 const challengeFixture: TaskChallenge = {
   type: "CoverageMiss",
-  statement: "交付的证据包未包含 Block-STM——承诺范围内的代表性工作，属于覆盖漏检。",
-  hitCoverageClause: "覆盖声明：『2021-2026 年区块链执行加速方向（IEEE / Elsevier）』",
+  statement: "The delivered package did not include Block-STM, a representative in-scope work, so this is a coverage miss.",
+  hitCoverageClause: "Coverage commitment: 2021-2026 blockchain execution acceleration sources (IEEE / Elsevier).",
   counterEvidenceHash: COUNTER_EVIDENCE_HASH,
   defense: { ...presetDefense }
 };
@@ -60,20 +60,20 @@ const votesFixture = presetJuryVotes([
 function task(overrides: Partial<Task> = {}): Task {
   return {
     id: "task_001",
-    userQuestion: "区块链交易执行加速的最新研究是什么？",
+    userQuestion: "What are the latest studies on blockchain transaction execution acceleration?",
     status: "Delivered",
-    budgetLimit: "5 test USDC",
+    budgetLimit: "5 USDC",
     selectedProviderIds: ["execution-research-expert"],
     plan: null,
-    pact: {
+    policy: {
       intent: "Fund one provider research job",
-      totalBudget: "5 test USDC",
-      perJobCap: "1 test USDC",
-      allowedTargets: ["ProofMarketEscrow", "MockUSDC"],
+      totalBudget: "5 USDC",
+      perJobCap: "1 USDC",
+      allowedTargets: ["ProofMarketEscrow", "Injective USDC"],
       allowedFunctions: ["createJob", "fund", "submit", "complete", "reject", "approve"],
       denyRules: ["direct transfer"],
       expiresInMinutes: 30,
-      pactId: "pact_abc123",
+      policyId: "policy_abc123",
       status: "active"
     },
     providerPackage: pkg,
@@ -100,12 +100,12 @@ const defaultProps = {
 describe("Step5Evidence — evidence package rendering", () => {
   it("renders provider name", () => {
     render(<Step5Evidence task={task()} {...defaultProps} />);
-    expect(screen.getByText("区块链执行研究专家")).toBeTruthy();
+    expect(screen.getByText("Execution Research Provider")).toBeTruthy();
   });
 
   it("renders coverage statement", () => {
     render(<Step5Evidence task={task()} {...defaultProps} />);
-    expect(screen.getByText("覆盖 2021–2026 年区块链交易执行加速方向的论文")).toBeTruthy();
+    expect(screen.getByText("Covers 2021-2026 blockchain transaction execution acceleration papers")).toBeTruthy();
   });
 
   it("renders source titles for all evidence items", () => {
@@ -114,9 +114,9 @@ describe("Step5Evidence — evidence package rendering", () => {
     expect(screen.getByText("Speculative Execution Survey")).toBeTruthy();
   });
 
-  it("opens the first evidence item by default and frames the page as a research brief", () => {
+  it("opens the first evidence item by default and frames the page as an evidence package", () => {
     const { container } = render(<Step5Evidence task={task()} {...defaultProps} />);
-    expect(screen.getByText("简报摘要")).toBeTruthy();
+    expect(screen.getByText("Package summary")).toBeTruthy();
     const firstDetails = container.querySelector(".evidence-item-row");
     expect(firstDetails?.getAttribute("open")).toBe("");
   });
@@ -136,45 +136,45 @@ describe("Step5Evidence — evidence package rendering", () => {
 });
 
 describe("Step5Evidence — verify action state", () => {
-  it("shows 核验简报 button when status is Delivered", () => {
+  it("shows Verify Evidence button when status is Delivered", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} />);
-    expect(screen.getByRole("button", { name: /核验简报/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Verify Evidence/ })).toBeTruthy();
   });
 
-  it("does not show 核验简报 button in readOnly mode", () => {
+  it("does not show Verify Evidence button in readOnly mode", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} readOnly={true} />);
-    expect(screen.queryByRole("button", { name: /核验简报/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Verify Evidence/ })).toBeNull();
   });
 
-  it("disables 核验简报 when isBusy", () => {
+  it("disables Verify Evidence when isBusy", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} isBusy={true} />);
-    const btn = screen.getByRole("button", { name: /核验简报/ });
+    const btn = screen.getByRole("button", { name: /Verify Evidence/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("shows 验证通过 status text when Verified", () => {
+  it("shows Verified status text when Verified", () => {
     render(<Step5Evidence task={task({ status: "Verified" })} {...defaultProps} />);
-    expect(screen.getByText("验证通过")).toBeTruthy();
+    expect(screen.getAllByText("Verified").length).toBeGreaterThan(0);
   });
 });
 
 describe("Step5Evidence — challenge entry at Delivered", () => {
-  it("shows 发起挑战 button at Delivered alongside 核验简报", () => {
+  it("shows Open Challenge button at Delivered alongside Verify Evidence", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} />);
     // Both the primary and secondary actions should be present
-    expect(screen.getByRole("button", { name: /核验简报/ })).toBeTruthy();
-    expect(screen.getByRole("button", { name: /发起挑战/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Verify Evidence/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Open Challenge/ })).toBeTruthy();
   });
 
-  it("disables 发起挑战 when isBusy", () => {
+  it("disables Open Challenge when isBusy", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} isBusy={true} />);
-    const btn = screen.getByRole("button", { name: /发起挑战/ });
+    const btn = screen.getByRole("button", { name: /Open Challenge/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it("does not show 发起挑战 in readOnly mode", () => {
+  it("does not show Open Challenge in readOnly mode", () => {
     render(<Step5Evidence task={task({ status: "Delivered" })} {...defaultProps} readOnly={true} />);
-    expect(screen.queryByRole("button", { name: /发起挑战/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Open Challenge/ })).toBeNull();
   });
 });
 
@@ -187,7 +187,7 @@ describe("Step5Evidence — challenge window banner (real mode)", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getByTestId("challenge-window-banner").textContent).toContain("挑战窗口剩余");
+    expect(screen.getByTestId("challenge-window-banner").textContent).toContain("Challenge window remaining");
   });
 
   it("announces a closed window once it has passed", () => {
@@ -198,7 +198,7 @@ describe("Step5Evidence — challenge window banner (real mode)", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getByTestId("challenge-window-banner").textContent).toContain("挑战窗口已结束");
+    expect(screen.getByTestId("challenge-window-banner").textContent).toContain("Challenge window closed");
   });
 });
 
@@ -208,21 +208,21 @@ describe("Step5Evidence — Challenged stage", () => {
     challenge: challengeFixture
   });
 
-  it("shows 挑战已发起 heading", () => {
+  it("shows Challenge opened heading", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
-    expect(screen.getByText("挑战已发起")).toBeTruthy();
+    expect(screen.getByText("Challenge opened")).toBeTruthy();
   });
 
-  it("shows challenge type CoverageMiss with Chinese label", () => {
+  it("shows challenge type CoverageMiss with in-scope miss label", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
     expect(screen.getAllByText(/CoverageMiss/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/覆盖声明漏检/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/in-scope coverage miss/).length).toBeGreaterThan(0);
   });
 
   it("shows the deposit D and jury fee F as separate locked rows", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
-    expect(screen.getByText("挑战押金 D")).toBeTruthy();
-    expect(screen.getByText("陪审费 F")).toBeTruthy();
+    expect(screen.getByText("Challenge deposit D")).toBeTruthy();
+    expect(screen.getByText("Jury fee F")).toBeTruthy();
   });
 
   it("shows counterEvidenceHash in mono", () => {
@@ -231,23 +231,23 @@ describe("Step5Evidence — Challenged stage", () => {
     expect(hashes.length).toBeGreaterThan(0);
   });
 
-  it("shows the 挑战书 panel with statement and coverage clause", () => {
+  it("shows the Challenge Package panel with statement and coverage clause", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
-    expect(screen.getByText(/挑战书（提交给陪审团的材料）/)).toBeTruthy();
+    expect(screen.getAllByText(/Challenge Package/).length).toBeGreaterThan(0);
     expect(screen.getByText(challengeFixture.statement)).toBeTruthy();
     expect(screen.getAllByText(challengeFixture.hitCoverageClause).length).toBeGreaterThan(0);
   });
 
   it("shows the provider defense card with plaintext and hash", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
-    expect(screen.getByText(/专家应辩书/)).toBeTruthy();
+    expect(screen.getByText(/Provider Defense Statement/)).toBeTruthy();
     expect(screen.getByText(presetDefense.statement)).toBeTruthy();
     expect(screen.getByText(presetDefense.defenseHash)).toBeTruthy();
   });
 
-  it("shows 请求陪审团裁决 action button", () => {
+  it("shows Request Jury Verdict action button", () => {
     render(<Step5Evidence task={challengedTask} {...defaultProps} />);
-    expect(screen.getByRole("button", { name: /请求陪审团裁决/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Request Jury Verdict/ })).toBeTruthy();
   });
 
   it("shows real-mode tx records when present", () => {
@@ -258,31 +258,30 @@ describe("Step5Evidence — Challenged stage", () => {
       txRecords: [
         {
           label: "approveDeposit",
-          coboTxId: null,
+          policySignerRequestId: null,
           txHash: "0xaaa0000000000000000000000000000000000000000000000000000000000001",
           status: "confirmed"
         },
         {
           label: "openChallenge",
-          coboTxId: null,
+          policySignerRequestId: null,
           txHash: "0xbbb0000000000000000000000000000000000000000000000000000000000002",
           status: "confirmed"
         },
         {
           label: "defense",
-          coboTxId: null,
+          policySignerRequestId: null,
           txHash: "0xccc0000000000000000000000000000000000000000000000000000000000003",
           status: "confirmed"
         }
       ]
     });
     render(<Step5Evidence task={realTask} {...defaultProps} />);
-    // Should show 链上交易 section label
-    expect(screen.getByText("链上交易")).toBeTruthy();
+    expect(screen.getByText("On-chain transactions")).toBeTruthy();
     // Should show all three tx labels
-    expect(screen.getByText("授权押金 + 陪审费")).toBeTruthy();
-    expect(screen.getByText("发起挑战（链上）")).toBeTruthy();
-    expect(screen.getByText("提交应辩书（链上）")).toBeTruthy();
+    expect(screen.getByText("Approve deposit + jury fee")).toBeTruthy();
+    expect(screen.getByText("Open challenge")).toBeTruthy();
+    expect(screen.getByText("Submit defense")).toBeTruthy();
   });
 });
 
@@ -294,15 +293,15 @@ describe("Step5Evidence — ChallengeWon stage (jury verdict)", () => {
 
   it("shows the 2:1 majority verdict heading", () => {
     render(<Step5Evidence task={wonTask} {...defaultProps} />);
-    expect(screen.getByText(/陪审团投票 2 : 1/)).toBeTruthy();
-    expect(screen.getByText(/覆盖声明漏检，挑战成立/)).toBeTruthy();
+    expect(screen.getByText(/Jury vote 2 : 1/)).toBeTruthy();
+    expect(screen.getByText(/challenge upheld/)).toBeTruthy();
   });
 
   it("renders one neutral vote card per juror (no model-brand claims)", () => {
     render(<Step5Evidence task={wonTask} {...defaultProps} />);
     votesFixture.forEach((vote, i) => {
       expect(screen.getByTestId(`jury-vote-${vote.jurorId}`)).toBeTruthy();
-      expect(screen.getByText(`陪审方 ${i + 1}`)).toBeTruthy();
+      expect(screen.getByText(`Juror ${i + 1}`)).toBeTruthy();
       // Model brands are unverifiable claims — they must not render.
       expect(screen.queryByText(new RegExp(vote.modelFamily))).toBeNull();
     });
@@ -310,7 +309,7 @@ describe("Step5Evidence — ChallengeWon stage (jury verdict)", () => {
 
   it("marks the dissenting vote and shows its reason book", () => {
     render(<Step5Evidence task={wonTask} {...defaultProps} />);
-    expect(screen.getByText(/NotFault（异议）/)).toBeTruthy();
+    expect(screen.getAllByText(/NotFault/).length).toBeGreaterThan(0);
     const dissent = votesFixture.find((v) => v.vote === "ProviderNotFault")!;
     expect(screen.getByText(dissent.reasonBook.conclusion)).toBeTruthy();
   });
@@ -322,9 +321,9 @@ describe("Step5Evidence — ChallengeWon stage (jury verdict)", () => {
     }
   });
 
-  it("shows 执行裁决 button", () => {
+  it("shows Execute Verdict button", () => {
     render(<Step5Evidence task={wonTask} {...defaultProps} />);
-    expect(screen.getByRole("button", { name: /执行裁决/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Execute Verdict/ })).toBeTruthy();
   });
 
   it("still shows materials panel (counterEvidenceHash) for reference", () => {
@@ -344,23 +343,22 @@ describe("Step5Evidence — RefundedOrSlashed stage", () => {
     }
   });
 
-  it("shows 裁决已执行 heading", () => {
+  it("shows Verdict executed heading", () => {
     render(<Step5Evidence task={resolvedTask} {...defaultProps} />);
-    // 裁决已执行 appears in both the status label area and the stage heading
-    expect(screen.getAllByText(/裁决已执行/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Verdict executed/).length).toBeGreaterThan(0);
   });
 
   it("shows the fund action lines including the jury fee", () => {
     render(<Step5Evidence task={resolvedTask} {...defaultProps} />);
-    expect(screen.getByText(/扣罚专家本单履约 bond（10 mUSDC）的 50%/)).toBeTruthy();
-    expect(screen.getByText(/托管资金退款买方/)).toBeTruthy();
-    expect(screen.getByText(/挑战者押金 \+ 陪审费全额退回/)).toBeTruthy();
-    expect(screen.getByText(/三位陪审方均分/)).toBeTruthy();
+    expect(screen.getByText(/Slash 50% of the Provider performance bond/)).toBeTruthy();
+    expect(screen.getByText(/Refund escrowed funds to the buyer/)).toBeTruthy();
+    expect(screen.getByText(/Return challenger deposit \+ jury fee in full/)).toBeTruthy();
+    expect(screen.getByText(/split across three jurors/)).toBeTruthy();
   });
 
   it("does not leak roadmap copy into the resolved view", () => {
     render(<Step5Evidence task={resolvedTask} {...defaultProps} />);
-    expect(screen.queryByText(/后续可做/)).toBeNull();
+    expect(screen.queryByText(/future work/)).toBeNull();
   });
 
   it("shows resolve txHash with etherscan link in real mode", () => {
@@ -375,7 +373,7 @@ describe("Step5Evidence — RefundedOrSlashed stage", () => {
       txRecords: [
         {
           label: "resolve",
-          coboTxId: null,
+          policySignerRequestId: null,
           txHash: "0xffff000000000000000000000000000000000000000000000000000000000099",
           status: "confirmed"
         }
@@ -383,19 +381,19 @@ describe("Step5Evidence — RefundedOrSlashed stage", () => {
     });
     render(<Step5Evidence task={realResolvedTask} {...defaultProps} />);
     // Should show a shortened hash linked to etherscan
-    const link = screen.getByRole("link", { name: /Etherscan 查看裁决交易/ });
+    const link = screen.getByRole("link", { name: /View verdict transaction on Injective Explorer/ });
     expect(link).toBeTruthy();
-    expect((link as HTMLAnchorElement).href).toContain("sepolia.etherscan.io");
+    expect((link as HTMLAnchorElement).href).toContain("testnet.blockscout.injective.network");
   });
 
   it("shows terminal audit prompt", () => {
     render(<Step5Evidence task={resolvedTask} {...defaultProps} />);
-    expect(screen.getByText(/挑战流程已完成/)).toBeTruthy();
+    expect(screen.getByText(/Challenge flow complete/)).toBeTruthy();
   });
 
-  it("does not show 执行裁决 button (terminal state)", () => {
+  it("does not show Execute Verdict button (terminal state)", () => {
     render(<Step5Evidence task={resolvedTask} {...defaultProps} />);
-    expect(screen.queryByRole("button", { name: /执行裁决/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Execute Verdict/ })).toBeNull();
   });
 });
 
@@ -407,7 +405,7 @@ describe("Step5Evidence — real-mode challenge explainer", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getByText(/若对简报有异议，可发起挑战/)).toBeTruthy();
+    expect(screen.getByText(/If you object to the Evidence Service Package/)).toBeTruthy();
   });
 
   it("does not show the challenge explainer in fixture mode", () => {
@@ -417,7 +415,7 @@ describe("Step5Evidence — real-mode challenge explainer", () => {
         {...defaultProps}
       />
     );
-    expect(screen.queryByText(/若对简报有异议，可发起挑战/)).toBeNull();
+    expect(screen.queryByText(/If you object to the Evidence Service Package/)).toBeNull();
   });
 });
 
@@ -429,22 +427,22 @@ describe("Step5Evidence — no package", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getByText(/等待专家交付研究简报/)).toBeTruthy();
+    expect(screen.getByText(/Waiting for Provider delivery/)).toBeTruthy();
   });
 });
 
 describe("Step5Evidence — legacy status badges (status labels)", () => {
-  it("shows 挑战进行中 status text when status is Challenged", () => {
+  it("shows challenge in progress status text when status is Challenged", () => {
     render(
       <Step5Evidence
         task={task({ mode: "fixture", status: "Challenged", challenge: challengeFixture })}
         {...defaultProps}
       />
     );
-    expect(screen.getAllByText(/挑战进行中/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Challenge in progress/).length).toBeGreaterThan(0);
   });
 
-  it("shows 挑战成立 status text when ChallengeWon", () => {
+  it("shows challenge upheld status text when ChallengeWon", () => {
     render(
       <Step5Evidence
         task={task({
@@ -455,10 +453,10 @@ describe("Step5Evidence — legacy status badges (status labels)", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getAllByText(/挑战成立/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Challenge upheld/).length).toBeGreaterThan(0);
   });
 
-  it("shows 裁决已执行 status when RefundedOrSlashed", () => {
+  it("shows verdict executed status when RefundedOrSlashed", () => {
     render(
       <Step5Evidence
         task={task({
@@ -469,24 +467,23 @@ describe("Step5Evidence — legacy status badges (status labels)", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getAllByText(/裁决已执行/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Verdict executed/).length).toBeGreaterThan(0);
   });
 });
 
-// ── 我方 Agent 抽查核验 + 链上存证（真实计算） ─────────────────────────────
+// Agent spot check + on-chain commitment (real computations).
 import { buildPackageCommitment } from "@proofmarket/shared/src/merkle";
 
-/** 同一内容、真实承诺根：抽查与存证校验都是真实计算。 */
+/** Same content, real commitment root: both spot check and commitment verification are real computations. */
 function withRealRoot(p: ProviderAnswerPackage): ProviderAnswerPackage {
   const { packageHash: _ignored, ...preimage } = p;
   return { ...p, packageHash: buildPackageCommitment(preimage).root };
 }
 
-// 与 lib/localCorpus.ts 的英文存档段落逐字一致——查准内容比对是真实子串匹配。
 const expertPkg: ProviderAnswerPackage = withRealRoot({
   ...pkg,
   coverageStatement:
-    "本简报基于订阅论文库与行业研报库，覆盖 2021-2026 年区块链交易执行加速方向。",
+    "This package is based on subscribed literature and industry research databases, covering 2021-2026 blockchain transaction execution acceleration.",
   answers: [
     {
       ...pkg.answers[0],
@@ -498,45 +495,44 @@ const expertPkg: ProviderAnswerPackage = withRealRoot({
         "Block-STM exploits optimistic concurrency control with a collaborative scheduler to execute ordered blockchain transactions in parallel while guaranteeing deterministic results."
     },
     {
-      providerAnswer: "状态热点约束并行收益。",
+      providerAnswer: "State hotspots constrain parallel speedup.",
       sourceTitle: "State Hotspots in High-Throughput Smart-Contract Execution",
       sourceLocator: "delphi:state-hotspots-2025",
       sourceLibrary: "delphi-digital",
       sourceMetadata: { year: 2025, type: "report" },
       excerptOrSummary:
         "Bench data shows serialization fallbacks on hot accounts erase most of the parallel speedup once contention crosses a modest threshold.",
-      relevanceExplanation: "约束过度宣称。"
+      relevanceExplanation: "Constrains overclaiming."
     }
   ]
 });
 
-// 速查包：双问题——answers[0] 摘录与本地存档相悖（查准红），且漏 Block-STM（查全红）。
 const shallowPkg: ProviderAnswerPackage = withRealRoot({
   ...pkg,
   providerId: "shallow-search-provider",
-  providerName: "文献速查 Agent",
+  providerName: "Fast Literature Search Agent",
   coverageStatement:
-    "自报广泛覆盖 2021-2026 年区块链执行加速方向的学术论文（持有 IEEE Xplore / ACM Digital Library 订阅）。",
+    "Claims broad coverage of 2021-2026 academic papers on blockchain execution acceleration (with IEEE Xplore / ACM Digital Library subscriptions).",
   answers: [
     {
-      providerAnswer: "性能提升主要来自共识与硬件。",
+      providerAnswer: "Performance gains mainly come from consensus and hardware.",
       sourceTitle: "A Survey of Blockchain Performance Optimization Techniques",
       sourceLocator: "doi:10.1109/COMST.2023.3310992",
       sourceLibrary: "ieee-xplore",
       sourceMetadata: { year: 2023, type: "paper" },
       excerptOrSummary:
         "The survey concludes that consensus upgrades and hardware improvements are the dominant sources of recent blockchain performance gains.",
-      relevanceExplanation: "综述类来源。"
+      relevanceExplanation: "Survey-style source."
     },
     {
-      providerAnswer: "吞吐基准由共识参数决定。",
+      providerAnswer: "Throughput benchmarks are determined by consensus parameters.",
       sourceTitle: "Consensus Throughput Benchmarks Revisited",
       sourceLocator: "doi:10.1109/INFOCOM.2024.1187",
       sourceLibrary: "ieee-xplore",
       sourceMetadata: { year: 2024, type: "paper" },
       excerptOrSummary:
         "Benchmark variance is explained primarily by consensus parameters.",
-      relevanceExplanation: "支撑以共识为中心的叙事。"
+      relevanceExplanation: "Supports a consensus-centered narrative."
     }
   ]
 });
@@ -546,13 +542,13 @@ describe("Step5Evidence — Agent spot check (scope-matched, real computations)"
     render(<Step5Evidence task={task({ providerPackage: expertPkg })} {...defaultProps} />);
     expect(screen.getByTestId("agent-spot-check")).toBeTruthy();
     expect(screen.queryByTestId("spot-check-failed")).toBeNull();
-    expect(screen.getAllByText(/已包含在简报中/).length).toBe(2);
+    expect(screen.getAllByText(/included in the Evidence Service Package/).length).toBe(2);
   });
 
-  it("expert package: 查准 rows pass the real corpus comparison", () => {
+  it("expert package: source-accuracy rows pass the real corpus comparison", () => {
     render(<Step5Evidence task={task({ providerPackage: expertPkg })} {...defaultProps} />);
-    expect(screen.getAllByText(/摘录与本地资料库存档一致/).length).toBe(2);
-    expect(screen.queryByText(/摘录与本地存档原文不符/)).toBeNull();
+    expect(screen.getAllByText(/excerpt matches local archive/).length).toBe(2);
+    expect(screen.queryByText(/excerpt contradicts local archive/)).toBeNull();
   });
 
   it("a tampered excerpt fails the corpus comparison (red, not copy)", () => {
@@ -568,57 +564,57 @@ describe("Step5Evidence — Agent spot check (scope-matched, real computations)"
       ]
     });
     render(<Step5Evidence task={task({ providerPackage: tampered })} {...defaultProps} />);
-    expect(screen.getAllByText(/摘录与本地存档原文不符/).length).toBe(1);
-    expect(screen.getByTestId("spot-check-failed").textContent).toContain("查准");
+    expect(screen.getAllByText(/excerpt contradicts local archive/).length).toBe(1);
+    expect(screen.getByTestId("spot-check-failed").textContent).toContain("Source Accuracy");
   });
 
   it("shallow package: dual failure — excerpt mismatch AND in-scope coverage miss", () => {
     render(<Step5Evidence task={task({ providerPackage: shallowPkg })} {...defaultProps} />);
     const strip = screen.getByTestId("spot-check-failed");
-    expect(strip.textContent).toContain("查准");
-    expect(strip.textContent).toContain("查全");
-    expect(screen.getAllByText(/摘录与本地存档原文不符/).length).toBe(1);
-    expect(screen.getAllByText(/未出现在简报中——且在其覆盖声明范围内/).length).toBe(1);
-    expect(screen.getAllByText(/不在其覆盖声明范围/).length).toBe(1);
+    expect(strip.textContent).toContain("Source Accuracy");
+    expect(strip.textContent).toContain("Coverage Completeness");
+    expect(screen.getAllByText(/excerpt contradicts local archive/).length).toBe(1);
+    expect(screen.getAllByText(/missing from the package and inside the Coverage Statement/).length).toBe(1);
+    expect(screen.getAllByText(/outside the Coverage Statement/).length).toBe(1);
   });
 
   it("sources absent from the local corpus are skipped, not failed", () => {
     render(<Step5Evidence task={task({ providerPackage: shallowPkg })} {...defaultProps} />);
-    expect(screen.getAllByText(/本地库未存档该来源，未抽查/).length).toBe(1);
+    expect(screen.getAllByText(/local archive does not contain this source; skipped/).length).toBe(1);
   });
 
-  it("shallow package: secondary action becomes 生成挑战包，发起挑战", () => {
+  it("shallow package: secondary action becomes Build Challenge Package and Open Challenge", () => {
     render(<Step5Evidence task={task({ providerPackage: shallowPkg })} {...defaultProps} />);
-    expect(screen.getByRole("button", { name: "生成挑战包，发起挑战" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Build Challenge Package and Open Challenge" })).toBeTruthy();
   });
 
-  it("expert package keeps the plain 发起挑战 action", () => {
+  it("expert package keeps the plain Open Challenge action", () => {
     render(<Step5Evidence task={task({ providerPackage: expertPkg })} {...defaultProps} />);
-    expect(screen.getByRole("button", { name: "发起挑战" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Open Challenge" })).toBeTruthy();
   });
 
-  it("链上存证 shows a single real verification row, no structure internals", () => {
+  it("on-chain commitment shows a single real verification row, no structure internals", () => {
     render(<Step5Evidence task={task({ providerPackage: expertPkg })} {...defaultProps} />);
-    expect(screen.getAllByText(/收到的简报与专家签名上链的哈希一致/).length).toBe(1);
-    expect(screen.queryByText(/承诺结构/)).toBeNull();
+    expect(screen.getAllByText(/matches the Provider-signed on-chain package hash/).length).toBe(1);
+    expect(screen.queryByText(/commitment structure/)).toBeNull();
     expect(screen.queryByText(/Merkle/)).toBeNull();
   });
 });
 
 describe("Step5Evidence — challenge materials rigor rows", () => {
-  it("挑战书 shows the counter-evidence library (subscription) and jury assignment basis", () => {
+  it("Challenge Package shows the counter-evidence library subscription and jury assignment basis", () => {
     render(
       <Step5Evidence
         task={task({ status: "Challenged", challenge: challengeFixture })}
         {...defaultProps}
       />
     );
-    expect(screen.getAllByText(/反证所在库/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/陪审方指派依据/).length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/订阅授权/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Counter-evidence library/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Jury assignment basis/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Paid subscription/).length).toBeGreaterThan(0);
   });
 
-  it("every jury vote card carries an 原文核对 row", () => {
+  it("every jury vote card carries an Original-text check row", () => {
     render(
       <Step5Evidence
         task={task({
@@ -628,7 +624,7 @@ describe("Step5Evidence — challenge materials rigor rows", () => {
         {...defaultProps}
       />
     );
-    expect(screen.getAllByText("原文核对").length).toBe(votesFixture.length);
-    expect(screen.getAllByText(/已凭自有 ACM Digital Library 订阅调取/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Original-text check").length).toBe(votesFixture.length);
+    expect(screen.getAllByText(/ACM (Digital Library subscription|DL access)|retrieved doi:10\.1145\/3572848\.3577524/).length).toBeGreaterThan(0);
   });
 });

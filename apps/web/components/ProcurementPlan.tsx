@@ -1,5 +1,6 @@
 import React from "react";
 import type { Task } from "@proofmarket/shared/src/types";
+import { displayAsset } from "../lib/assets";
 import { DataRow, Section } from "./Section";
 
 type ProcurementPlanProps = {
@@ -21,11 +22,11 @@ export function ProcurementPlan({
 
   return (
     <Section
-      title="Procurement plan"
-      kicker="Scope before spend"
+      title="Procurement Plan"
+      kicker="Scope Before Spend"
       action={
         <button onClick={onGenerate} disabled={!canGenerate}>
-          Generate procurement plan
+          Generate Procurement Plan
         </button>
       }
     >
@@ -34,44 +35,43 @@ export function ProcurementPlan({
           label="Evidence need"
           value={
             plan?.evidenceNeed ??
-            "Waiting for task creation. The plan will explain why external evidence is needed before execution."
+            "Waiting for task creation. The procurement plan explains why external evidence service is needed before execution."
           }
         />
         <DataRow
-          label="Provider count"
+          label="Provider candidates"
           value={
             plan
-              ? `${plan.providerCount} candidates, one recommended`
-              : "Exactly three candidates will be shown."
+              ? `${plan.providerCount} candidates, 1 recommended`
+              : "Three Provider candidates will be shown."
           }
         />
         <DataRow
           label="Budget"
           value={
             plan
-              ? `${plan.totalBudget} total cap, ${plan.perJobCap} per-provider cap`
-              : "5 test USDC total cap, 1 test USDC per-provider cap"
+              ? `Total budget cap ${displayAsset(plan.totalBudget)}, per-Provider cap ${displayAsset(plan.perJobCap)}`
+              : "Total budget cap 5 USDC, per-Provider cap 1 USDC"
           }
         />
         <DataRow
-          label="Return type"
-          value={plan?.returnType ?? "provider-answer-package"}
+          label="Deliverable type"
+          value={plan?.returnType ?? "Evidence Service Package"}
         />
         <DataRow
-          label="Coverage"
+          label="Coverage commitment"
           value={plan?.coverage ?? defaultCoverage}
         />
         <DataRow
-          label="Verification"
+          label="Verification method"
           value={
             plan?.verificationMethod ??
-            "Verifier checks locators, excerpts or summaries, relevance, and coverage."
+            "Verify source locators, excerpts or summaries, relevance, and coverage commitment."
           }
         />
       </div>
       <p className="small muted tight">
-        The plan buys a bounded answer package and verification trail, not full
-        documents or unrestricted wallet access.
+        The procurement plan buys a bounded Evidence Service Package and verifiable records. Full source text and unrestricted signing authority never enter the transaction.
       </p>
     </Section>
   );

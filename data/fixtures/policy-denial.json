@@ -1,7 +1,7 @@
 {
   "id": "task_001",
   "userQuestion": "请调研近几年区块链交易执行加速的最新研究进展。",
-  "status": "DeniedByCobo",
+  "status": "DeniedByPolicy",
   "budgetLimit": "5 test USDC",
   "selectedProviderIds": [
     "execution-research-expert",
@@ -20,7 +20,7 @@
     "returnType": "provider-answer-package",
     "verificationMethod": "验证者核对来源定位、摘录与摘要的一致性、相关性说明以及覆盖声明。"
   },
-  "pact": {
+  "policy": {
     "intent": "Fund one provider research job for task task_001.",
     "totalBudget": "5 test USDC",
     "perJobCap": "1 test USDC",
@@ -41,10 +41,10 @@
       "direct transfer",
       "non-whitelisted target",
       "amount above cap",
-      "expired pact"
+      "expired policy"
     ],
     "expiresInMinutes": 30,
-    "pactId": "pact_001",
+    "policyId": "policy_001",
     "status": "active"
   },
   "providerPackage": null,
@@ -57,7 +57,7 @@
       "result": "success",
       "message": "用户创建任务，预算 5 test USDC。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": null,
       "createdAt": "2026-06-10T07:42:44.017Z"
     },
@@ -69,43 +69,43 @@
       "result": "success",
       "message": "已选定候选 Provider：execution-research-expert、shallow-search-provider、general-web-summary。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": null,
       "createdAt": "2026-06-10T07:42:44.017Z"
     },
     {
       "id": "audit_003",
       "taskId": "task_001",
-      "source": "cobo",
-      "type": "pact_submitted",
+      "source": "policy-signer",
+      "type": "policy_submitted",
       "result": "success",
-      "message": "已提交 Pact pact_001。",
+      "message": "已提交受限签名策略 policy_001。",
       "txHash": null,
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": null,
       "createdAt": "2026-06-10T07:42:44.017Z"
     },
     {
       "id": "audit_004",
       "taskId": "task_001",
-      "source": "cobo",
-      "type": "pact_activated",
+      "source": "policy-signer",
+      "type": "policy_activated",
       "result": "success",
-      "message": "Pact pact_001 已激活。",
+      "message": "受限签名策略 policy_001 已激活。",
       "txHash": null,
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": null,
       "createdAt": "2026-06-10T07:42:44.017Z"
     },
     {
       "id": "audit_005",
       "taskId": "task_001",
-      "source": "cobo",
+      "source": "policy-signer",
       "type": "escrow_denied",
       "result": "denied",
-      "message": "直接转账被拒绝：目标地址不在白名单内，且金额超出 Pact 上限。 尝试目标=0xDeniedDirectTransfer；函数=transfer；金额=10 SETH；已转移资金=0 test USDC；未创建任何托管订单。",
+      "message": "直接转账被拒绝：目标地址不在白名单内，且金额超出 Policy 上限。 尝试目标=0xDeniedDirectTransfer；函数=transfer；金额=10 SETH；已转移资金=0 test USDC；未创建任何托管订单。",
       "txHash": null,
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": null,
       "createdAt": "2026-06-10T07:42:44.017Z"
     }

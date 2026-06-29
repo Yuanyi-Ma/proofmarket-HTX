@@ -1,4 +1,16 @@
-export const SEPOLIA_CHAIN_ID = 11155111;
+import {
+  INJECTIVE_EVM_TESTNET_CHAIN_ID,
+  SEPOLIA_CHAIN_ID
+} from "./chains";
+
+export {
+  INJECTIVE_EVM_TESTNET_CHAIN_ID,
+  SEPOLIA_CHAIN_ID
+} from "./chains";
+const SUPPORTED_REAL_MODE_CHAIN_IDS = new Set([
+  SEPOLIA_CHAIN_ID,
+  INJECTIVE_EVM_TESTNET_CHAIN_ID
+]);
 export const ALLOWED_CHAIN_ACTIONS = [
   "createJob",
   "fund",
@@ -25,12 +37,19 @@ export type DeploymentArtifact = {
   network: string;
   deployer: string;
   blockNumber: number;
-  coboWallet: string;
+  policySignerAddress: string;
   contracts: {
     MockUSDC: string;
     ProofMarketEscrow: string;
     /** Present in artifacts produced by the P0-2 deploy script and later. */
     ProofMarketChallengeManager?: string;
+  };
+  paymentToken?: {
+    symbol: string;
+    displayName?: string;
+    address: string;
+    decimals: number;
+    source?: string;
   };
   mint: { to: string; rawAmount: string; txHash: string };
   deployedAt: string;
@@ -102,7 +121,7 @@ export type TxRecord = {
     | "fund"
     | "submit"
     | "complete"
-    // Challenge path: deposit approval + openChallenge go through Cobo;
+    // Challenge path: deposit approval + openChallenge go through PolicySigner;
     // defense (provider key), castVote (juror keys) and resolve (any key —
     // permissionless majority execution) are signed directly.
     | "approveDeposit"
@@ -111,14 +130,14 @@ export type TxRecord = {
     | "castVote"
     | "resolve"
     // ERC-8004 reputation feedback after settle/refundOrSlash, signed directly
-    // by the rater key (PROVIDER_SIGNER), not Cobo.
+    // by the rater key (PROVIDER_SIGNER), not PolicySigner.
     | "feedback";
-  coboTxId: string | null;
+  policySignerRequestId: string | null;
   txHash: string;
   status: "pending" | "confirmed" | "failed";
 };
 
-export type CoboDenialRecord = {
+export type PolicyDenialRecord = {
   denied: true;
   exitCode: number;
   attemptedAction: string;
@@ -132,13 +151,15 @@ function isHexAddress(value: unknown): value is string {
 export function parseDeploymentArtifact(input: unknown): DeploymentArtifact {
   const a = input as DeploymentArtifact;
   if (!a || typeof a !== "object") throw new Error("artifact must be an object");
-  if (a.chainId !== SEPOLIA_CHAIN_ID) {
-    throw new Error(`artifact chainId must be ${SEPOLIA_CHAIN_ID}, got ${a.chainId}`);
+  if (!SUPPORTED_REAL_MODE_CHAIN_IDS.has(a.chainId)) {
+    throw new Error(
+      `artifact chainId must be one of ${[...SUPPORTED_REAL_MODE_CHAIN_IDS].join(", ")}, got ${a.chainId}`
+    );
   }
   // Required addresses — always present.
   for (const [name, addr] of [
     ["deployer", a.deployer],
-    ["coboWallet", a.coboWallet],
+    ["policySignerAddress", a.policySignerAddress],
     ["contracts.MockUSDC", a.contracts?.MockUSDC],
     ["contracts.ProofMarketEscrow", a.contracts?.ProofMarketEscrow]
   ] as const) {
@@ -149,6 +170,17 @@ export function parseDeploymentArtifact(input: unknown): DeploymentArtifact {
   if (cm !== undefined && !isHexAddress(cm)) {
     throw new Error("artifact contracts.ProofMarketChallengeManager is not a valid address");
   }
+  if (a.paymentToken !== undefined) {
+    if (!isHexAddress(a.paymentToken.address)) {
+      throw new Error("artifact paymentToken.address is not a valid address");
+    }
+    if (!Number.isInteger(a.paymentToken.decimals) || a.paymentToken.decimals < 0) {
+      throw new Error("artifact paymentToken.decimals must be a non-negative integer");
+    }
+    if (typeof a.paymentToken.symbol !== "string" || a.paymentToken.symbol.length === 0) {
+      throw new Error("artifact paymentToken.symbol is required");
+    }
+  }
   if (a.resolver !== undefined && !isHexAddress(a.resolver)) {
     throw new Error("artifact resolver is not a valid address");
   }
@@ -157,6 +189,21 @@ export function parseDeploymentArtifact(input: unknown): DeploymentArtifact {
   }
   if (a.challenger !== undefined && !isHexAddress(a.challenger.address)) {
     throw new Error("artifact challenger.address is not a valid address");
+  }
+  if (a.jurors !== undefined) {
+    if (!Array.isArray(a.jurors)) {
+      throw new Error("artifact jurors must be an array");
+    }
+    for (const [index, juror] of a.jurors.entries()) {
+      if (!isHexAddress(juror.address)) {
+        throw new Error(`artifact jurors[${index}].address is not a valid address`);
+      }
+      for (const field of ["jurorId", "modelFamily", "modelTag", "promptTag"] as const) {
+        if (typeof juror[field] !== "string" || juror[field].length === 0) {
+          throw new Error(`artifact jurors[${index}].${field} is required`);
+        }
+      }
+    }
   }
   if (a.providers !== undefined) {
     for (const [id, entry] of Object.entries(a.providers)) {

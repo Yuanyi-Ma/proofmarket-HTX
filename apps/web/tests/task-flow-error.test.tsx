@@ -8,14 +8,14 @@ import type { ProcurementPlan, Task } from "@proofmarket/shared/src/types";
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
-const PACT_ERROR = "Cobo pact submission failed: policy service unavailable";
+const POLICY_ERROR = "Restricted signing policy submission failed: policy service unavailable";
 
 const plan: ProcurementPlan = {
   taskId: "task_001",
   userQuestion: "Question",
   evidenceNeed: "Need primary sources on execution acceleration.",
-  totalBudget: "5 test USDC",
-  perJobCap: "1 test USDC",
+  totalBudget: "5 USDC",
+  perJobCap: "1 USDC",
   recommendedProviderId: "execution-research-expert",
   providerCount: 3,
   coverage: "Block-STM, parallel execution.",
@@ -28,10 +28,10 @@ function task(overrides: Partial<Task> = {}): Task {
     id: "task_001",
     userQuestion: "Question",
     status: "Created",
-    budgetLimit: "5 test USDC",
+    budgetLimit: "5 USDC",
     selectedProviderIds: [],
     plan: null,
-    pact: null,
+    policy: null,
     providerPackage: null,
     audit: [],
     jobId: null,
@@ -58,7 +58,7 @@ afterEach(() => {
 });
 
 describe("error surfacing after a failed action", () => {
-  it("shows the route error AND the persisted audit failure after pact fails", async () => {
+  it("shows the route error AND the persisted audit failure after policy fails", async () => {
     const plannedTask = task({ status: "Planned", plan });
     const failedTask = task({
       status: "Planned",
@@ -68,12 +68,12 @@ describe("error surfacing after a failed action", () => {
           id: "audit_001",
           taskId: "task_001",
           createdAt: "2026-01-01T00:00:01.000Z",
-          source: "cobo",
-          type: "pact_failed",
+          source: "policy-signer",
+          type: "policy_failed",
           result: "failed",
-          message: `pact failed: ${PACT_ERROR}`,
+          message: `policy failed: ${POLICY_ERROR}`,
           txHash: null,
-          pactId: null,
+          policyId: null,
           jobId: null
         }
       ]
@@ -88,8 +88,8 @@ describe("error surfacing after a failed action", () => {
       if (method === "POST" && url === "/api/tasks/task_001/plan") {
         return jsonResponse(plannedTask, 200);
       }
-      if (method === "POST" && url === "/api/tasks/task_001/pact") {
-        return jsonResponse({ error: PACT_ERROR }, 500);
+      if (method === "POST" && url === "/api/tasks/task_001/policy") {
+        return jsonResponse({ error: POLICY_ERROR }, 500);
       }
       if (method === "GET" && url === "/api/tasks/task_001") {
         return jsonResponse(failedTask, 200);
@@ -101,28 +101,28 @@ describe("error surfacing after a failed action", () => {
     render(<Page />);
 
     // Step 1 → auto plan-chain → step 2.
-    fireEvent.click(screen.getByRole("button", { name: "生成购买方案" }));
+    fireEvent.click(screen.getByRole("button", { name: "Generate Procurement Plan" }));
     await waitFor(() => {
       const confirm = screen.getByRole("button", {
-        name: "确认方案，去授权"
+        name: "Confirm Plan and Authorize"
       }) as HTMLButtonElement;
       expect(confirm.disabled).toBe(false);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "确认方案，去授权" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm Plan and Authorize" }));
 
     // Error strip surfaces the JSON error from the 500 response.
     await waitFor(() =>
-      expect(screen.getByRole("alert").textContent).toContain(PACT_ERROR)
+      expect(screen.getByRole("alert").textContent).toContain(POLICY_ERROR)
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "展开" }));
+    fireEvent.click(screen.getByRole("button", { name: "Expand" }));
 
     // The follow-up GET refetched the task: the persisted audit failure
     // renders in the audit sidebar (source label + message).
     await waitFor(() => {
-      expect(screen.getByText(`pact failed: ${PACT_ERROR}`)).toBeTruthy();
-      expect(screen.getAllByText("Cobo").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(`policy failed: ${POLICY_ERROR}`)).toBeTruthy();
+      expect(screen.getAllByText("Policy Signer").length).toBeGreaterThanOrEqual(1);
     });
 
     // One refetch happened after the failed POST.

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import React from "react";
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Step4Onchain } from "../components/steps/Step4Onchain";
@@ -9,23 +9,27 @@ import type { TxRecord } from "@proofmarket/shared/src/realMode";
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+});
 
 const FULL_TX_HASH_1 = "0x" + "a".repeat(64);
 const FULL_TX_HASH_2 = "0x" + "b".repeat(64);
 const FULL_TX_HASH_3 = "0x" + "c".repeat(64);
 const FULL_TX_HASH_4 = "0x" + "d".repeat(64);
+const repeatedHexHash = /^0x([0-9a-f])\1{63}$/i;
 
 const confirmedRecords: TxRecord[] = [
-  { label: "approve", coboTxId: "cobo_1", txHash: FULL_TX_HASH_1, status: "confirmed" },
-  { label: "createJob", coboTxId: "cobo_2", txHash: FULL_TX_HASH_2, status: "confirmed" },
-  { label: "setBudget", coboTxId: "cobo_3", txHash: FULL_TX_HASH_3, status: "confirmed" },
-  { label: "fund", coboTxId: "cobo_4", txHash: FULL_TX_HASH_4, status: "confirmed" }
+  { label: "approve", policySignerRequestId: "signer_1", txHash: FULL_TX_HASH_1, status: "confirmed" },
+  { label: "createJob", policySignerRequestId: "signer_2", txHash: FULL_TX_HASH_2, status: "confirmed" },
+  { label: "setBudget", policySignerRequestId: "signer_3", txHash: FULL_TX_HASH_3, status: "confirmed" },
+  { label: "fund", policySignerRequestId: "signer_4", txHash: FULL_TX_HASH_4, status: "confirmed" }
 ];
 
 const partialRecords: TxRecord[] = [
-  { label: "approve", coboTxId: "cobo_1", txHash: FULL_TX_HASH_1, status: "confirmed" },
-  { label: "createJob", coboTxId: null, txHash: "", status: "pending" }
+  { label: "approve", policySignerRequestId: "signer_1", txHash: FULL_TX_HASH_1, status: "confirmed" },
+  { label: "createJob", policySignerRequestId: null, txHash: "", status: "pending" }
 ];
 
 function task(overrides: Partial<Task> = {}): Task {
@@ -33,10 +37,10 @@ function task(overrides: Partial<Task> = {}): Task {
     id: "task_001",
     userQuestion: "Question",
     status: "JobFunded",
-    budgetLimit: "5 test USDC",
+    budgetLimit: "5 USDC",
     selectedProviderIds: [],
     plan: null,
-    pact: null,
+    policy: null,
     providerPackage: null,
     audit: [],
     jobId: 42,
@@ -60,51 +64,68 @@ describe("Step4Onchain — tx list rendering", () => {
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("授权代币")).toBeTruthy();
-    expect(screen.getByText("创建专家订单")).toBeTruthy();
-    expect(screen.getByText("设定预算")).toBeTruthy();
-    expect(screen.getByText("锁定托管资金")).toBeTruthy();
+    expect(screen.getByText("Approve token")).toBeTruthy();
+    expect(screen.getByText("Create Provider job")).toBeTruthy();
+    expect(screen.getByText("Set budget")).toBeTruthy();
+    expect(screen.getByText("Fund escrow")).toBeTruthy();
   });
 
-  it("shows 演示模式 message when txRecords is empty but status is JobFunded (fixture mode)", () => {
+  it("renders staged demo procurement rows when txRecords is empty but status is JobFunded (fixture mode)", async () => {
+    vi.useFakeTimers();
     render(
       <Step4Onchain
         task={task({ txRecords: [], status: "JobFunded" })}
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("本地模拟模式：已完成采购执行，没有测试网交易明细。")).toBeTruthy();
+    expect(screen.getByText("Approve token")).toBeTruthy();
+    expect(screen.queryByText("No testnet transaction details")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Get Evidence Package/ })).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_100);
+    });
+
+    expect(screen.getByText("Create Provider job")).toBeTruthy();
+    expect(screen.getByText("Set budget")).toBeTruthy();
+    expect(screen.getByText("Fund escrow")).toBeTruthy();
+    expect(screen.getAllByText("Confirmed").length).toBe(4);
+    const txHrefs = screen
+      .getAllByRole("link")
+      .map((link) => (link as HTMLAnchorElement).href);
+    expect(txHrefs.some((href) => repeatedHexHash.test(href.split("/").at(-1) ?? ""))).toBe(false);
+    expect(screen.getByRole("button", { name: /Get Evidence Package/ })).toBeTruthy();
   });
 
-  it("shows 等待采购执行完成 message when txRecords is empty and status is NOT JobFunded (mid-execute)", () => {
+  it("shows waiting message when txRecords is empty and status is NOT JobFunded (mid-execute)", () => {
     render(
       <Step4Onchain
-        task={task({ txRecords: [], status: "PactActive" })}
+        task={task({ txRecords: [], status: "PolicyActive" })}
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("等待采购执行完成…")).toBeTruthy();
+    expect(screen.getByText("Waiting for purchase execution to finish...")).toBeTruthy();
   });
 
-  it("shows 已确认 badge for confirmed records", () => {
+  it("shows Confirmed badge for confirmed records", () => {
     render(
       <Step4Onchain
         task={task({ txRecords: confirmedRecords })}
         onGetEvidence={noop}
       />
     );
-    const badges = screen.getAllByText("已确认");
+    const badges = screen.getAllByText("Confirmed");
     expect(badges.length).toBe(4);
   });
 
-  it("shows 进行中 badge for pending records", () => {
+  it("shows In progress badge for pending records", () => {
     render(
       <Step4Onchain
         task={task({ txRecords: partialRecords })}
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("进行中")).toBeTruthy();
+    expect(screen.getByText("In progress")).toBeTruthy();
   });
 
   it("shows in-progress pulse text for pending records", () => {
@@ -114,12 +135,12 @@ describe("Step4Onchain — tx list rendering", () => {
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("进行中…")).toBeTruthy();
+    expect(screen.getByText("In progress...")).toBeTruthy();
   });
 });
 
 describe("Step4Onchain — confirmed tx links to etherscan", () => {
-  it("links confirmed full-hash records to Sepolia Etherscan", () => {
+  it("links confirmed full-hash records to Injective Explorer", () => {
     render(
       <Step4Onchain
         task={task({ txRecords: confirmedRecords })}
@@ -130,7 +151,7 @@ describe("Step4Onchain — confirmed tx links to etherscan", () => {
     expect(links.length).toBe(4);
 
     const hrefs = Array.from(links).map((a) => a.href);
-    expect(hrefs[0]).toContain("sepolia.etherscan.io/tx/");
+    expect(hrefs[0]).toContain("testnet.blockscout.injective.network/tx/");
     expect(hrefs[0]).toContain(FULL_TX_HASH_1);
   });
 
@@ -148,62 +169,67 @@ describe("Step4Onchain — confirmed tx links to etherscan", () => {
   });
 });
 
-describe("Step4Onchain — 获取研究简报 action", () => {
-  it("shows 获取研究简报 button when all 4 escrow records are confirmed", () => {
+describe("Step4Onchain — Get Evidence Package action", () => {
+  it("shows Get Evidence Package button when all 4 escrow records are confirmed", () => {
     render(
       <Step4Onchain
         task={task({ txRecords: confirmedRecords })}
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByRole("button", { name: /获取研究简报/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Get Evidence Package/ })).toBeTruthy();
   });
 
-  it("does NOT show 获取研究简报 when status is not JobFunded (mid-execute, partial records)", () => {
+  it("does NOT show Get Evidence Package when status is not JobFunded (mid-execute, partial records)", () => {
     render(
       <Step4Onchain
-        task={task({ txRecords: partialRecords, status: "PactActive" })}
+        task={task({ txRecords: partialRecords, status: "PolicyActive" })}
         onGetEvidence={noop}
       />
     );
-    expect(screen.queryByRole("button", { name: /获取研究简报/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Get Evidence Package/ })).toBeNull();
   });
 
-  // Fixture mode: status is JobFunded, txRecords is empty — button MUST appear.
-  it("shows 获取研究简报 button in fixture mode (JobFunded + empty txRecords)", () => {
-    render(
-      <Step4Onchain
-        task={task({ txRecords: [], status: "JobFunded" })}
-        onGetEvidence={noop}
-      />
-    );
-    expect(screen.getByRole("button", { name: /获取研究简报/ })).toBeTruthy();
-  });
-
-  // Fixture mode also shows the honest 演示模式 line alongside the button.
-  it("shows 演示模式 honest line in fixture mode (JobFunded + empty txRecords)", () => {
+  it("waits to show Get Evidence Package until fixture-mode staged txs finish", async () => {
+    vi.useFakeTimers();
     render(
       <Step4Onchain
         task={task({ txRecords: [], status: "JobFunded" })}
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("本地模拟模式：已完成采购执行，没有测试网交易明细。")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Get Evidence Package/ })).toBeNull();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_100);
+    });
+
+    expect(screen.getByRole("button", { name: /Get Evidence Package/ })).toBeTruthy();
+  });
+
+  it("shows the staged procurement line in fixture mode", () => {
+    render(
+      <Step4Onchain
+        task={task({ txRecords: [], status: "JobFunded" })}
+        onGetEvidence={noop}
+      />
+    );
+    expect(screen.getByText("Waiting for purchase execution to finish...")).toBeTruthy();
   });
 
   // Mid-execute: status NOT JobFunded, empty txRecords — no button, calm wait.
-  it("does NOT show 获取研究简报 when mid-execute (non-JobFunded status + empty txRecords)", () => {
+  it("does NOT show Get Evidence Package when mid-execute (non-JobFunded status + empty txRecords)", () => {
     render(
       <Step4Onchain
-        task={task({ txRecords: [], status: "PactActive" })}
+        task={task({ txRecords: [], status: "PolicyActive" })}
         onGetEvidence={noop}
       />
     );
-    expect(screen.queryByRole("button", { name: /获取研究简报/ })).toBeNull();
-    expect(screen.getByText("等待采购执行完成…")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Get Evidence Package/ })).toBeNull();
+    expect(screen.getByText("Waiting for purchase execution to finish...")).toBeTruthy();
   });
 
-  it("disables 获取研究简报 when isBusy is true", () => {
+  it("disables Get Evidence Package when isBusy is true", () => {
     render(
       <Step4Onchain
         task={task({ txRecords: confirmedRecords })}
@@ -211,15 +237,15 @@ describe("Step4Onchain — 获取研究简报 action", () => {
         isBusy={true}
       />
     );
-    const btn = screen.getByRole("button", { name: /获取研究简报/ });
+    const btn = screen.getByRole("button", { name: /Get Evidence Package/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("renders additional records (submit/complete) if present", () => {
     const extraRecords: TxRecord[] = [
       ...confirmedRecords,
-      { label: "submit", coboTxId: "cobo_5", txHash: FULL_TX_HASH_1, status: "confirmed" },
-      { label: "complete", coboTxId: "cobo_6", txHash: FULL_TX_HASH_2, status: "confirmed" }
+      { label: "submit", policySignerRequestId: "signer_5", txHash: FULL_TX_HASH_1, status: "confirmed" },
+      { label: "complete", policySignerRequestId: "signer_6", txHash: FULL_TX_HASH_2, status: "confirmed" }
     ];
     render(
       <Step4Onchain
@@ -227,7 +253,7 @@ describe("Step4Onchain — 获取研究简报 action", () => {
         onGetEvidence={noop}
       />
     );
-    expect(screen.getByText("提交简报")).toBeTruthy();
-    expect(screen.getByText("结算放款")).toBeTruthy();
+    expect(screen.getByText("Submit package")).toBeTruthy();
+    expect(screen.getByText("Settle payment")).toBeTruthy();
   });
 });

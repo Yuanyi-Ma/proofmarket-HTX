@@ -1,67 +1,59 @@
 import { expect, test } from "@playwright/test";
 
-// 驱动 fixture 模式下的 6 步向导（playwright webServer 默认不带
-// PROOFMARKET_MODE=real，走本地状态机）。每一步以「下一步的主按钮可见」
-// 作为完成信号——按钮在 busy 时会换文案并禁用，等下一步出现最稳。
+// Drives the six-step wizard in fixture mode. Each step waits for the next
+// primary action to become visible because busy states change button labels.
 
-test.describe("ProofMarket 六步向导（fixture 模式）", () => {
-  test("成功路径：提问 → 方案 → 授权 → 链上采购 → 核验 → 结算完成", async ({
+test.describe("ProofMarket six-step wizard (fixture mode)", () => {
+  test("happy path: question → plan → authorization → purchase → verification → settlement", async ({
     page
   }) => {
     await page.goto("/console");
 
-    // 第 1 步：提出问题（问题与预算已预填）
     await expect(
-      page.getByRole("heading", { name: "提出你的研究问题" })
+      page.getByRole("heading", { name: "Ask Your Research Question" })
     ).toBeVisible();
-    const generatePlan = page.getByRole("button", { name: "生成购买方案" });
+    const generatePlan = page.getByRole("button", { name: "Generate Procurement Plan" });
     await expect(generatePlan).toBeEnabled();
     await generatePlan.click();
 
-    // 第 2 步：采购方案（创建任务后自动生成方案）
-    const confirmPlan = page.getByRole("button", { name: "确认方案，去授权" });
+    const confirmPlan = page.getByRole("button", { name: "Confirm Plan and Authorize" });
     await expect(confirmPlan).toBeVisible();
-    await expect(page.getByText("购买决策").first()).toBeVisible();
+    await expect(page.getByText("Purchase decision").first()).toBeVisible();
     await confirmPlan.click();
 
-    // 第 3 步：授权支付（fixture 模式 pact 自动激活）
-    const executeOnchain = page.getByRole("button", { name: "执行采购" });
+    const executeOnchain = page.getByRole("button", { name: "Execute Purchase" });
     await expect(executeOnchain).toBeVisible();
     await expect(
-      page.getByText("授权已生效").first()
+      page.getByText("Authorization active").first()
     ).toBeVisible();
     await expect(executeOnchain).toBeEnabled();
     await executeOnchain.click();
 
-    // 第 4 步：采购执行完成后可获取简报
-    const getEvidence = page.getByRole("button", { name: "获取研究简报" });
+    const getEvidence = page.getByRole("button", { name: "Get Evidence Package" });
     await expect(getEvidence).toBeVisible();
     await getEvidence.click();
 
-    // 第 5 步：证据与核验
-    const verifyEvidence = page.getByRole("button", { name: "核验简报" });
+    const verifyEvidence = page.getByRole("button", { name: "Verify Evidence" });
     await expect(verifyEvidence).toBeVisible();
-    await expect(page.getByText("简报哈希").first()).toBeVisible();
+    await expect(page.getByText("Package hash").first()).toBeVisible();
     await verifyEvidence.click();
 
-    // 第 6 步：核验通过后结算
-    const settle = page.getByRole("button", { name: "确认结算" });
+    const settle = page.getByRole("button", { name: /^(Settle Now|Confirm Settlement)$/ });
     await expect(settle).toBeVisible();
     await settle.click();
 
-    // 结算完成：标题「结算完成」+ 交易与凭证折叠区
-    await expect(page.getByRole("heading", { name: "结算完成" })).toBeVisible();
-    await page.getByText("交易与凭证").click();
-    await expect(page.getByText("Pact ID", { exact: true })).toBeVisible();
-    await expect(page.getByText("简报哈希").first()).toBeVisible();
-    await expect(page.getByText("Verdict 哈希")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Settlement" })).toBeVisible();
+    await expect(page.getByText("Final Answer", { exact: true })).toBeVisible();
+    await page.getByText("Transactions and Receipts").click();
+    await expect(page.getByText("Policy ID", { exact: true })).toBeVisible();
+    await expect(page.getByText("Package hash").first()).toBeVisible();
+    await expect(page.getByText("Verdict hash")).toBeVisible();
 
-    // 操作按钮：一个「开始新任务」+ 一个「查看完整审计」
     await expect(
-      page.getByRole("button", { name: "开始新任务" })
+      page.getByRole("button", { name: "Start New Task" })
     ).toHaveCount(1);
     await expect(
-      page.getByRole("button", { name: "查看完整审计" })
+      page.getByRole("button", { name: "View Full Audit" })
     ).toBeVisible();
   });
 });

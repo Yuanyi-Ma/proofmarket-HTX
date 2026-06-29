@@ -9,7 +9,7 @@
 
 **核心论点**：产出一份高质量简报很难，但概率性地检查它做没做对很容易。所以协议先信任交付、直接给结果，事后靠本地抽查和挑战机制兜底——只要作恶被抓的概率 × 罚金 > 省下的成本，诚实就是专家唯一划算的选择。简报按「总述 + 逐条资料」组成 **Merkle 树**承诺上链：争议只交换单条内容加哈希路径，**原文不动，信任流动**。
 
-资金边界由 **Cobo Agentic Wallet** 强制执行（任务级授权，越权真实拒绝）；托管、挑战、应辩、AI 陪审团投票、清算与 ERC-8004 信誉全部跑在 Sepolia 实链上，委托流程遵循 ERC-8004 / ERC-8183 的设计。
+资金边界由 **restricted signer（受限签名器）** 强制执行（任务级授权，越权真实拒绝）；托管、挑战、应辩、AI 陪审团投票、清算与 ERC-8004 信誉全部跑在 Sepolia 实链上，委托流程遵循 ERC-8004 / ERC-8183 的设计。
 
 ## 快速了解
 
@@ -26,7 +26,7 @@
 | `packages/backend` | 任务服务（fixture / real 双模式） |
 | `packages/agents` | 规划 / 领域专家 / 核验 Agent |
 | `packages/services` | 专家链上提交器与陪审投票服务 |
-| `packages/chain` `cobo` `shared` | 链读写 / Cobo 封装 / 共享类型、资料库注册表与 Merkle 承诺 |
+| `packages/chain` `policy-signer` `shared` | 链读写 / 受限签名器封装 / 共享类型、资料库注册表与 Merkle 承诺 |
 | `deployments/sepolia.json` | Sepolia 合约地址与部署参数 |
 
 ---
@@ -54,9 +54,9 @@ pnpm demo:challenge
 pnpm demo:denial
 ```
 
-The success path settles the expert provider task. The challenge path starts from a fresh task, uses the shallow provider, wins a coverage-miss challenge, and executes refund or slash. The denial path starts from a fresh task and records a Cobo rejection before funds move.
+The success path settles the expert provider task. The challenge path starts from a fresh task, uses the shallow provider, wins a coverage-miss challenge, and executes refund or slash. The denial path starts from a fresh task and records a restricted signer rejection before funds move.
 
-Checked-in fixture snapshots live in `data/fixtures/happy-path.json`, `data/fixtures/challenge-path.json`, and `data/fixtures/cobo-denial.json`. The test suite validates their terminal states, Pact vocabulary, and Cobo denial audit detail.
+Checked-in fixture snapshots live in `data/fixtures/happy-path.json`, `data/fixtures/challenge-path.json`, and `data/fixtures/policy-denial.json`. The test suite validates their terminal states, Policy vocabulary, and restricted signer denial audit detail.
 
 ### Live Demo
 
@@ -66,12 +66,11 @@ pnpm dev
 
 Open `http://localhost:3000`.
 
-If MockUSDC is not visible in Cobo, say "test asset" during the demo.
 Use `Create fresh task` between the success, challenge, and denial paths when presenting the live UI.
 
-## Real mode (Sepolia + Cobo + Claude Code)
+## Real mode (Injective/Sepolia + restricted signer + Codex CLI)
 
-This section covers running the full on-chain flow against Sepolia testnet with a real Cobo Agentic Wallet and Claude Code as the research agent.
+This section covers running the full on-chain flow against Injective EVM testnet or Sepolia with the local restricted signer and Codex CLI as the default research agent. Claude Code remains available by setting `PROOFMARKET_PLAN_SOURCE=claude`.
 
 ### Environment setup
 
@@ -79,12 +78,15 @@ This section covers running the full on-chain flow against Sepolia testnet with 
 cp .env.example .env
 # Fill in the following keys:
 #   DEPLOYER_PRIVATE_KEY      — test key that deploys contracts and pays gas
-#   PROVIDER_SIGNER_PRIVATE_KEY — test key for the demo Provider identity
+#   PROVIDER_SIGNER_PRIVATE_KEY — test key for the recommended demo Provider identity
 #   PROVIDER_SIGNER_ADDRESS   — address of the provider signer key above
-#   COBO_WALLET_ADDRESS       — Cobo Agentic Wallet Sepolia address
+#   PROVIDER_SHALLOW_SEARCH_PROVIDER_PRIVATE_KEY — optional key for the challenge-path Provider
+#   POLICY_SIGNER_WALLET_ADDRESS       — restricted signer Sepolia address
+#   POLICY_SIGNER_PRIVATE_KEY          — local test key for that signer address
 #   SEPOLIA_RPC_URL           — already set to a public RPC; use your own for reliability
 #   SERVICES_URL / SERVICES_PORT — leave defaults unless you changed the port
-#   CLAUDE_BIN                — path to the Claude Code binary (default: claude)
+#   PROOFMARKET_PLAN_SOURCE   — codex (default), claude, or preset
+#   CODEX_BIN                 — path to Codex CLI (default: codex)
 ```
 
 ### Deploy contracts (first time, or after reset)
@@ -108,9 +110,9 @@ Each check prints `PASS`, `FAIL`, or `INFO`. Fix any `FAIL` items before proceed
 | FAIL | Fix |
 |---|---|
 | `deployment_artifact` | Run the deploy command above |
-| `gas_cobo_wallet` | `caw faucet deposit` (Sepolia faucet; daily limit 0.02 SETH) |
-| `gas_deployer` | Use a public Sepolia faucet (e.g. sepoliafaucet.com) or transfer from the Cobo wallet |
-| `gas_provider_signer` | Use a public Sepolia faucet (e.g. sepoliafaucet.com) or transfer from the Cobo wallet |
+| `gas_policy_signer` | Use a public Sepolia faucet or transfer SETH from another test account |
+| `gas_deployer` | Use a public Sepolia faucet (e.g. sepoliafaucet.com) or transfer from the restricted signer |
+| `gas_provider_signer` | Use a public Sepolia faucet (e.g. sepoliafaucet.com) or transfer from the restricted signer |
 | `services_reachable` | Start services: `pnpm dev:services` |
 
 ### Running the demo
@@ -132,20 +134,20 @@ PROOFMARKET_MODE=real pnpm dev
 pnpm demo:real
 ```
 
-`pnpm demo:real` runs the full success path (create → plan → pact → execute → provider → verify → settle) then a denial-demo path on a fresh task. It prints every transaction hash with Etherscan links and the audit file path.
+`pnpm demo:real` runs the full success path (create → plan → policy → execute → provider → verify → settle) then a denial-demo path on a fresh task. It prints every transaction hash with Etherscan links and the audit file path.
 
 ### Demo Day plan
 
-**Pairing decision before the demo:**
+**Signing decision before the demo:**
 
-- **Unpaired wallet (recommended for live demos):** Pacts auto-approve on first `pact-status` check — zero waiting, fully automated. No human step needed.
-- **Paired wallet (adds a visible human-approval scene):** The script prints "waiting for Cobo approval — approve in the Cobo app when prompted" between pact-status tries. You have up to 5 minutes. Re-rehearse the full flow with pairing enabled before demo day — do not pair for the first time during the live run.
+- Use a dedicated Sepolia-only `POLICY_SIGNER_PRIVATE_KEY`. The backend never gives this key to the model; it sends transaction intents to the restricted signer, which checks the active policy before signing.
+- There is no paired wallet approval step in the current baseline. A policy becomes active through the app/server flow, and any target outside the allowlist is refused before signing.
 
 **Pre-demo checklist:**
 
 1. Run `pnpm preflight` — all checks must PASS.
 2. Pre-run one complete `pnpm demo:real` execution as a backup artifact. Keep the task ID and Etherscan links.
-3. Top up Cobo wallet via `caw faucet deposit` if gas is below 0.01 SETH (Sepolia faucet daily limit: 0.02 SETH).
+3. Top up the restricted signer address if gas is below 0.01 SETH.
 4. Keep fixture-mode challenge and denial demos clearly labeled "local simulation" when presenting alongside the real-mode run.
 
 **Recovery:** If a real-mode escrow run fails mid-flow, start a fresh task (`pnpm demo:real` again). Do not retry the same task's `execute` step — partial escrow state is not recoverable without a contract-level reset.
@@ -157,10 +159,10 @@ pnpm demo:real
 1. Create a task from the default blockchain execution acceleration research question.
 2. Generate the procurement plan and show the scope, providers, budget, and verification method before spending.
 3. Show exactly three providers and explain why `论文证据专家 Agent` (execution-research-expert) is recommended.
-4. Submit and activate the Cobo Pact, making the spending boundary visible.
+4. Submit and activate the restricted signing policy, making the spending boundary visible.
 5. Fund the escrow job and point to the transaction hash rather than a direct provider payment.
 6. Run the expert provider and show the evidence-backed answer package.
 7. Verify the evidence and settle payment only after the verifier accepts it.
 8. Start a fresh shallow-provider path, show the `CoverageMiss` challenge document and the provider's defense, then the 2:1 jury verdict (per-vote reason books on-chain) and the permissionless resolve with slash, refunds, and jury-fee split.
-9. Start a fresh denial path, trigger the blocked Cobo action, and show that funds did not move.
-10. Open the audit log and replay the plan, Pact, allowed transaction, delivery hash, verifier result, settlement, challenge result, and denial.
+9. Start a fresh denial path, trigger the blocked restricted signer action, and show that funds did not move.
+10. Open the audit log and replay the plan, Policy, allowed transaction, delivery hash, verifier result, settlement, challenge result, and denial.

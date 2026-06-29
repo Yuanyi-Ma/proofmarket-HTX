@@ -11,7 +11,7 @@
   "dependencies": {
     "@proofmarket/agents": "workspace:*",
     "@proofmarket/chain": "workspace:*",
-    "@proofmarket/cobo": "workspace:*",
+    "@proofmarket/policy-signer": "workspace:*",
     "@proofmarket/shared": "workspace:*"
   },
   "devDependencies": {

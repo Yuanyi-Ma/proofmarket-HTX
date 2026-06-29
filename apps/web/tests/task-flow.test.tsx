@@ -6,24 +6,24 @@ import { ChallengePanel } from "../components/ChallengePanel";
 import { EvidencePanel } from "../components/EvidencePanel";
 import { ExecutionTimeline } from "../components/ExecutionTimeline";
 import { FinalAnswer } from "../components/FinalAnswer";
-import { PactReview } from "../components/PactReview";
+import { PolicyReview } from "../components/PolicyReview";
 import { ProcurementPlan } from "../components/ProcurementPlan";
 import { ProviderMarket } from "../components/ProviderMarket";
 import { TaskEntry } from "../components/TaskEntry";
 import type { Task } from "@proofmarket/shared/src/types";
 
 const requiredActionLabels = [
-  "Create task",
-  "Generate procurement plan",
-  "Submit Pact",
-  "Fund escrow",
-  "Run expert provider",
-  "Run shallow provider",
-  "Verify evidence",
-  "Release payment",
-  "Trigger Cobo denial",
-  "Win challenge",
-  "Refund or slash"
+  "Create Task",
+  "Generate Procurement Plan",
+  "Submit Policy",
+  "Fund Escrow",
+  "Run Recommended Provider",
+  "Run Low-Reputation Provider",
+  "Verify Evidence",
+  "Settle Payment",
+  "Trigger Policy Signer Denial",
+  "Uphold Challenge",
+  "Refund or Slash"
 ];
 
 function task(overrides: Partial<Task> = {}): Task {
@@ -31,10 +31,10 @@ function task(overrides: Partial<Task> = {}): Task {
     id: "task_001",
     userQuestion: "Question",
     status: "Settled",
-    budgetLimit: "5 test USDC",
+    budgetLimit: "5 USDC",
     selectedProviderIds: [],
     plan: null,
-    pact: null,
+    policy: null,
     providerPackage: null,
     audit: [],
     jobId: null,
@@ -57,7 +57,7 @@ describe("Task 9 browser-flow contract", () => {
         <TaskEntry task={null} onCreate={noop} />
         <ProcurementPlan task={null} onGenerate={noop} />
         <ProviderMarket task={null} onRunExpert={noop} onRunShallow={noop} />
-        <PactReview
+        <PolicyReview
           task={null}
           onSubmit={noop}
           onFund={noop}
@@ -87,7 +87,7 @@ describe("Task 9 browser-flow contract", () => {
           onWinChallenge={noop}
           onRefundOrSlash={noop}
         />
-        <ExecutionTimeline task={task({ status: "DeniedByCobo" })} />
+        <ExecutionTimeline task={task({ status: "DeniedByPolicy" })} />
       </>
     );
 
@@ -95,7 +95,7 @@ describe("Task 9 browser-flow contract", () => {
     expect(html).toContain("CoverageMiss");
     expect(html).toContain("RefundedOrSlashed");
     expect(html).toContain("Provider reputation decrease recorded.");
-    expect(html).toContain("DeniedByCobo");
+    expect(html).toContain("DeniedByPolicy");
     expect(html).toContain("ReturnedToEscrowPath");
   });
 });

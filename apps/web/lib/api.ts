@@ -1,5 +1,5 @@
 import "server-only";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInMemoryStore } from "@proofmarket/backend/src/demoStore";
 import { createTaskService } from "@proofmarket/backend/src/taskService";
@@ -8,9 +8,14 @@ import { createAuditFileLog } from "@proofmarket/backend/src/auditFileLog";
 import {
   ALLOWED_CHAIN_ACTIONS,
   parseDeploymentArtifact,
+  type DeploymentArtifact,
   validateResearchPlanOutput
 } from "@proofmarket/shared/src/realMode";
-import { createCliCoboClient } from "@proofmarket/cobo/src/coboClient";
+import {
+  getProofMarketNetworkByChainId,
+  getProofMarketNetworkByName
+} from "@proofmarket/shared/src/chains";
+import { createLocalPolicySignerClient } from "@proofmarket/policy-signer/src/policySignerClient";
 import { createChainReader } from "@proofmarket/chain/src/chainReader";
 import { createChallengeResolver } from "@proofmarket/chain/src/challengeResolver";
 import {
@@ -23,6 +28,7 @@ import {
   type ResearchContext,
   type ResearchRun
 } from "@proofmarket/agents/src/claudeResearchAgent";
+import { runCodexResearchAgent } from "@proofmarket/agents/src/codexResearchAgent";
 
 type TaskService = ReturnType<typeof createTaskService>;
 
@@ -33,6 +39,32 @@ const globalForProofMarket = globalThis as typeof globalThis & {
 function repoRoot(): string {
   // Next dev/build runs with cwd = apps/web
   return join(process.cwd(), "..", "..");
+}
+
+function loadDeploymentArtifact(root: string): DeploymentArtifact {
+  const explicitPath = process.env.PROOFMARKET_DEPLOYMENT_PATH;
+  if (explicitPath) {
+    return parseDeploymentArtifact(JSON.parse(readFileSync(explicitPath, "utf8")));
+  }
+
+  const requestedNetwork = process.env.PROOFMARKET_NETWORK;
+  const candidates = requestedNetwork
+    ? [getProofMarketNetworkByName(requestedNetwork).deploymentFile]
+    : [
+        getProofMarketNetworkByName("injective-testnet").deploymentFile,
+        getProofMarketNetworkByName("sepolia").deploymentFile
+      ];
+
+  for (const file of candidates) {
+    const path = join(root, "deployments", file);
+    if (existsSync(path)) {
+      return parseDeploymentArtifact(JSON.parse(readFileSync(path, "utf8")));
+    }
+  }
+
+  throw new Error(
+    `No deployment artifact found. Tried: ${candidates.map((file) => `deployments/${file}`).join(", ")}`
+  );
 }
 
 async function runPresetResearchAgent(context: ResearchContext): Promise<ResearchRun> {
@@ -51,26 +83,26 @@ async function runPresetResearchAgent(context: ResearchContext): Promise<Researc
       taskId: context.taskId,
       recommendedProviderId,
       reason:
-        "区块链系统专家 Agent 的自报资料覆盖与本问题最匹配，同时链上信誉最高、历史挑战风险最低，适合作为本单首选专家。",
+        "The Blockchain Systems Evidence Agent has the best declared source coverage for this question, the highest on-chain reputation, and the lowest challenge-history risk, making it the best Provider for this job.",
       ranking: context.providerCatalog.map((entry) => {
         if (entry.providerId === recommendedProviderId) {
           return {
             providerId: entry.providerId,
             reason:
-              "自报覆盖论文库与行业研报库，能覆盖并行执行、投机执行、冲突检测与产业落地案例；链上信誉和挑战记录也最稳。"
+              "Declared literature and industry research access covers parallel execution, speculative execution, conflict detection, and production cases; on-chain reputation and challenge history are strongest."
           };
         }
         if (entry.providerId === "shallow-search-provider") {
           return {
             providerId: entry.providerId,
             reason:
-              "价格较低，但链上挑战记录较弱，交付完整性的先验风险更高，适合后续挑战分支演示。"
+              "Lower price, but weaker challenge history and higher prior risk of incomplete delivery; suitable for the challenge-branch demo."
           };
         }
         return {
           providerId: entry.providerId,
           reason:
-            "可作为对照候选，但资料库覆盖与本问题的专业匹配度弱于首选专家。"
+            "Useful as a comparison candidate, but its database coverage is less specialized for this question than the recommendation."
         };
       }),
       maxPayment: context.budgetAmount,
@@ -97,15 +129,15 @@ async function runPresetResearchAgent(context: ResearchContext): Promise<Researc
     rawStdout: JSON.stringify({
       result: JSON.stringify(preset)
     }),
-    attempts: 1
+    attempts: 1,
+    agentName: "Preset Research Agent"
   };
 }
 
 function buildRealService(): TaskService {
   const root = repoRoot();
-  const deployment = parseDeploymentArtifact(
-    JSON.parse(readFileSync(join(root, "deployments", "sepolia.json"), "utf8"))
-  );
+  const deployment = loadDeploymentArtifact(root);
+  const network = getProofMarketNetworkByChainId(deployment.chainId);
   // No fallback to the deployer: createJob pins the provider address, and the
   // provider service signs submit() with PROVIDER_SIGNER_PRIVATE_KEY — a
   // mismatched identity would make every submit revert.
@@ -117,8 +149,21 @@ function buildRealService(): TaskService {
     );
   }
   const servicesUrl = process.env.SERVICES_URL ?? "http://localhost:4010";
-  const chain = createChainReader(process.env.SEPOLIA_RPC_URL ?? "");
-  const cobo = createCliCoboClient({ srcAddress: deployment.coboWallet });
+  const rpcUrl = process.env[network.rpcEnvVar] ?? network.defaultRpcUrl;
+  const chain = createChainReader(rpcUrl, { chainId: deployment.chainId });
+  const policySignerPrivateKey = process.env.POLICY_SIGNER_PRIVATE_KEY as `0x${string}` | undefined;
+  if (!policySignerPrivateKey) {
+    throw new Error(
+      "POLICY_SIGNER_PRIVATE_KEY is not set. Real mode needs the local policy signer key " +
+        "that matches POLICY_SIGNER_WALLET_ADDRESS."
+    );
+  }
+  const policySigner = createLocalPolicySignerClient({
+    rpcUrl,
+    privateKey: policySignerPrivateKey,
+    srcAddress: deployment.policySignerAddress,
+    chainId: deployment.chainId
+  });
 
   // resolveChallenge is only needed when a ChallengeManager is deployed AND the
   // resolver key is available.  Neither is required for the success path, so we
@@ -129,7 +174,8 @@ function buildRealService(): TaskService {
   const resolveChallenge =
     challengeManagerAddress && resolverKey
       ? createChallengeResolver({
-          rpcUrl: process.env.SEPOLIA_RPC_URL ?? "",
+          rpcUrl,
+          chainId: deployment.chainId,
           privateKey: resolverKey as `0x${string}`,
           challengeManagerAddress: challengeManagerAddress as `0x${string}`
         })
@@ -151,7 +197,6 @@ function buildRealService(): TaskService {
   // a missing reputation config must not break startup, and the service
   // treats both deps' failures as non-fatal (plan falls back to fixture
   // scores; feedback failure is audited without failing settlement).
-  const rpcUrl = process.env.SEPOLIA_RPC_URL ?? "";
   const erc8004 = deployment.erc8004;
   // Rater = PROVIDER_SIGNER key: the ReputationRegistry rejects self-feedback,
   // and the agent NFTs are owned by the deployer — so the provider signer is a
@@ -162,7 +207,8 @@ function buildRealService(): TaskService {
       ? createReputationClient({
           rpcUrl,
           privateKey: raterKey as `0x${string}`,
-          reputationAddress: erc8004.reputationRegistry as `0x${string}`
+          reputationAddress: erc8004.reputationRegistry as `0x${string}`,
+          chainId: deployment.chainId
         })
       : null;
   const publishFeedback = reputationClient
@@ -188,7 +234,11 @@ function buildRealService(): TaskService {
         const summary = await readReputationSummary(
           rpcUrl,
           erc8004.reputationRegistry as `0x${string}`,
-          BigInt(agentId)
+          BigInt(agentId),
+          "",
+          "",
+          undefined,
+          deployment.chainId
         );
         if (summary.count === 0n) {
           // No feedback on-chain yet: let the service fall back to the fixture
@@ -215,16 +265,19 @@ function buildRealService(): TaskService {
     return (await response.json()) as T;
   }
 
+  const planSource = process.env.PROOFMARKET_PLAN_SOURCE ?? "codex";
   const runResearchAgent =
-    process.env.PROOFMARKET_PLAN_SOURCE === "preset"
+    planSource === "preset"
       ? runPresetResearchAgent
-      : (context: ResearchContext) => runClaudeResearchAgent(context);
+      : planSource === "claude"
+        ? (context: ResearchContext) => runClaudeResearchAgent(context)
+        : (context: ResearchContext) => runCodexResearchAgent(context, { cwd: root });
 
   return createRealTaskService(createInMemoryStore(), {
     deployment,
     providerAddress,
     runResearchAgent,
-    cobo,
+    policySigner,
     chain,
     services: {
       runProvider: (input) => post("/provider/run", input),

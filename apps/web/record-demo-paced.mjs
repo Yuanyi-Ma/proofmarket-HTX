@@ -333,10 +333,10 @@ async function main() {
   async function showStep3() {
     log("=== STEP 3 ===");
     await waitForButtonOrError("执行采购", 150_000);
-    await mark("step3-pact-summary", 7500);
-    await humanScroll(360, "Cobo 策略参数", 4000);
+    await mark("step3-policy-summary", 7500);
+    await humanScroll(360, "受限签名策略", 4000);
     await clickBtn("测试越权防护");
-    await waitText("越权操作已被 Cobo 拦截", 120_000);
+    await waitText("越权操作已被受限签名器拒签", 120_000);
     await mark("step3-denial", 6500);
     await humanScroll(420, "查看拦截详情", 3500);
     await clickBtn("执行采购");

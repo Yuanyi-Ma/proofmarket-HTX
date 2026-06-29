@@ -6,8 +6,8 @@ import {
   type Hash,
   type TransactionReceipt
 } from "viem";
-import { sepolia } from "viem/chains";
 import { challengeManagerAbi, escrowAbi } from "./escrowAbi";
+import { getViemChainByChainId } from "./chains";
 
 /**
  * A mined receipt is not a successful receipt: a reverted tx still mines.
@@ -33,9 +33,15 @@ export type ChainReader = {
   ): Promise<{ stake: bigint; lockedStake: bigint; minStake: bigint; freeStake: bigint }>;
 };
 
-export function createChainReader(rpcUrl: string): ChainReader {
+export function createChainReader(
+  rpcUrl: string,
+  options: { chainId?: number } = {}
+): ChainReader {
   // Let viem infer the typed client — no explicit PublicClient annotation needed
-  const client = createPublicClient({ chain: sepolia, transport: http(rpcUrl) });
+  const client = createPublicClient({
+    chain: getViemChainByChainId(options.chainId),
+    transport: http(rpcUrl)
+  });
 
   return {
     async waitForReceipt(txHash) {

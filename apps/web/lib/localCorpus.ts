@@ -5,8 +5,8 @@
 // （所以查全只能抽样），但已有的内容是逐字可对的。
 //
 // 注意 doi:10.1109/COMST.2023.3310992：本地存档的真实结论是"执行层并行化
-// 主导近年吞吐提升"，与速查 Agent 简报里那句"共识与硬件主导"相矛盾——
-// 这条比对失败不是缺数据，是简报摘录被改写过（查准失败的演示样本）。
+// 主导近年吞吐提升"，与速查 Agent 证据服务包里那句"共识与硬件主导"相矛盾——
+// 这条比对失败不是缺数据，是证据服务包摘录被改写过（查准失败的演示样本）。
 export const LOCAL_CORPUS: Record<string, string> = {
   "doi:10.1145/3572848.3577524":
     "(Local archive, ACM DL copy, PPoPP '23, §1) Block-STM exploits optimistic concurrency control with a collaborative scheduler to execute ordered blockchain transactions in parallel while guaranteeing deterministic results. The engine is deployed on the Aptos mainnet.",

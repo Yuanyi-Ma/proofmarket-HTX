@@ -22,13 +22,14 @@ export type ResearchContext = {
   question: string;
   budgetAmount: string;
   providerCatalog: ProviderCatalogEntry[];
-  pactSummary: string;
+  policySummary: string;
 };
 
 export type ResearchRun = {
   plan: ResearchPlanOutput;
   rawStdout: string;
   attempts: number;
+  agentName?: string;
 };
 
 export function buildResearchPrompt(context: ResearchContext): string {
@@ -64,7 +65,7 @@ export function buildResearchPrompt(context: ResearchContext): string {
     `User question: ${context.question}`,
     `Budget cap: ${context.budgetAmount} mUSDC`,
     `Allowed chain actions (use exactly these): ${ALLOWED_CHAIN_ACTIONS.join(", ")}`,
-    `Cobo Pact boundary: ${context.pactSummary}`,
+    `Restricted signing policy boundary: ${context.policySummary}`,
     "",
     "Provider catalog:",
     JSON.stringify(context.providerCatalog, null, 2),
@@ -112,18 +113,22 @@ function runClaude(
   });
 }
 
-function extractPlanJson(stdout: string): unknown {
+function extractJsonObject(text: string, sourceName: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (fenced) return JSON.parse(fenced[1]);
+    const bare = text.match(/\{[\s\S]*\}/);
+    if (bare) return JSON.parse(bare[0]);
+    throw new Error(`no JSON object found in ${sourceName} result`);
+  }
+}
+
+export function extractClaudePlanJson(stdout: string): unknown {
   const envelope = JSON.parse(stdout) as { result?: string };
   const result = envelope.result ?? "";
-  try {
-    return JSON.parse(result);
-  } catch {
-    const fenced = result.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (fenced) return JSON.parse(fenced[1]);
-    const bare = result.match(/\{[\s\S]*\}/);
-    if (bare) return JSON.parse(bare[0]);
-    throw new Error("no JSON object found in claude result");
-  }
+  return extractJsonObject(result, "claude");
 }
 
 export async function runClaudeResearchAgent(
@@ -141,13 +146,13 @@ export async function runClaudeResearchAgent(
     try {
       const { stdout } = await runClaude(prompt, claudeBin, timeoutMs);
       lastStdout = stdout;
-      const candidate = extractPlanJson(stdout);
+      const candidate = extractClaudePlanJson(stdout);
       const plan = validateResearchPlanOutput(candidate, {
         taskId: context.taskId,
         budgetAmount: context.budgetAmount,
         providerIds
       });
-      return { plan, rawStdout: stdout, attempts: attempt };
+      return { plan, rawStdout: stdout, attempts: attempt, agentName: "Claude Code" };
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
     }

@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { providerProfiles } from "@proofmarket/shared/src/fixtures";
-import { LIBRARIES } from "@proofmarket/shared/src/libraries";
+import { getProviderProfiles } from "@proofmarket/shared/src/fixtures";
+import { libraryInfo } from "@proofmarket/shared/src/libraries";
 import type { PlanCandidate, ProviderId, Task } from "@proofmarket/shared/src/types";
 import { DataRow } from "../Section";
 import { StatusBadge } from "../StatusBadge";
 import { StepShell } from "../StepShell";
-import { sepoliaAddressUrl, shortAddress } from "../../lib/links";
+import { displayAsset } from "../../lib/assets";
+import { injectiveAddressUrl, shortAddress } from "../../lib/links";
+import { useI18n } from "../I18nProvider";
 
 type Step2PlanProps = {
   task: Task | null;
@@ -22,6 +24,8 @@ export function Step2Plan({
   isBusy = false,
   readOnly = false
 }: Step2PlanProps) {
+  const { locale, t } = useI18n();
+  const providerProfiles = getProviderProfiles(locale);
   const plan = task?.plan ?? null;
 
   // Ranked shortlist the user picks from. Real mode + fixture both populate
@@ -50,7 +54,7 @@ export function Step2Plan({
     return `${reason.slice(0, 118)}…`;
   }
 
-  /** 查找某个 provider 在链上信誉列表里的得分（仅 real mode 有）。 */
+  /** Find a provider's on-chain reputation score (real mode only). */
   function onChainScore(providerId: ProviderId): number | null {
     if (!plan?.providerReputations) return null;
     const entry = plan.providerReputations.find((r) => r.providerId === providerId);
@@ -60,13 +64,13 @@ export function Step2Plan({
   return (
     <StepShell
       stepNo={2}
-      title="选择领域专家"
-      subtitle="先做采购决策：买什么、找谁买、预计花多少。可信记录只作为选择专家时的证据。"
+      title={t.step2.title}
+      subtitle={t.step2.subtitle}
       primary={
         readOnly || !plan
           ? undefined
           : {
-              label: "确认方案，去授权",
+              label: t.step2.primary,
               onClick: () => onConfirm(selected),
               disabled: isBusy || !selected,
               busy: isBusy
@@ -77,35 +81,38 @@ export function Step2Plan({
         <>
           <article className="recommend-card purchase-summary-card">
             <div className="badge-row">
-              <StatusBadge tone="success">购买决策</StatusBadge>
+              <StatusBadge tone="success">{t.step2.decision}</StatusBadge>
             </div>
             <DataRow
-              label="预计买到"
-              value="一份研究简报：关键结论、来源定位、摘录摘要和不能得出的结论；不购买资料全文。"
+              label={t.step2.expected}
+              value={t.step2.expectedValue}
             />
             <DataRow
-              label="为什么推荐"
+              label={t.step2.why}
               value={
                 <div className="decision-reasons">
                   <span>
-                    资料库覆盖与问题匹配：
+                    {t.step2.coverageMatch}{" "}
                     {recommendedProfile?.coverage ?? plan.evidenceNeed}
                   </span>
                   <span>
-                    历史表现可比较：信誉分{" "}
+                    {t.step2.performance} {t.step2.reputationScore}{" "}
                     <span className="mono">
                       {recommendedProfile?.reputationScore ?? "—"} / 1000
                     </span>
                     {recommendedProfile?.challengeStats.challenged === 0
-                      ? "，暂无成立挑战。"
-                      : `，被挑战 ${recommendedProfile?.challengeStats.challenged} 次 / 成立 ${recommendedProfile?.challengeStats.upheld} 次。`}
+                      ? `, ${t.step2.noUpheld}`
+                      : `, ${t.step2.challenged(
+                          recommendedProfile?.challengeStats.challenged ?? 0,
+                          recommendedProfile?.challengeStats.upheld ?? 0
+                        )}`}
                   </span>
                   <span>
-                    价格在授权上限内：本单预计支付{" "}
-                    <span className="mono">{plan.perJobCap}</span>
+                    {t.step2.priceInLimit} {t.step2.expectedPay}{" "}
+                    <span className="mono">{displayAsset(plan.perJobCap)}</span>
                     {task?.budgetLimit ? (
                       <>
-                        ，用户授权上限 <span className="mono">{task.budgetLimit}</span>。
+                        , {t.step2.userCap} <span className="mono">{displayAsset(task.budgetLimit)}</span>.
                       </>
                     ) : null}
                   </span>
@@ -113,19 +120,19 @@ export function Step2Plan({
               }
             />
             <details className="technical-disclosure">
-              <summary>查看 Agent 原始分析</summary>
+              <summary>{t.step2.viewRaw}</summary>
               <p className="small muted tight">{plan.evidenceNeed}</p>
             </details>
           </article>
 
           <p className="small muted tight" style={{ marginTop: 16 }}>
-            候选专家（共 {candidates.length} 位，默认选中推荐项，可改选）
+            {t.step2.candidates(candidates.length)}
           </p>
           <p className="small muted tight" style={{ marginTop: 4 }}>
-            这里先解决产品问题：谁最可能交付一份可用简报。链上信誉和挑战记录是购买信号，不是本页主角。
+            {t.step2.candidateHint}
           </p>
 
-          <div className="candidate-list" role="radiogroup" aria-label="选择专家">
+          <div className="candidate-list" role="radiogroup" aria-label={t.step2.title}>
             {candidates.map((candidate) => {
               const profile = providerProfiles.find((p) => p.id === candidate.providerId);
               if (!profile) return null;
@@ -152,23 +159,23 @@ export function Step2Plan({
                     <div className="candidate-head">
                       <span className="candidate-rank">#{candidate.rank}</span>
                       <strong>{profile.name}</strong>
-                      {isTop ? <StatusBadge tone="success">推荐</StatusBadge> : null}
+                      {isTop ? <StatusBadge tone="success">{t.common.recommended}</StatusBadge> : null}
                     </div>
 
                     <p className="candidate-reason">{compactReason(candidate.reason)}</p>
 
                     <div className="candidate-facts">
                       <span className="candidate-fact">
-                        <span className="data-label">价格</span>
-                        <span className="mono">{profile.price}</span>
+                        <span className="data-label">{t.step2.price}</span>
+                        <span className="mono">{displayAsset(profile.price)}</span>
                       </span>
                       <span className="candidate-fact">
-                        <span className="data-label">信誉分</span>
+                        <span className="data-label">{t.step2.reputation}</span>
                         <span className="mono">
                           {chainScore !== null ? (
                             <>
                               {chainScore} / 1000{" "}
-                              <span className="chain-rep-tag">链上信誉</span>
+                              <span className="chain-rep-tag">{t.step2.reputation}</span>
                             </>
                           ) : (
                             <>{profile.reputationScore} / 1000</>
@@ -176,22 +183,25 @@ export function Step2Plan({
                         </span>
                       </span>
                       <span className="candidate-fact">
-                        <span className="data-label">挑战记录</span>
+                        <span className="data-label">{t.step2.challengeRecord}</span>
                         <span className="mono">
                           {profile.challengeStats.challenged === 0
-                            ? "无挑战记录"
-                            : `被挑战 ${profile.challengeStats.challenged} 次 / 成立 ${profile.challengeStats.upheld} 次`}
+                            ? t.step2.noChallengeRecord
+                            : t.step2.challenged(
+                                profile.challengeStats.challenged,
+                                profile.challengeStats.upheld
+                              )}
                         </span>
                       </span>
                       <span className="candidate-fact">
-                        <span className="data-label">链上身份</span>
+                        <span className="data-label">{t.step2.onchainIdentity}</span>
                         <span className="mono">
                           <a
                             className="hash"
-                            href={sepoliaAddressUrl(profile.address)}
+                            href={injectiveAddressUrl(profile.address)}
                             target="_blank"
                             rel="noreferrer"
-                            aria-label={`在 Etherscan 查看 ${profile.name} 的链上地址`}
+                            aria-label={t.step2.viewAddress(profile.name)}
                             onClick={(e) => e.stopPropagation()}
                           >
                             {shortAddress(profile.address)}
@@ -204,10 +214,10 @@ export function Step2Plan({
 
                     <p className="small muted tight candidate-coverage">{profile.coverage}</p>
 
-                    <div className="lib-tag-row" aria-label="资料库授权">
+                    <div className="lib-tag-row" aria-label={t.step2.evidenceSources}>
                       {profile.libraries.map((lib) => (
                         <span className="lib-tag" key={lib}>
-                          {LIBRARIES[lib].name}
+                          {libraryInfo(lib, locale).name}
                         </span>
                       ))}
                     </div>
@@ -219,51 +229,49 @@ export function Step2Plan({
 
           {!readOnly && selected !== plan.recommendedProviderId ? (
             <div className="info-strip" style={{ marginTop: 12 }}>
-              你选择的不是 Agent 的推荐项。该专家在"自报资料覆盖 + 链上信誉"上属于较低概率的选择，交付完整性的先验风险更高——若简报有缺口，可在第 5 步发起挑战。
+              {t.step2.changedProvider}
             </div>
           ) : null}
 
           <div style={{ marginTop: 20 }}>
-            <p className="section-kicker" style={{ margin: "0 0 8px" }}>购买条款</p>
+            <p className="section-kicker" style={{ margin: "0 0 8px" }}>{t.step2.terms}</p>
             <div className="data-grid">
               <DataRow
-                label="交付物"
-                value="研究简报：结论 + 来源定位 + 限长摘录（研报类按订阅条款转述），并附针对你问题的总结；不搬运资料全文，原文不出授权边界。"
+                label={t.step2.deliverable}
+                value={t.step2.deliverableValue}
               />
               <DataRow
-                label="验收方式"
-                value="先看简报是否有用；来源、摘录和覆盖范围会在第 5 步抽查，发现问题再走挑战。"
+                label={t.step2.acceptance}
+                value={t.step2.acceptanceValue}
               />
               <DataRow
-                label="预算"
+                label={t.step2.budget}
                 value={
                   <span className="mono">
-                    本单预计支付 {plan.perJobCap}
+                    {t.step2.expectedPay} {displayAsset(plan.perJobCap)}
                     {task?.budgetLimit
-                      ? ` · 授权上限 ${task.budgetLimit}`
-                      : ` · 方案预算 ${plan.totalBudget}`}
+                      ? ` · ${t.step2.userCap} ${displayAsset(task.budgetLimit)}`
+                      : ` · ${t.step2.planBudget} ${displayAsset(plan.totalBudget)}`}
                   </span>
                 }
               />
               <DataRow
-                label="结算条件"
-                value="资金先入链上托管；简报通过核验后，买方可直接验收结算，也可在挑战窗口内发起挑战。"
+                label={t.step2.settlement}
+                value={t.step2.settlementValue}
               />
               <DataRow
-                label="违约保障"
-                value="交付与声明不符可发起挑战；挑战成立即全额退款，并从专家质押中扣罚赔付。"
+                label={t.step2.protection}
+                value={t.step2.protectionValue}
               />
             </div>
           </div>
 
           {readOnly ? (
-            <div className="info-strip">方案已确认，此处为只读回看。</div>
+            <div className="info-strip">{t.step2.readonly}</div>
           ) : null}
         </>
       ) : (
-        <div className="info-strip">
-          购买方案尚未生成。请回到第 1 步提交研究问题。
-        </div>
+        <div className="info-strip">{t.step2.empty}</div>
       )}
     </StepShell>
   );

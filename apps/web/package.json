@@ -13,7 +13,7 @@
     "@proofmarket/agents": "workspace:*",
     "@proofmarket/backend": "workspace:*",
     "@proofmarket/chain": "workspace:*",
-    "@proofmarket/cobo": "workspace:*",
+    "@proofmarket/policy-signer": "workspace:*",
     "@proofmarket/shared": "workspace:*",
     "next": "^15.0.4",
     "react": "^19.0.0",

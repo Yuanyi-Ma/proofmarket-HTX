@@ -1,7 +1,7 @@
 import React from "react";
 import type { TxRecord } from "@proofmarket/shared/src/realMode";
 import type { Task, TaskStatus } from "@proofmarket/shared/src/types";
-import { isFullTxHash, sepoliaTxUrl } from "../lib/links";
+import { isFullTxHash, injectiveTxUrl } from "../lib/links";
 import { Section } from "./Section";
 import { StatusBadge } from "./StatusBadge";
 
@@ -16,8 +16,8 @@ type TimelineRow = {
 const happyRows: TimelineRow[] = [
   { state: "Created", blocker: "waiting for procurement plan" },
   { state: "Planned", blocker: "waiting for user approval" },
-  { state: "PactSubmitted", blocker: "waiting for Cobo activation" },
-  { state: "PactActive", blocker: "waiting for escrow funding" },
+  { state: "PolicySubmitted", blocker: "waiting for policy activation" },
+  { state: "PolicyActive", blocker: "waiting for escrow funding" },
   { state: "JobFunded", blocker: "waiting for provider delivery" },
   { state: "Delivered", blocker: "waiting for verifier result" },
   { state: "Verified", blocker: "waiting for payment release" },
@@ -34,8 +34,8 @@ const challengeRows: TimelineRow[] = [
 ];
 
 const denialRows: TimelineRow[] = [
-  { state: "PactActive", blocker: "agent attempted disallowed spend" },
-  { state: "DeniedByCobo", blocker: "Cobo rejected transaction" },
+  { state: "PolicyActive", blocker: "agent attempted disallowed spend" },
+  { state: "DeniedByPolicy", blocker: "restricted signer refused transaction" },
   { state: "ReturnedToEscrowPath", blocker: "escrow can be funded next" }
 ];
 
@@ -77,9 +77,9 @@ function happyStatus(task: Task | null, row: TimelineRow): RowStatus {
     return rowStatusFromIndex(indexFor(happyRows, row.state), deliveredIndex);
   }
 
-  if (task.status === "DeniedByCobo") {
-    const pactIndex = indexFor(happyRows, "PactActive");
-    return rowStatusFromIndex(indexFor(happyRows, row.state), pactIndex);
+  if (task.status === "DeniedByPolicy") {
+    const policyIndex = indexFor(happyRows, "PolicyActive");
+    return rowStatusFromIndex(indexFor(happyRows, row.state), policyIndex);
   }
 
   const currentIndex = indexFor(happyRows, task.status);
@@ -96,12 +96,12 @@ function challengeStatus(task: Task | null, row: TimelineRow): RowStatus {
 }
 
 function denialStatus(task: Task | null, row: TimelineRow): RowStatus {
-  if (!task || (task.status !== "DeniedByCobo" && !hasDenialAudit(task))) {
+  if (!task || (task.status !== "DeniedByPolicy" && !hasDenialAudit(task))) {
     return "not-taken";
   }
 
   const currentIndex =
-    task.status === "DeniedByCobo"
+    task.status === "DeniedByPolicy"
       ? indexFor(denialRows, "ReturnedToEscrowPath")
       : denialRows.length - 1;
   return rowStatusFromIndex(indexFor(denialRows, row.state), currentIndex);
@@ -165,7 +165,7 @@ function TxRecordRow({ record }: { record: TxRecord }) {
           <p className="small tight">
             <a
               className="hash"
-              href={sepoliaTxUrl(record.txHash)}
+              href={injectiveTxUrl(record.txHash)}
               target="_blank"
               rel="noreferrer"
             >
@@ -174,7 +174,7 @@ function TxRecordRow({ record }: { record: TxRecord }) {
           </p>
         ) : (
           <p className="small muted tight">
-            {record.coboTxId ? `Cobo tx ${record.coboTxId}` : "waiting for Cobo transaction"}
+            {record.policySignerRequestId ? `signer request ${record.policySignerRequestId}` : "waiting for signer transaction"}
           </p>
         )}
       </div>
@@ -198,7 +198,7 @@ function TxRecordGroup({ records }: { records: TxRecord[] }) {
 
   return (
     <div className="timeline-group">
-      <h3>Sepolia transactions</h3>
+      <h3>Injective transactions</h3>
       <div className="timeline-list">
         {records.map((record, index) => (
           <TxRecordRow key={`${record.label}-${index}`} record={record} />

@@ -9,7 +9,7 @@ export function createAuditEvent(input: {
   message: string;
   createdAt: string;
   txHash?: string | null;
-  pactId?: string | null;
+  policyId?: string | null;
   jobId?: number | null;
 }): AuditEvent {
   return {
@@ -20,7 +20,7 @@ export function createAuditEvent(input: {
     result: input.result,
     message: input.message,
     txHash: input.txHash ?? null,
-    pactId: input.pactId ?? null,
+    policyId: input.policyId ?? null,
     jobId: input.jobId ?? null,
     createdAt: input.createdAt
   };

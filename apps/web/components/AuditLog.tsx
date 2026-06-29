@@ -1,22 +1,22 @@
 import React from "react";
 import type { AuditEvent, Task } from "@proofmarket/shared/src/types";
-import { isFullTxHash, sepoliaTxUrl } from "../lib/links";
+import { isFullTxHash, injectiveTxUrl } from "../lib/links";
 import { Section } from "./Section";
 import { AuditResultBadge, StatusBadge } from "./StatusBadge";
 
 const expectedReplayPoints = [
-  "plan",
-  "Pact",
-  "allowed transaction",
-  "denied transaction",
-  "delivery hash",
-  "verifier result",
-  "settlement event",
-  "challenge event"
+  "Procurement plan",
+  "Policy",
+  "Allowed transaction",
+  "Denied transaction",
+  "Delivery hash",
+  "Verification result",
+  "Settlement event",
+  "Challenge event"
 ];
 
 function eventHash(event: AuditEvent): string {
-  return event.txHash ?? event.pactId ?? (event.jobId ? `job:${event.jobId}` : event.id);
+  return event.txHash ?? event.policyId ?? (event.jobId ? `job:${event.jobId}` : event.id);
 }
 
 function EventHash({ event }: { event: AuditEvent }) {
@@ -24,7 +24,7 @@ function EventHash({ event }: { event: AuditEvent }) {
     return (
       <a
         className="hash"
-        href={sepoliaTxUrl(event.txHash)}
+        href={injectiveTxUrl(event.txHash)}
         target="_blank"
         rel="noreferrer"
       >
@@ -49,7 +49,7 @@ export function AuditLog({ task }: { task: Task | null }) {
   const denial = task?.denial ?? null;
 
   return (
-    <Section title="Audit log" kicker="Replay trail">
+    <Section title="Audit Log" kicker="Replayable Record">
       <div className="badge-row">
         {expectedReplayPoints.map((point) => (
           <StatusBadge key={point}>{point}</StatusBadge>
@@ -58,7 +58,7 @@ export function AuditLog({ task }: { task: Task | null }) {
 
       {denial ? (
         <div className="error-strip">
-          <strong>Cobo denial record</strong>
+          <strong>Policy Signer denial record</strong>
           <p className="small tight">
             Attempted action: {denial.attemptedAction} ({`exit ${denial.exitCode}`})
           </p>
@@ -84,9 +84,7 @@ export function AuditLog({ task }: { task: Task | null }) {
           ))
         ) : (
           <div className="info-strip">
-            Audit rows will appear as the task records plan, Pact, allowed
-            transaction, denied transaction, delivery hash, verifier result,
-            settlement, and challenge events.
+            Audit records appear here after the task records procurement, policy, allowed transactions, denials, delivery hash, verification, settlement, and challenge events.
           </div>
         )}
       </div>

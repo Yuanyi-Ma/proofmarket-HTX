@@ -7,8 +7,8 @@ type Tone = "neutral" | "success" | "warning" | "danger";
 const statusTone: Partial<Record<TaskStatus, Tone>> = {
   Created: "warning",
   Planned: "warning",
-  PactSubmitted: "warning",
-  PactActive: "success",
+  PolicySubmitted: "warning",
+  PolicyActive: "success",
   JobFunded: "success",
   Delivered: "success",
   Verified: "success",
@@ -18,8 +18,8 @@ const statusTone: Partial<Record<TaskStatus, Tone>> = {
   ChallengeWon: "danger",
   ChallengeLost: "warning",
   RefundedOrSlashed: "danger",
-  PactRejected: "danger",
-  DeniedByCobo: "danger"
+  PolicyRejected: "danger",
+  DeniedByPolicy: "danger"
 };
 
 const auditTone: Record<AuditResult, Tone> = {

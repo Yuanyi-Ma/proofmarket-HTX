@@ -21,7 +21,7 @@ describe("createAuditEvent", () => {
       result: "success",
       message: "Provider package created.",
       txHash: null,
-      pactId: null,
+      policyId: null,
       jobId: null,
       createdAt: "2026-01-01T00:00:00.000Z"
     });

@@ -2,10 +2,10 @@ import type { TaskStatus } from "./types";
 
 const transitions: Record<TaskStatus, TaskStatus[]> = {
   Created: ["Planned"],
-  Planned: ["PactSubmitted"],
-  PactSubmitted: ["PactActive", "PactRejected"],
-  PactActive: ["JobFunded", "DeniedByCobo"],
-  DeniedByCobo: ["JobFunded"],
+  Planned: ["PolicySubmitted"],
+  PolicySubmitted: ["PolicyActive", "PolicyRejected"],
+  PolicyActive: ["JobFunded", "DeniedByPolicy"],
+  DeniedByPolicy: ["JobFunded"],
   JobFunded: ["Delivered"],
   Delivered: ["Verified", "Challenged"],
   Verified: ["Settled"],
@@ -14,7 +14,7 @@ const transitions: Record<TaskStatus, TaskStatus[]> = {
   ChallengeLost: ["Settled"],
   Settled: ["Audited"],
   RefundedOrSlashed: ["Audited"],
-  PactRejected: ["Audited"],
+  PolicyRejected: ["Audited"],
   Audited: []
 };
 

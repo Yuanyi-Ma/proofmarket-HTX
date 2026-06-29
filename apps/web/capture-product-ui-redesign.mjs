@@ -65,10 +65,10 @@ async function main() {
   await clickBtn("确认方案，去授权");
   await waitBtn("执行采购");
   await page.waitForTimeout(300);
-  await shot("03-step3-pact-active");
+  await shot("03-step3-policy-active");
 
   await clickBtn("测试越权防护");
-  await waitText("越权操作已被 Cobo 拦截");
+  await waitText("越权操作已被受限签名器拒签");
   await page.waitForTimeout(300);
   await shot("04-step3-denial");
 

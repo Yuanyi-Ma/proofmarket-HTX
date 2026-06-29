@@ -9,7 +9,7 @@
  *   2. registers the 3 preset jury operators (model/prompt hash commitments),
  *   3. funds each juror address with gas SETH,
  *   4. re-stakes the expert provider on the NEW manager (fresh mint),
- *   5. tops up the Cobo wallet with mUSDC for challenge deposits (D + F),
+ *   5. tops up the restricted signer address with mUSDC for challenge deposits (D + F),
  *   6. rewrites deployments/sepolia.json preserving erc8004/provider identity.
  *
  * Run:
@@ -33,7 +33,7 @@ const JURY_SIZE         =          3n; // N
 const CHALLENGE_WINDOW  =        300n; // W_c seconds (escrow)
 
 const EXPERT_MINT_AND_STAKE = 40_000_000n; // 4 concurrent bonds of headroom
-const COBO_TOPUP            = 20_000_000n; // covers 8 challenge runs of D + F
+const POLICY_SIGNER_TOPUP   = 20_000_000n; // covers 8 challenge runs of D + F
 const JUROR_GAS_WEI         = 20_000_000_000_000_000n; // 0.02 SETH each
 
 // Jury operator identities. Tags MUST stay in sync with presetJurors in
@@ -52,8 +52,10 @@ async function main() {
   const artifactPath = join(process.cwd(), "..", "..", "deployments", "sepolia.json");
   const previous = JSON.parse(readFileSync(artifactPath, "utf8"));
   const usdcAddress: string = previous.contracts.MockUSDC;
-  const coboWallet: string = previous.coboWallet;
-  if (!usdcAddress || !coboWallet) throw new Error("previous artifact missing MockUSDC/coboWallet");
+  const policySignerAddress: string = previous.policySignerAddress;
+  if (!usdcAddress || !policySignerAddress) {
+    throw new Error("previous artifact missing MockUSDC/policySignerAddress");
+  }
 
   const signers = await hre.ethers.getSigners();
   const deployer = signers[0];
@@ -126,15 +128,16 @@ async function main() {
   console.log(`Expert provider staked ${staked} on v2 manager (hasMinStake=${await cm.hasMinStake(providerSigner.address)})`);
   if (staked < MIN_STAKE) throw new Error("expert stake below minStake — abort");
 
-  // ── 6. Cobo wallet mUSDC top-up (challenge D + F) ─────────────────────────
-  const topupTx = await usdc.mint(coboWallet, COBO_TOPUP);
+  // ── 6. Restricted signer mUSDC top-up (challenge D + F) ──────────────────
+  const topupTx = await usdc.mint(policySignerAddress, POLICY_SIGNER_TOPUP);
   const topupReceipt = await topupTx.wait();
-  console.log(`Topped up Cobo wallet with ${Number(COBO_TOPUP) / 1e6} mUSDC: ${topupReceipt?.hash}`);
+  console.log(`Topped up restricted signer with ${Number(POLICY_SIGNER_TOPUP) / 1e6} mUSDC: ${topupReceipt?.hash}`);
 
   // ── 7. Rewrite artifact, preserving identity/erc8004 sections ─────────────
   const block = await hre.ethers.provider.getBlockNumber();
   const artifact = {
     ...previous,
+    policySignerAddress,
     blockNumber: block,
     contracts: {
       ...previous.contracts,

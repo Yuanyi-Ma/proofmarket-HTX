@@ -178,10 +178,10 @@ async function main() {
 
     await clickBtn("确认方案，去授权");
     await waitForButtonOrError("执行采购", 150_000);
-    await mark("step3-pact", 1800);
+    await mark("step3-policy", 1800);
 
     await clickBtn("测试越权防护");
-    await waitText("越权操作已被 Cobo 拦截", 120_000);
+    await waitText("越权操作已被受限签名器拒签", 120_000);
     await mark("step3-denial", 2200);
 
     await clickBtn("执行采购");

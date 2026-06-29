@@ -1,5 +1,6 @@
 export * from "./escrowAbi";
 export * from "./calldata";
+export * from "./chains";
 export * from "./chainReader";
 export * from "./challengeResolver";
 export * from "./jurySigner";

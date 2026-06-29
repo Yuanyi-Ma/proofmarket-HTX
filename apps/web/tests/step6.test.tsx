@@ -22,57 +22,57 @@ const pkg: ProviderAnswerPackage = {
   taskId: "task_001",
   providerAgentId: 1,
   providerId: "execution-research-expert",
-  providerName: "区块链执行研究专家",
-  coverageStatement: "覆盖 2021–2026 年区块链交易执行加速方向的论文",
+  providerName: "Execution Research Provider",
+  coverageStatement: "Covers 2021-2026 blockchain transaction execution acceleration papers",
   answers: [
     {
-      providerAnswer: "乐观并行执行是当前执行加速的核心方向。",
+      providerAnswer: "Optimistic parallel execution is the core direction for current execution acceleration.",
       sourceTitle: "Block-STM",
       sourceLocator: "arXiv:2203.06871",
       sourceLibrary: "arxiv",
       sourceMetadata: { year: 2022, type: "paper" },
-      excerptOrSummary: "Block-STM 通过乐观并发控制实现并行执行。",
-      relevanceExplanation: "直接相关，但不能证明普遍适用所有工作负载。"
+      excerptOrSummary: "Block-STM uses optimistic concurrency control to execute ordered transactions in parallel.",
+      relevanceExplanation: "Directly relevant, but cannot prove universal applicability to all workloads."
     },
     {
-      providerAnswer: "投机执行可降低延迟。",
+      providerAnswer: "Speculative execution can reduce latency.",
       sourceTitle: "Speculative Execution Survey",
       sourceLocator: "arXiv:2301.09999",
       sourceLibrary: "arxiv",
       sourceMetadata: { year: 2023, type: "paper" },
-      excerptOrSummary: "综述投机执行在区块链的应用。",
-      relevanceExplanation: "与主题相关，覆盖范围限于 EVM 兼容链。"
+      excerptOrSummary: "Surveys speculative execution applications in blockchain systems.",
+      relevanceExplanation: "Relevant to the topic, with coverage limited to EVM-compatible chains."
     }
   ],
   packageHash: "0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab"
 };
 
 const allTxRecords: TxRecord[] = [
-  { label: "approve", coboTxId: "cobo_1", txHash: FULL_TX_HASH_1, status: "confirmed" },
-  { label: "createJob", coboTxId: "cobo_2", txHash: FULL_TX_HASH_2, status: "confirmed" },
-  { label: "setBudget", coboTxId: "cobo_3", txHash: FULL_TX_HASH_3, status: "confirmed" },
-  { label: "fund", coboTxId: "cobo_4", txHash: FULL_TX_HASH_4, status: "confirmed" },
-  { label: "submit", coboTxId: "cobo_5", txHash: FULL_TX_HASH_5, status: "confirmed" },
-  { label: "complete", coboTxId: "cobo_6", txHash: FULL_TX_HASH_6, status: "confirmed" }
+  { label: "approve", policySignerRequestId: "signer_1", txHash: FULL_TX_HASH_1, status: "confirmed" },
+  { label: "createJob", policySignerRequestId: "signer_2", txHash: FULL_TX_HASH_2, status: "confirmed" },
+  { label: "setBudget", policySignerRequestId: "signer_3", txHash: FULL_TX_HASH_3, status: "confirmed" },
+  { label: "fund", policySignerRequestId: "signer_4", txHash: FULL_TX_HASH_4, status: "confirmed" },
+  { label: "submit", policySignerRequestId: "signer_5", txHash: FULL_TX_HASH_5, status: "confirmed" },
+  { label: "complete", policySignerRequestId: "signer_6", txHash: FULL_TX_HASH_6, status: "confirmed" }
 ];
 
 function task(overrides: Partial<Task> = {}): Task {
   return {
     id: "task_001",
-    userQuestion: "区块链交易执行加速的最新研究是什么？",
+    userQuestion: "What are the latest studies on blockchain transaction execution acceleration?",
     status: "Settled",
-    budgetLimit: "5 test USDC",
+    budgetLimit: "5 USDC",
     selectedProviderIds: ["execution-research-expert"],
     plan: null,
-    pact: {
+    policy: {
       intent: "Fund one provider research job",
-      totalBudget: "5 test USDC",
-      perJobCap: "1 test USDC",
-      allowedTargets: ["ProofMarketEscrow", "MockUSDC"],
+      totalBudget: "5 USDC",
+      perJobCap: "1 USDC",
+      allowedTargets: ["ProofMarketEscrow", "Injective USDC"],
       allowedFunctions: ["createJob", "fund", "submit", "complete", "reject", "approve"],
       denyRules: ["direct transfer"],
       expiresInMinutes: 30,
-      pactId: "pact_abc123",
+      policyId: "policy_abc123",
       status: "active"
     },
     providerPackage: pkg,
@@ -85,7 +85,7 @@ function task(overrides: Partial<Task> = {}): Task {
         result: "success",
         message: "Judge verdict: valid. verdictHash=0x" + "9".repeat(64),
         txHash: null,
-        pactId: null,
+        policyId: null,
         jobId: 42,
         createdAt: "2026-01-01T00:01:00.000Z"
       }
@@ -114,7 +114,7 @@ describe("Step6Done — final answer (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText("乐观并行执行是当前执行加速的核心方向。")).toBeTruthy();
+    expect(screen.getByText("Optimistic parallel execution is the core direction for current execution acceleration.")).toBeTruthy();
   });
 
   it("renders evidence summary with count", () => {
@@ -127,7 +127,7 @@ describe("Step6Done — final answer (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText(/共 2 条来源支撑/)).toBeTruthy();
+    expect(screen.getByText(/2 source items/)).toBeTruthy();
   });
 
   it("renders source title in evidence summary", () => {
@@ -144,8 +144,8 @@ describe("Step6Done — final answer (settled)", () => {
   });
 });
 
-describe("Step6Done — 交易与凭证 (settled)", () => {
-  it("renders all 6 tx records with Chinese labels", () => {
+describe("Step6Done — transactions and receipts (settled)", () => {
+  it("renders all 6 tx records with English labels", () => {
     render(
       <Step6Done
         task={task()}
@@ -155,15 +155,15 @@ describe("Step6Done — 交易与凭证 (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText(/授权代币/)).toBeTruthy();
-    expect(screen.getByText(/创建专家订单/)).toBeTruthy();
-    expect(screen.getByText(/设定预算/)).toBeTruthy();
-    expect(screen.getByText(/锁定托管资金/)).toBeTruthy();
-    expect(screen.getByText(/提交简报/)).toBeTruthy();
-    expect(screen.getByText(/结算放款/)).toBeTruthy();
+    expect(screen.getByText(/Approve token/)).toBeTruthy();
+    expect(screen.getByText(/Create Provider job/)).toBeTruthy();
+    expect(screen.getByText(/Set budget/)).toBeTruthy();
+    expect(screen.getByText(/Fund escrow/)).toBeTruthy();
+    expect(screen.getByText(/Submit package/)).toBeTruthy();
+    expect(screen.getByText(/Settle payment/)).toBeTruthy();
   });
 
-  it("renders all 6 tx hashes as Etherscan links", () => {
+  it("renders all 6 tx hashes as Injective Explorer links", () => {
     render(
       <Step6Done
         task={task()}
@@ -176,7 +176,7 @@ describe("Step6Done — 交易与凭证 (settled)", () => {
     const links = document.querySelectorAll<HTMLAnchorElement>("a.hash");
     expect(links.length).toBe(6);
     for (const link of Array.from(links)) {
-      expect(link.href).toContain("sepolia.etherscan.io/tx/");
+      expect(link.href).toContain("testnet.blockscout.injective.network/tx/");
     }
   });
 
@@ -193,7 +193,7 @@ describe("Step6Done — 交易与凭证 (settled)", () => {
     expect(screen.getByText("42")).toBeTruthy();
   });
 
-  it("renders pactId in mono", () => {
+  it("renders policyId in mono", () => {
     render(
       <Step6Done
         task={task()}
@@ -203,7 +203,7 @@ describe("Step6Done — 交易与凭证 (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText("pact_abc123")).toBeTruthy();
+    expect(screen.getByText("policy_abc123")).toBeTruthy();
   });
 
   it("renders packageHash in mono", () => {
@@ -237,7 +237,7 @@ describe("Step6Done — 交易与凭证 (settled)", () => {
 });
 
 describe("Step6Done — actions (settled)", () => {
-  it("shows exactly one 开始新任务 button", () => {
+  it("shows exactly one Start New Task button", () => {
     render(
       <Step6Done
         task={task()}
@@ -247,11 +247,11 @@ describe("Step6Done — actions (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    const btns = screen.getAllByRole("button", { name: /开始新任务/ });
+    const btns = screen.getAllByRole("button", { name: /Start New Task/ });
     expect(btns.length).toBe(1);
   });
 
-  it("shows 查看完整审计 button", () => {
+  it("shows View Full Audit button", () => {
     render(
       <Step6Done
         task={task()}
@@ -261,10 +261,10 @@ describe("Step6Done — actions (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByRole("button", { name: /查看完整审计/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /View Full Audit/ })).toBeTruthy();
   });
 
-  it("calls onReset when 开始新任务 is clicked", () => {
+  it("calls onReset when Start New Task is clicked", () => {
     const onReset = vi.fn();
     render(
       <Step6Done
@@ -275,11 +275,11 @@ describe("Step6Done — actions (settled)", () => {
         onOpenAudit={noop}
       />
     );
-    screen.getByRole("button", { name: /开始新任务/ }).click();
+    screen.getByRole("button", { name: /Start New Task/ }).click();
     expect(onReset).toHaveBeenCalledOnce();
   });
 
-  it("calls onOpenAudit when 查看完整审计 is clicked", () => {
+  it("calls onOpenAudit when View Full Audit is clicked", () => {
     const onOpenAudit = vi.fn();
     render(
       <Step6Done
@@ -290,13 +290,13 @@ describe("Step6Done — actions (settled)", () => {
         onOpenAudit={onOpenAudit}
       />
     );
-    screen.getByRole("button", { name: /查看完整审计/ }).click();
+    screen.getByRole("button", { name: /View Full Audit/ }).click();
     expect(onOpenAudit).toHaveBeenCalledOnce();
   });
 });
 
 describe("Step6Done — Verified (pre-settle)", () => {
-  it("shows 确认结算 button when status is Verified", () => {
+  it("shows Confirm Settlement button when status is Verified", () => {
     render(
       <Step6Done
         task={task({ status: "Verified" })}
@@ -306,7 +306,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByRole("button", { name: /确认结算/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Confirm Settlement/ })).toBeTruthy();
   });
 
   it("shows pending message when Verified (not yet settled)", () => {
@@ -319,7 +319,7 @@ describe("Step6Done — Verified (pre-settle)", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText(/简报已通过核验/)).toBeTruthy();
+    expect(screen.getByText(/Evidence package verified/)).toBeTruthy();
   });
 
   it("does NOT show receipt when Verified (not yet settled)", () => {
@@ -333,10 +333,10 @@ describe("Step6Done — Verified (pre-settle)", () => {
       />
     );
     // Receipt section only shows on Settled/Audited
-    expect(screen.queryByText(/交易与凭证/)).toBeNull();
+    expect(screen.queryByText(/Transactions and Receipts/)).toBeNull();
   });
 
-  it("disables 确认结算 when isBusy", () => {
+  it("disables Confirm Settlement when isBusy", () => {
     render(
       <Step6Done
         task={task({ status: "Verified" })}
@@ -347,13 +347,13 @@ describe("Step6Done — Verified (pre-settle)", () => {
         isBusy={true}
       />
     );
-    const btn = screen.getByRole("button", { name: /确认结算/ });
+    const btn = screen.getByRole("button", { name: /Confirm Settlement/ });
     expect((btn as HTMLButtonElement).disabled).toBe(true);
   });
 });
 
 describe("Step6Done — Audited state", () => {
-  it("renders receipt (交易与凭证) when status is Audited", () => {
+  it("renders receipt when status is Audited", () => {
     render(
       <Step6Done
         task={task({ status: "Audited" })}
@@ -363,7 +363,7 @@ describe("Step6Done — Audited state", () => {
         onOpenAudit={noop}
       />
     );
-    expect(screen.getByText(/交易与凭证/)).toBeTruthy();
+    expect(screen.getByText(/Transactions and Receipts/)).toBeTruthy();
   });
 });
 
@@ -379,14 +379,14 @@ describe("Step6Done — challenge window gate (W_c)", () => {
         onOpenAudit={noop}
       />
     );
-    const btn = screen.getByRole("button", { name: /我不挑战，直接结算/ });
+    const btn = screen.getByRole("button", { name: /Settle Now/ });
     expect((btn as HTMLButtonElement).disabled).toBe(false);
     expect(screen.getByTestId("settle-window-note").textContent).toContain(
-      "可以现在选择不挑战"
+      "settle now"
     );
   });
 
-  it("re-enables 确认结算 once the window has passed", () => {
+  it("re-enables Confirm Settlement once the window has passed", () => {
     const endsAt = new Date(Date.now() - 1_000).toISOString();
     render(
       <Step6Done
@@ -397,8 +397,8 @@ describe("Step6Done — challenge window gate (W_c)", () => {
         onOpenAudit={noop}
       />
     );
-    const btn = screen.getByRole("button", { name: /确认结算/ });
+    const btn = screen.getByRole("button", { name: /Confirm Settlement/ });
     expect((btn as HTMLButtonElement).disabled).toBe(false);
-    expect(screen.getByTestId("settle-window-note").textContent).toContain("挑战窗口已结束");
+    expect(screen.getByTestId("settle-window-note").textContent).toContain("challenge window is closed");
   });
 });

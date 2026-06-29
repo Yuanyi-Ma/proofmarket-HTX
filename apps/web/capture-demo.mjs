@@ -63,15 +63,15 @@ async function main() {
   await page.waitForTimeout(800);
   await shot("02-step2-plan-candidates");
 
-  log("confirm expert → pact…");
+  log("confirm expert → policy…");
   await clickBtn("确认方案，去授权");
   await waitBtn("执行采购", 90_000);
   await page.waitForTimeout(500);
-  await shot("03-step3-pact-active");
+  await shot("03-step3-policy-active");
 
   log("denial demo…");
   await clickBtn("测试越权防护");
-  await waitText("越权操作已被 Cobo 拦截", 90_000);
+  await waitText("越权操作已被受限签名器拒签", 90_000);
   await page.waitForTimeout(500);
   await shot("04-step3-denial");
 
@@ -99,7 +99,7 @@ async function main() {
   await shot("07b-step6-settle-ready");
 
   log("settle (on-chain)…");
-  // The settle Cobo call occasionally hits transient API errors; the task
+  // The settle signer call occasionally hits transient API errors; the task
   // stays Verified, so clicking again retries safely.
   let settled = false;
   for (let attempt = 1; attempt <= 3 && !settled; attempt++) {
@@ -141,7 +141,7 @@ async function main() {
   await page.waitForTimeout(400);
   await shot("10-challenge-step2-select-shallow");
 
-  log("confirm → pact → execute…");
+  log("confirm → policy → execute…");
   await clickBtn("确认方案，去授权");
   await waitBtn("执行采购", 90_000);
   await clickBtn("执行采购");

@@ -10,6 +10,7 @@ import type { Log, TransactionReceipt } from "viem";
 import { identityRegistryAbi, reputationRegistryAbi } from "../src/erc8004Abi";
 import {
   extractAgentId,
+  getErc8004Chain,
   reputationSummaryToScore1000,
   ZERO_BYTES32
 } from "../src/erc8004";
@@ -157,5 +158,12 @@ describe("reputationSummaryToScore1000", () => {
     // Out-of-range summaries never escape the display scale
     expect(reputationSummaryToScore1000({ value: 700n, decimals: 2 })).toBe(1000);
     expect(reputationSummaryToScore1000({ value: -100n, decimals: 2 })).toBe(0);
+  });
+});
+
+describe("getErc8004Chain", () => {
+  it("defaults to Sepolia and can target Injective testnet", () => {
+    expect(getErc8004Chain().id).toBe(11155111);
+    expect(getErc8004Chain(1439).id).toBe(1439);
   });
 });

@@ -7,16 +7,16 @@
  *   npx tsx --env-file=.env scripts/cleanup-stranded-jobs.ts expire <jobId>
  *   npx tsx --env-file=.env scripts/cleanup-stranded-jobs.ts settle-open <jobId>
  *
- * Both actions must be signed by the Cobo wallet (it is the job's client AND
- * evaluator), so the script submits a fresh pact and routes the call through
- * caw — same path as the app, no key shortcuts.
+ * Both actions must be signed by the restricted signer address (it is the job's
+ * client AND evaluator), so the script submits a fresh policy and routes the
+ * call through the same allowlist-enforced signer as the app.
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { createPublicClient, http } from "viem";
 import { sepolia } from "viem/chains";
-import { createCliCoboClient } from "@proofmarket/cobo/src/coboClient";
-import { buildRealPactSubmission } from "@proofmarket/cobo/src/pactPolicy";
+import { createLocalPolicySignerClient } from "@proofmarket/policy-signer/src/policySignerClient";
+import { buildRealPolicySubmission } from "@proofmarket/policy-signer/src/policy";
 import {
   encodeApprove,
   encodeComplete,
@@ -65,20 +65,20 @@ async function main() {
     );
   }
 
-  async function coboCallAndWait(input: {
-    pactId: string;
+  async function policySignerCallAndWait(input: {
+    policyId: string;
     contract: `0x${string}`;
     calldata: `0x${string}`;
     requestId: string;
     description: string;
   }): Promise<`0x${string}`> {
-    const call = await cobo.callContract(input);
-    console.log(`${input.description}: cobo tx ${call.coboTxId} status=${call.status}`);
+    const call = await policySigner.callContract(input);
+    console.log(`${input.description}: policySigner tx ${call.policySignerRequestId} status=${call.status}`);
 
     for (let i = 0; i < 84; i++) {
-      const { parsed } = await cobo.getTx(call.coboTxId);
+      const { parsed } = await policySigner.getTx(call.policySignerRequestId);
       if (isFailedTx(parsed)) {
-        throw new Error(`${input.description} failed in Cobo: ${JSON.stringify(parsed)}`);
+        throw new Error(`${input.description} failed in restricted signer: ${JSON.stringify(parsed)}`);
       }
       const txHash = extractTxHash(parsed);
       if (txHash) {
@@ -95,9 +95,15 @@ async function main() {
   const before = await readJob();
   console.log(`job ${jobId}: state=${JOB_STATE[Number(before[9])]} budget=${before[7]}`);
 
-  const cobo = createCliCoboClient({ srcAddress: artifact.coboWallet });
-  const pact = await cobo.submitPact(
-    buildRealPactSubmission({
+  const policySignerPrivateKey = process.env.POLICY_SIGNER_PRIVATE_KEY as `0x${string}` | undefined;
+  if (!policySignerPrivateKey) throw new Error("POLICY_SIGNER_PRIVATE_KEY required");
+  const policySigner = createLocalPolicySignerClient({
+    rpcUrl: process.env.SEPOLIA_RPC_URL ?? "",
+    privateKey: policySignerPrivateKey,
+    srcAddress: artifact.policySignerAddress
+  });
+  const policy = await policySigner.submitPolicy(
+    buildRealPolicySubmission({
       escrowAddress,
       tokenAddress: artifact.contracts.MockUSDC,
       challengeManagerAddress: artifact.contracts.ProofMarketChallengeManager,
@@ -105,15 +111,15 @@ async function main() {
       taskId: `cleanup-job-${jobId}`
     })
   );
-  console.log(`pact ${pact.pactId} status=${pact.status}`);
+  console.log(`policy ${policy.policyId} status=${policy.status}`);
 
   if (action === "settle-open") {
     const budget = BigInt(before[7] as bigint) > 0n ? before[7] as bigint : 1_000_000n;
     const budgetHuman = Number(budget) / 1e6;
     const suffix = `${jobId}-${Date.now().toString(36)}`;
 
-    await coboCallAndWait({
-      pactId: pact.pactId,
+    await policySignerCallAndWait({
+      policyId: policy.policyId,
       contract: artifact.contracts.MockUSDC as `0x${string}`,
       calldata: encodeApprove(escrowAddress, budget),
       requestId: `cleanup-${suffix}-approve`,
@@ -122,8 +128,8 @@ async function main() {
 
     let job = await readJob();
     if (Number(job[9]) === 0 && BigInt(job[7] as bigint) === 0n) {
-      await coboCallAndWait({
-        pactId: pact.pactId,
+      await policySignerCallAndWait({
+        policyId: policy.policyId,
         contract: escrowAddress,
         calldata: encodeSetBudget(jobId, budget),
         requestId: `cleanup-${suffix}-setBudget`,
@@ -133,8 +139,8 @@ async function main() {
     }
 
     if (Number(job[9]) === 0) {
-      await coboCallAndWait({
-        pactId: pact.pactId,
+      await policySignerCallAndWait({
+        policyId: policy.policyId,
         contract: escrowAddress,
         calldata: encodeFund(jobId, budget),
         requestId: `cleanup-${suffix}-fund`,
@@ -164,8 +170,8 @@ async function main() {
       throw new Error(`job ${jobId} is ${JOB_STATE[Number(job[9])]}, expected Submitted before complete`);
     }
 
-    await coboCallAndWait({
-      pactId: pact.pactId,
+    await policySignerCallAndWait({
+      policyId: policy.policyId,
       contract: escrowAddress,
       calldata: encodeComplete(
         jobId,
@@ -183,14 +189,14 @@ async function main() {
     action === "complete"
       ? encodeComplete(jobId, stableHash({ cleanup: `job-${jobId}`, reason: "stranded by interrupted demo run" }) as `0x${string}`)
       : encodeExpireAndRefund(jobId);
-  const call = await cobo.callContract({
-    pactId: pact.pactId,
+  const call = await policySigner.callContract({
+    policyId: policy.policyId,
     contract: escrowAddress,
     calldata,
     requestId: `cleanup-${jobId}-${Date.now().toString(36)}`,
     description: `cleanup ${action} for stranded job ${jobId}`
   });
-  console.log(`cobo tx ${call.coboTxId} status=${call.status}`);
+  console.log(`policySigner tx ${call.policySignerRequestId} status=${call.status}`);
 
   // The chain is the source of truth: poll the job state to terminal.
   const target = action === "complete" ? 3 : 5;
@@ -203,7 +209,7 @@ async function main() {
     }
     await new Promise((resolve) => setTimeout(resolve, 5000));
   }
-  throw new Error(`job ${jobId} did not reach ${JOB_STATE[target]} within 3 minutes — check the Cobo tx`);
+  throw new Error(`job ${jobId} did not reach ${JOB_STATE[target]} within 3 minutes — check the restricted signer tx`);
 }
 
 main().catch((error) => {

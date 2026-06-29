@@ -8,5 +8,5 @@ type RouteContext = {
 export async function POST(_: Request, context: RouteContext) {
   const { taskId } = await context.params;
 
-  return jsonOrError(() => getTaskService().activatePact(taskId));
+  return jsonOrError(() => getTaskService().activatePolicy(taskId));
 }

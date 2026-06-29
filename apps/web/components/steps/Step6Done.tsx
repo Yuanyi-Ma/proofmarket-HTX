@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import type { Task } from "@proofmarket/shared/src/types";
-import { isFullTxHash, sepoliaTxUrl, shortHash } from "../../lib/links";
+import { isFullTxHash, injectiveTxUrl, shortHash } from "../../lib/links";
 import { formatCountdown, useCountdown } from "../../lib/useCountdown";
 import { StepShell } from "../StepShell";
+import { useI18n } from "../I18nProvider";
 
 type Step6DoneProps = {
   task: Task | null;
@@ -25,6 +26,7 @@ function RatingPanel({
   onRate: (score: number) => void;
   isBusy: boolean;
 }) {
+  const { t } = useI18n();
   const [score, setScore] = useState(5);
   const feedbackRecord = task.txRecords.find((r) => r.label === "feedback");
   const rated =
@@ -32,24 +34,20 @@ function RatingPanel({
     task.audit.some((e) => e.type === "reputation_feedback_published");
   const feedbackLink =
     feedbackRecord && isFullTxHash(feedbackRecord.txHash)
-      ? sepoliaTxUrl(feedbackRecord.txHash)
+      ? injectiveTxUrl(feedbackRecord.txHash)
       : null;
 
-  const facts = [
-    "核验通过：摘录、来源定位与覆盖声明一致",
-    "挑战窗口内无人发起挑战",
-    "按预算结算，无超支"
-  ];
+  const facts = t.step6.facts;
 
   return (
     <div className="rating-section" style={{ marginTop: 28 }} data-testid="rating-panel">
       <p className="section-kicker" style={{ margin: "0 0 12px" }}>
-        服务评分
+        {t.step6.rating}
       </p>
       <div className="data-grid">
         <div className="data-row">
-          <span className="data-label">本单回顾</span>
-          <div className="data-value">
+          <span className="data-label">{t.step6.review}</span>
+          <div className="data-value rating-facts">
             {facts.map((fact) => (
               <div key={fact} className="dot-inline-wrap" style={{ marginBottom: 2 }}>
                 <span className="dot ok" aria-hidden="true" />
@@ -59,18 +57,18 @@ function RatingPanel({
           </div>
         </div>
         <div className="data-row" style={{ marginTop: 6 }}>
-          <span className="data-label">总体评分</span>
+          <span className="data-label">{t.step6.overall}</span>
           <div className="data-value">
             {rated ? (
               <span className="dot-inline-wrap">
                 <span className="dot ok" aria-hidden="true" />
                 <span className="small">
-                  已评分，已记入专家链上信誉
+                  {t.step6.rated}
                   {feedbackLink ? (
                     <>
                       {" "}·{" "}
                       <a className="hash" href={feedbackLink} target="_blank" rel="noreferrer">
-                        查看信誉反馈交易
+                        {t.step6.viewFeedback}
                       </a>
                     </>
                   ) : null}
@@ -81,7 +79,7 @@ function RatingPanel({
                 <span
                   className="rating-stars"
                   role="radiogroup"
-                  aria-label="选择评分（1-5 分）"
+                  aria-label={t.step6.ratingAria}
                 >
                   {[1, 2, 3, 4, 5].map((n) => (
                     <button
@@ -90,7 +88,7 @@ function RatingPanel({
                       className={`rating-star${n <= score ? " active" : ""}`}
                       role="radio"
                       aria-checked={n === score}
-                      aria-label={`${n} 分`}
+                      aria-label={t.step6.points(n)}
                       disabled={isBusy}
                       onClick={() => setScore(n)}
                     >
@@ -107,7 +105,7 @@ function RatingPanel({
                   disabled={isBusy}
                   aria-busy={isBusy ? "true" : undefined}
                 >
-                  {isBusy ? "评分上链中…" : "提交评分"}
+                  {isBusy ? t.step6.ratingBusy : t.step6.submitRating}
                 </button>
               </span>
             )}
@@ -116,23 +114,12 @@ function RatingPanel({
       </div>
       {!rated ? (
         <p className="small muted tight" style={{ marginTop: 8 }}>
-          评分作为信誉反馈写入链上注册表，累积成下一位委托人看到的信誉分——它和挑战记录一样，专家自己改不了。
+          {t.step6.ratingNote}
         </p>
       ) : null}
     </div>
   );
 }
-
-// Chinese labels for each tx record label.
-const TX_LABEL_ZH: Record<string, string> = {
-  approve: "授权代币",
-  createJob: "创建专家订单",
-  setBudget: "设定预算",
-  fund: "锁定托管资金",
-  submit: "提交简报",
-  complete: "结算放款",
-  feedback: "信誉反馈",
-};
 
 // Try to extract a verdict hash from the audit trail.
 function extractVerdictHash(message: string): string | null {
@@ -166,7 +153,7 @@ function findVerdictHash(task: Task | null): string | null {
 }
 
 // Build the final answer from providerPackage data.
-function buildFinalAnswer(task: Task | null): {
+function buildFinalAnswer(task: Task | null, t: ReturnType<typeof useI18n>["t"]): {
   conclusion: string;
   evidenceSummary: string;
   cannotConclude: string;
@@ -174,9 +161,9 @@ function buildFinalAnswer(task: Task | null): {
   const pkg = task?.providerPackage;
   if (!pkg || !pkg.answers.length) {
     return {
-      conclusion: "研究简报为空，无法得出结论。",
-      evidenceSummary: "无来源条目。",
-      cannotConclude: "无法在缺少来源支撑的情况下得出结论。",
+      conclusion: t.step6.emptyConclusion,
+      evidenceSummary: t.step6.emptyEvidence,
+      cannotConclude: t.step6.emptyCannot,
     };
   }
 
@@ -188,11 +175,11 @@ function buildFinalAnswer(task: Task | null): {
   const titles = pkg.answers
     .slice(0, 3)
     .map((a) => a.sourceTitle)
-    .join("、");
+    .join(", ");
   const evidenceSummary =
     count === 1
-      ? `共 1 条来源支撑：${titles}`
-      : `共 ${count} 条来源支撑，包括：${titles}${count > 3 ? " 等" : ""}。`;
+      ? t.step6.sourceSummaryOne(titles)
+      : t.step6.sourceSummaryMany(count, titles);
 
   // Cannot conclude: synthesize from relevanceExplanation caveats.
   // Look for any answer that has a qualification or caveat phrasing.
@@ -201,7 +188,7 @@ function buildFinalAnswer(task: Task | null): {
     .find((r) => /不能|无法|局限|但|however|cannot|does not/i.test(r));
   const cannotConclude =
     caveat ||
-    "简报不能证明全局完整性、普遍加速，或每种工作负载都能从并行执行中受益。";
+    t.step6.defaultCannot;
 
   return { conclusion, evidenceSummary, cannotConclude };
 }
@@ -214,6 +201,7 @@ export function Step6Done({
   onOpenAudit,
   isBusy = false,
 }: Step6DoneProps) {
+  const { t } = useI18n();
   const status = task?.status;
   const isVerified = status === "Verified";
   const isSettled = status === "Settled" || status === "Audited";
@@ -225,29 +213,29 @@ export function Step6Done({
   const windowOpen = isVerified && windowRemaining > 0;
 
   const verdictHash = findVerdictHash(task);
-  const { conclusion, evidenceSummary, cannotConclude } = buildFinalAnswer(task);
+  const { conclusion, evidenceSummary, cannotConclude } = buildFinalAnswer(task, t);
 
   const txRecords = task?.txRecords ?? [];
   const subtitle = isVerified
-    ? "核验通过。可以发起挑战；如果选择不挑战，可以立即结算并进入评分。"
-    : "简报已验收，付款已结算。默认展示最终回答，需要复盘时再展开凭证记录。";
+    ? t.step6.verifiedSubtitle
+    : t.step6.settledSubtitle;
 
   // Actions live in the StepShell row only — nothing duplicated in the body.
-  // Verified: primary = 确认结算. Settled: primary = 开始新任务, secondary = 查看完整审计.
+  // Verified: primary = confirm settlement. Settled: primary = new task, secondary = full audit.
   let primary:
     | { label: string; onClick: () => void; disabled?: boolean; busy?: boolean }
     | undefined;
 
   if (isVerified) {
     primary = {
-      label: windowOpen ? "我不挑战，直接结算" : "确认结算",
+      label: windowOpen ? t.step6.settleNow : t.step6.confirmSettle,
       onClick: onSettle,
       disabled: isBusy,
       busy: isBusy,
     };
   } else if (isSettled) {
     primary = {
-      label: "开始新任务",
+      label: t.step6.newTask,
       onClick: onReset,
       disabled: isBusy,
     };
@@ -256,13 +244,13 @@ export function Step6Done({
   return (
     <StepShell
       stepNo={6}
-      title="结算完成"
+      title={t.step6.title}
       subtitle={subtitle}
       primary={primary}
       secondary={
         isSettled
           ? {
-              label: "查看完整审计",
+              label: t.step6.audit,
               onClick: onOpenAudit,
             }
           : undefined
@@ -274,14 +262,12 @@ export function Step6Done({
           {windowOpen ? (
             <>
               <span className="dot pending" aria-hidden="true" />
-              {" "}简报已通过核验。挑战窗口剩余{" "}
-              <span className="mono">{formatCountdown(windowRemaining)}</span>
-              ，窗口内仍可回到第 5 步发起挑战，也可以现在选择不挑战并直接结算。
+              {" "}{t.step6.windowOpen(formatCountdown(windowRemaining))}
             </>
           ) : (
             <>
               <span className="dot ok" aria-hidden="true" />
-              {" "}简报已通过核验，挑战窗口已结束。点击「确认结算」在链上完成付款。
+              {" "}{t.step6.windowClosed}
             </>
           )}
         </div>
@@ -292,23 +278,23 @@ export function Step6Done({
         <>
           <div className="final-answer-section">
             <p className="section-kicker" style={{ margin: "0 0 10px" }}>
-              最终回答
+              {t.step6.finalAnswer}
             </p>
 
             <div className="data-row" style={{ marginBottom: 10 }}>
-              <span className="data-label">主要发现</span>
+              <span className="data-label">{t.step6.mainFinding}</span>
               <div className="data-value">
                 <p className="tight">{conclusion}</p>
               </div>
             </div>
 
             <div className="data-row" style={{ marginBottom: 10 }}>
-              <span className="data-label">来源摘要</span>
+              <span className="data-label">{t.step6.sourceSummary}</span>
               <div className="data-value">{evidenceSummary}</div>
             </div>
 
             <div className="data-row" style={{ marginBottom: 10 }}>
-              <span className="data-label">不能得出的结论</span>
+              <span className="data-label">{t.step6.cannotConclude}</span>
               <div className="data-value muted">{cannotConclude}</div>
             </div>
           </div>
@@ -318,25 +304,25 @@ export function Step6Done({
 
           {/* ── 交易与凭证 ─────────────────────────────────── */}
           <details className="receipt-section technical-disclosure" style={{ marginTop: 28 }}>
-            <summary>交易与凭证</summary>
+            <summary>{t.step6.receipts}</summary>
 
             <dl className="receipt-list">
               {/* Task / job ID */}
               {task?.jobId !== null && task?.jobId !== undefined && (
                 <div className="receipt-row">
-                  <dt>Job ID</dt>
+                  <dt>{t.step6.jobId}</dt>
                   <dd>
                     <span className="mono">{task.jobId}</span>
                   </dd>
                 </div>
               )}
 
-              {/* Pact ID */}
-              {task?.pact?.pactId && (
+              {/* Policy ID */}
+              {task?.policy?.policyId && (
                 <div className="receipt-row">
-                  <dt>Pact ID</dt>
+                  <dt>{t.step6.policyId}</dt>
                   <dd>
-                    <span className="mono">{task.pact.pactId}</span>
+                    <span className="mono">{task.policy.policyId}</span>
                   </dd>
                 </div>
               )}
@@ -344,7 +330,7 @@ export function Step6Done({
               {/* Package hash */}
               {task?.providerPackage?.packageHash && (
                 <div className="receipt-row">
-                  <dt>简报哈希</dt>
+                  <dt>{t.step6.packageHash}</dt>
                   <dd>
                     <span className="mono">{task.providerPackage.packageHash}</span>
                   </dd>
@@ -354,7 +340,7 @@ export function Step6Done({
               {/* Verdict hash */}
               {verdictHash && (
                 <div className="receipt-row">
-                  <dt>Verdict 哈希</dt>
+                  <dt>{t.step6.verdictHash}</dt>
                   <dd>
                     <span className="mono">{verdictHash}</span>
                   </dd>
@@ -363,26 +349,26 @@ export function Step6Done({
 
               {/* All tx records */}
               {txRecords.map((record, index) => {
-                const label = TX_LABEL_ZH[record.label] ?? record.label;
+                const label = t.step4.txLabels[record.label] ?? record.label;
                 const hasLink = isFullTxHash(record.txHash);
                 return (
                   <div className="receipt-row" key={`${record.label}-${index}`}>
-                    <dt>交易：{label}</dt>
+                    <dt>{t.step6.tx(label)}</dt>
                     <dd>
                       {hasLink ? (
                         <a
                           className="hash"
-                          href={sepoliaTxUrl(record.txHash)}
+                          href={injectiveTxUrl(record.txHash)}
                           target="_blank"
                           rel="noreferrer"
-                          aria-label={`在 Etherscan 查看「${label}」交易`}
+                          aria-label={`${t.common.viewOnInjective}: ${label}`}
                         >
                           {shortHash(record.txHash)}
                         </a>
                       ) : record.txHash ? (
                         <span className="mono">{record.txHash}</span>
                       ) : (
-                        <span className="muted small">未确认</span>
+                        <span className="muted small">{t.common.unconfirmed}</span>
                       )}
                     </dd>
                   </div>

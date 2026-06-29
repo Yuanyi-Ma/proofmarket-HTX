@@ -2,10 +2,12 @@
 
 import { useEffect, useState } from "react";
 import type { ProviderId, Task } from "@proofmarket/shared/src/types";
+import type { Locale } from "@proofmarket/shared/src/locale";
 import { AuditSidebar } from "../../components/AuditSidebar";
-import { ModeBadge } from "../../components/ModeBadge";
+import { LanguageToggle } from "../../components/LanguageToggle";
 import { Stepper } from "../../components/Stepper";
 import { StepShell } from "../../components/StepShell";
+import { useI18n } from "../../components/I18nProvider";
 import { Step1Question } from "../../components/steps/Step1Question";
 import { Step2Plan } from "../../components/steps/Step2Plan";
 import { Step3Authorize } from "../../components/steps/Step3Authorize";
@@ -16,8 +18,8 @@ import { STEPS, stepFor } from "../../lib/steps";
 
 type ActionName =
   | "plan"
-  | "pact"
-  | "pact-status"
+  | "policy"
+  | "policy-status"
   | "execute"
   | "provider"
   | "verify"
@@ -58,6 +60,7 @@ async function readTaskResponse(response: Response): Promise<Task> {
 }
 
 export default function Page() {
+  const { t } = useI18n();
   const [task, setTask] = useState<Task | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
@@ -66,7 +69,7 @@ export default function Page() {
   // Provider the user picked from the step-2 shortlist; drives the provider
   // call in step 4. Null = fall back to the agent's recommendation.
   const [selectedProviderId, setSelectedProviderId] = useState<ProviderId | null>(null);
-  // Whether to expand the audit sidebar (for the 「查看完整审计」button).
+  // Whether to expand the audit sidebar (for the "View Full Audit" button).
   const [auditExpanded, setAuditExpanded] = useState(false);
   const isBusy = busyAction !== null;
   const taskId = task?.id ?? null;
@@ -112,7 +115,7 @@ export default function Page() {
     })();
   }, []);
 
-  async function createTask(question: string, budget: string) {
+  async function createTask(question: string, budget: string, selectedLocale: Locale) {
     if (isBusy) return;
 
     setError(null);
@@ -123,7 +126,7 @@ export default function Page() {
       const response = await fetch("/api/tasks", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ question, budget })
+        body: JSON.stringify({ question, budget, locale: selectedLocale })
       });
       const created = await readTaskResponse(response);
       createdId = created.id;
@@ -230,7 +233,7 @@ export default function Page() {
             task={task}
             onConfirm={(providerId) => {
               setSelectedProviderId(providerId);
-              runAction("pact");
+              runAction("policy");
             }}
             isBusy={isBusy}
             readOnly={isReviewing}
@@ -240,8 +243,13 @@ export default function Page() {
         return (
           <Step3Authorize
             task={task}
-            onExecute={() => runAction("execute")}
-            onCheckApproval={() => runAction("pact-status")}
+            onExecute={() =>
+              runAction("execute", {
+                providerId:
+                  selectedProviderId ?? task?.plan?.recommendedProviderId
+              })
+            }
+            onCheckApproval={() => runAction("policy-status")}
             onTriggerDenial={() => runAction("denial-demo")}
             isBusy={isBusy}
           />
@@ -287,11 +295,11 @@ export default function Page() {
         return (
           <StepShell
             stepNo={step.no}
-            title={`${step.title}（开发中）`}
-            subtitle="该步骤的界面尚在开发中；后端流程不受影响。"
+            title={t.steps.devTitle(t.steps.labels[displayStep - 1] ?? step.title)}
+            subtitle={t.steps.devSubtitle}
           >
             <div className="info-strip">
-              第 {step.no} 步 · {step.title}（开发中）
+              {t.steps.devBody(step.no, t.steps.labels[displayStep - 1] ?? step.title)}
             </div>
           </StepShell>
         );
@@ -304,7 +312,7 @@ export default function Page() {
       <header className="wizard-header">
         <div className="brand-row">
           <a className="brand" href="/">ProofMarket</a>
-          <ModeBadge task={task} />
+          <LanguageToggle />
         </div>
         <Stepper
           task={task}
@@ -315,24 +323,24 @@ export default function Page() {
       </header>
 
       <div className="wizard-grid">
-        <section className="wizard-main" aria-label="当前步骤">
+        <section className="wizard-main" aria-label={t.common.currentStepAria}>
           {error ? (
             <div className="error-strip" role="alert">
-              请求出错：{error}
+              {t.common.errorPrefix} {error}
             </div>
           ) : null}
 
           {isReviewing ? (
             <div className="info-strip viewing-strip">
               <span>
-                正在回看第 {displayStep} 步（只读），当前流程在第 {currentStep} 步。
+                {t.steps.reviewing(displayStep, currentStep)}
               </span>
               <button
                 type="button"
                 className="secondary"
                 onClick={() => setViewStep(null)}
               >
-                回到当前步骤
+                {t.common.backToCurrentStep}
               </button>
             </div>
           ) : null}

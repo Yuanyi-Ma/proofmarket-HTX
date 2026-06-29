@@ -1,32 +1,45 @@
 import React from "react";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { cookies } from "next/headers";
 import { createPublicClient, http } from "viem";
-import { sepolia } from "viem/chains";
+import { getViemChainByChainId } from "@proofmarket/chain/src/chains";
 import { challengeManagerAbi, erc20Abi, escrowAbi } from "@proofmarket/chain/src/escrowAbi";
 import {
   readReputationSummary,
   reputationSummaryToScore1000
 } from "@proofmarket/chain/src/erc8004";
+import { getProofMarketNetworkByChainId } from "@proofmarket/shared/src/chains";
 import { parseDeploymentArtifact } from "@proofmarket/shared/src/realMode";
-import { presetJurors, providerProfiles } from "@proofmarket/shared/src/fixtures";
-import { LIBRARIES, libraryNames } from "@proofmarket/shared/src/libraries";
-import { sepoliaAddressUrl, shortAddress } from "../../lib/links";
+import { getProviderProfiles, presetJurors } from "@proofmarket/shared/src/fixtures";
+import { libraryInfo, libraryNamesForLocale } from "@proofmarket/shared/src/libraries";
+import { normalizeLocale } from "@proofmarket/shared/src/locale";
+import { injectiveAddressUrl, shortAddress } from "../../lib/links";
+import { getUiText, LOCALE_COOKIE } from "../../lib/i18n";
 
 // Live chain reads on every request: this page is the on-screen proof of the
-// design doc's "系统初始化完成判定" — it must never serve a cached state.
+// Live proof of system readiness; it must never serve a cached state.
 export const dynamic = "force-dynamic";
 
-const mUSDC = (raw: bigint) => `${Number(raw) / 1e6} mUSDC`;
+const usdc = (raw: bigint) => `${Number(raw) / 1e6} USDC`;
 
 async function loadSystemState() {
+  const providerProfiles = getProviderProfiles("en");
   const root = join(process.cwd(), "..", "..");
+  const injectiveDeployment = join(root, "deployments", "injective.json");
+  const deploymentPath =
+    process.env.INJECTIVE_DEPLOYMENT_PATH ??
+    (existsSync(injectiveDeployment)
+      ? injectiveDeployment
+      : join(root, "deployments", "sepolia.json"));
   const artifact = parseDeploymentArtifact(
-    JSON.parse(readFileSync(join(root, "deployments", "sepolia.json"), "utf8"))
+    JSON.parse(readFileSync(deploymentPath, "utf8"))
   );
+  const network = getProofMarketNetworkByChainId(artifact.chainId);
+  const rpcUrl = process.env[network.rpcEnvVar] ?? network.defaultRpcUrl;
   const client = createPublicClient({
-    chain: sepolia,
-    transport: http(process.env.SEPOLIA_RPC_URL ?? "")
+    chain: getViemChainByChainId(artifact.chainId),
+    transport: http(rpcUrl)
   });
 
   const cm = artifact.contracts.ProofMarketChallengeManager as `0x${string}`;
@@ -41,7 +54,7 @@ async function loadSystemState() {
       args
     } as never) as Promise<T>;
 
-  const [minStake, deposit, juryFee, defenseWindow, jurySize, jurorCount, challengeWindow, coboBalance] =
+  const [minStake, deposit, juryFee, defenseWindow, jurySize, jurorCount, challengeWindow, signerBalance] =
     await Promise.all([
       readCm<bigint>("minStake" as never).catch(() => 10_000_000n),
       readCm<bigint>("challengeDeposit" as never).catch(() => 2_000_000n),
@@ -54,7 +67,7 @@ async function loadSystemState() {
         address: token,
         abi: erc20Abi,
         functionName: "balanceOf",
-        args: [artifact.coboWallet as `0x${string}`]
+        args: [artifact.policySignerAddress as `0x${string}`]
       }) as Promise<bigint>
     ]);
 
@@ -84,11 +97,16 @@ async function loadSystemState() {
   const reputations = await Promise.all(
     providerProfiles.map(async (profile) => {
       if (!artifact.erc8004) return { id: profile.id, score: profile.reputationScore, source: "fixture" };
+      const agentId = artifact.providers?.[profile.id]?.agentId ?? profile.agentId;
       try {
         const summary = await readReputationSummary(
-          process.env.SEPOLIA_RPC_URL ?? "",
+          rpcUrl,
           artifact.erc8004.reputationRegistry as `0x${string}`,
-          BigInt(profile.agentId)
+          BigInt(agentId),
+          "",
+          "",
+          undefined,
+          artifact.chainId
         );
         if (summary.count === 0n) throw new Error("no feedback");
         return { id: profile.id, score: reputationSummaryToScore1000(summary), source: "erc8004" };
@@ -103,7 +121,7 @@ async function loadSystemState() {
     params: { minStake, deposit, juryFee, defenseWindow, jurySize, jurorCount, challengeWindow },
     jurors,
     expert: { address: expertAddress, stake, lockedStake, free: stake - lockedStake },
-    coboBalance,
+    signerBalance,
     reputations
   };
 }
@@ -120,64 +138,66 @@ function CheckRow({ ok, label }: { ok: boolean; label: string }) {
 }
 
 export default async function SystemPage() {
+  const cookieStore = await cookies();
+  const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
+  const t = getUiText(locale);
+  const providerProfiles = getProviderProfiles(locale);
   const state = await loadSystemState();
-  const { artifact, params, jurors, expert, coboBalance, reputations } = state;
+  const { artifact, params, jurors, expert, signerBalance, reputations } = state;
   const slash = (params.minStake * 5000n) / 10000n;
   const reward = (slash * 5000n) / 10000n;
   const jurySeated = params.jurorCount === params.jurySize && jurors.every((j) => j.registered);
   const stakeOk = expert.free >= params.minStake;
-  const coboOk = coboBalance >= params.deposit + params.juryFee;
+  const signerOk = signerBalance >= params.deposit + params.juryFee;
 
   return (
     <main className="wizard-shell" style={{ maxWidth: 1080, margin: "0 auto", padding: "32px 24px" }}>
-      <h1 style={{ marginBottom: 4 }}>系统状态</h1>
+      <h1 style={{ marginBottom: 4 }}>{t.system.title}</h1>
       <p className="muted small" style={{ marginTop: 0 }}>
-        当前部署概览：合约、资金托管、领域专家与陪审机制。
+        {t.system.subtitle}
       </p>
 
-      {/* 判定清单 */}
-      <section className="recommend-card" style={{ marginTop: 20 }} aria-label="就绪检查">
-        <p className="section-kicker" style={{ margin: "0 0 8px" }}>就绪检查</p>
-        <CheckRow ok label={`三合约已部署并完成双向 wire（Escrow / ChallengeManager / MockUSDC）`} />
+      <section className="recommend-card" style={{ marginTop: 20 }} aria-label={t.system.readiness}>
+        <p className="section-kicker" style={{ margin: "0 0 8px" }}>{t.system.readiness}</p>
+        <CheckRow ok label={t.system.checks.contracts} />
         <CheckRow
           ok={jurySeated}
-          label={`陪审团已就绪：本案 ${params.jurorCount}/${params.jurySize} 个独立运营方注册，模型版本哈希 + 陪审规程哈希已上链承诺`}
+          label={t.system.checks.jury(String(params.jurorCount), String(params.jurySize))}
         />
         <CheckRow
           ok={stakeOk}
-          label={`专家质押达标：可用质押 ${mUSDC(expert.free)} ≥ minStake ${mUSDC(params.minStake)}（总质押 ${mUSDC(expert.stake)}，在途锁定 ${mUSDC(expert.lockedStake)}）`}
+          label={t.system.checks.stake(usdc(expert.free), usdc(params.minStake), usdc(expert.stake), usdc(expert.lockedStake))}
         />
-        <CheckRow ok={coboOk} label={`Cobo 钱包持有预算资产：${mUSDC(coboBalance)}`} />
+        <CheckRow ok={signerOk} label={t.system.checks.signer(usdc(signerBalance))} />
       </section>
 
-      {/* 合约与协议参数 */}
       <section style={{ marginTop: 24 }}>
-        <p className="section-kicker">合约与协议参数（链上读取）</p>
+        <p className="section-kicker">{t.system.contracts}</p>
         <div className="data-grid">
           <div className="data-row">
-            <span className="data-label">Escrow 托管</span>
+            <span className="data-label">{t.system.escrow}</span>
             <div className="data-value mono">
-              <a className="hash" href={sepoliaAddressUrl(artifact.contracts.ProofMarketEscrow)} target="_blank" rel="noreferrer">
+              <a className="hash" href={injectiveAddressUrl(artifact.contracts.ProofMarketEscrow)} target="_blank" rel="noreferrer">
                 {shortAddress(artifact.contracts.ProofMarketEscrow)}
               </a>
-              <span className="muted"> · 挑战窗口 W_c = {String(params.challengeWindow)}s（买方可直接验收；非买方结算需等窗口结束）</span>
+              <span className="muted"> · challenge window = {String(params.challengeWindow)}s</span>
             </div>
           </div>
           <div className="data-row">
-            <span className="data-label">ChallengeManager</span>
+            <span className="data-label">{t.system.challengeManager}</span>
             <div className="data-value mono">
-              <a className="hash" href={sepoliaAddressUrl(artifact.contracts.ProofMarketChallengeManager ?? "")} target="_blank" rel="noreferrer">
+              <a className="hash" href={injectiveAddressUrl(artifact.contracts.ProofMarketChallengeManager ?? "")} target="_blank" rel="noreferrer">
                 {shortAddress(artifact.contracts.ProofMarketChallengeManager ?? "")}
               </a>
               <span className="muted">
-                {" "}· D={mUSDC(params.deposit)} · F={mUSDC(params.juryFee)} · S={mUSDC(slash)} · R={mUSDC(reward)} · R_w={String(params.defenseWindow)}s · N={String(params.jurySize)}
+                {" "}· D={usdc(params.deposit)} · F={usdc(params.juryFee)} · S={usdc(slash)} · R={usdc(reward)} · R_w={String(params.defenseWindow)}s · N={String(params.jurySize)}
               </span>
             </div>
           </div>
           <div className="data-row">
-            <span className="data-label">MockUSDC</span>
+            <span className="data-label">{t.system.token}</span>
             <div className="data-value mono">
-              <a className="hash" href={sepoliaAddressUrl(artifact.contracts.MockUSDC)} target="_blank" rel="noreferrer">
+              <a className="hash" href={injectiveAddressUrl(artifact.contracts.MockUSDC)} target="_blank" rel="noreferrer">
                 {shortAddress(artifact.contracts.MockUSDC)}
               </a>
             </div>
@@ -185,49 +205,49 @@ export default async function SystemPage() {
         </div>
       </section>
 
-      {/* 陪审团 */}
-      <section style={{ marginTop: 24 }} aria-label="陪审团">
-        <p className="section-kicker">AI 陪审团（九席候选陪审池；本案 {String(params.jurorCount)}/{String(params.jurySize)} 席参与裁决）</p>
+      <section style={{ marginTop: 24 }} aria-label={t.system.juryPool(String(params.jurorCount), String(params.jurySize))}>
+        <p className="section-kicker">{t.system.juryPool(String(params.jurorCount), String(params.jurySize))}</p>
         <div className="evidence-items-list">
           {jurors.map((juror) => (
             <details key={juror.jurorId} className="evidence-item-row" open>
               <summary className="evidence-item-summary">
                 <span className="evidence-item-title">
-                  陪审方 {jurors.indexOf(juror) + 1}
+                  {t.system.juror(jurors.indexOf(juror))}
                 </span>
                 <span className={`status-badge ${juror.registered ? "success" : "danger"}`}>
-                  {juror.registered ? "已注册" : "未注册"}
+                  {juror.registered ? t.system.registered : t.system.unregistered}
                 </span>
               </summary>
               <div className="evidence-item-body">
                 <div className="data-row">
-                  <span className="data-label">链上地址</span>
+                  <span className="data-label">{t.system.address}</span>
                   <div className="data-value mono">
-                    <a className="hash" href={sepoliaAddressUrl(juror.address)} target="_blank" rel="noreferrer">
+                    <a className="hash" href={injectiveAddressUrl(juror.address)} target="_blank" rel="noreferrer">
                       {juror.address}
                     </a>
                   </div>
                 </div>
                 <div className="data-row">
-                  <span className="data-label">模型版本承诺</span>
+                  <span className="data-label">{t.system.modelCommitment}</span>
                   <div className="data-value mono">
                     {juror.modelHash ? `${juror.modelHash.slice(0, 26)}…` : "—"}
                   </div>
                 </div>
                 <div className="data-row">
-                  <span className="data-label">陪审规程承诺</span>
+                  <span className="data-label">{t.system.procedureCommitment}</span>
                   <div className="data-value mono">
                     {juror.promptHash ? `${juror.promptHash.slice(0, 26)}…` : "—"}
                   </div>
                 </div>
                 <div className="data-row">
-                  <span className="data-label">资料库授权</span>
+                  <span className="data-label">{t.system.verificationCapability}</span>
                   <div className="data-value">
-                    {libraryNames(
-                      presetJurors[jurors.indexOf(juror)]?.libraryAccess ?? []
+                    {libraryNamesForLocale(
+                      presetJurors[jurors.indexOf(juror)]?.libraryAccess ?? [],
+                      locale
                     ) || "—"}
                     <span className="muted small">
-                      {" "}· 用于原文核对与挑战指派匹配
+                      {" "}· {t.system.capabilityNote}
                     </span>
                   </div>
                 </div>
@@ -236,33 +256,35 @@ export default async function SystemPage() {
           ))}
         </div>
         <p className="small muted tight" style={{ marginTop: 8 }}>
-          每个陪审方注册时将模型版本与陪审规程的哈希承诺上链。挑战发起时按「陪审方库授权覆盖反证所在库」指派席位，确保每一票都能自行调取原文，而不是轻信挑战者提交件。
+          {t.system.juryNote}
         </p>
       </section>
 
-      {/* Provider 市场 */}
-      <section style={{ marginTop: 24 }} aria-label="领域专家">
-        <p className="section-kicker">领域专家（ERC-8004 身份 + 链上信誉）</p>
+      <section style={{ marginTop: 24 }} aria-label="Provider">
+        <p className="section-kicker">{t.system.providers}</p>
         <div className="data-grid">
           {providerProfiles.map((profile) => {
             const rep = reputations.find((r) => r.id === profile.id);
+            const provider = artifact.providers?.[profile.id];
+            const address = provider?.address ?? profile.address;
+            const agentId = provider?.agentId ?? profile.agentId;
             return (
               <div className="data-row" key={profile.id}>
                 <span className="data-label">{profile.name}</span>
                 <div className="data-value">
                   <span className="mono">
-                    <a className="hash" href={sepoliaAddressUrl(profile.address)} target="_blank" rel="noreferrer">
-                      {shortAddress(profile.address)}
+                    <a className="hash" href={injectiveAddressUrl(address)} target="_blank" rel="noreferrer">
+                      {shortAddress(address)}
                     </a>
-                    {" "}· Agent #{profile.agentId}
+                    {" "}· Agent #{agentId}
                   </span>
                   <span className="muted small">
-                    {" "}· 信誉 {rep?.score}/1000{rep?.source === "erc8004" ? "（链上）" : ""} · 被挑战 {profile.challengeStats.challenged} 次 / 成立 {profile.challengeStats.upheld} 次
+                    {" "}· {t.system.reputation} {rep?.score}/1000{rep?.source === "erc8004" ? ` (${t.system.onchain})` : ""} · {t.system.challenged(profile.challengeStats.challenged, profile.challengeStats.upheld)}
                   </span>
                   <span className="lib-tag-row">
                     {profile.libraries.map((lib) => (
                       <span className="lib-tag" key={lib}>
-                        {LIBRARIES[lib].name}
+                        {libraryInfo(lib, locale).name}
                       </span>
                     ))}
                   </span>
@@ -271,15 +293,15 @@ export default async function SystemPage() {
             );
           })}
           <div className="data-row">
-            <span className="data-label">链上执行身份</span>
+            <span className="data-label">{t.system.executionAddress}</span>
             <div className="data-value">
               <span className="mono">
-                <a className="hash" href={sepoliaAddressUrl(expert.address)} target="_blank" rel="noreferrer">
+                <a className="hash" href={injectiveAddressUrl(expert.address)} target="_blank" rel="noreferrer">
                   {shortAddress(expert.address)}
                 </a>
               </span>
               <span className="muted small">
-                {" "}· 专家统一签名地址：质押 {mUSDC(expert.stake)}，每单锁定 {mUSDC(params.minStake)} 作履约 bond
+                {" "}· {t.system.executionAddressNote(usdc(expert.stake), usdc(params.minStake))}
               </span>
             </div>
           </div>
@@ -287,9 +309,9 @@ export default async function SystemPage() {
       </section>
 
       <p className="small muted" style={{ marginTop: 28 }}>
-        <a href="/">← 返回首页</a>
+        <a href="/">← {t.system.backHome}</a>
         {" · "}
-        <a href="/console">进入控制台</a>
+        <a href="/console">{t.system.openConsole}</a>
       </p>
     </main>
   );

@@ -10,8 +10,8 @@ export async function POST(_: Request, context: RouteContext) {
   const service = getTaskService();
 
   return jsonOrError(async () => {
-    await service.submitPact(taskId);
+    await service.submitPolicy(taskId);
 
-    return service.activatePact(taskId);
+    return service.activatePolicy(taskId);
   });
 }

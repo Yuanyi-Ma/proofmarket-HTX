@@ -20,7 +20,7 @@
     "returnType": "provider-answer-package",
     "verificationMethod": "验证者核对来源定位、摘录与摘要的一致性、相关性说明以及覆盖声明。"
   },
-  "pact": {
+  "policy": {
     "intent": "Fund one provider research job for task task_001.",
     "totalBudget": "5 test USDC",
     "perJobCap": "1 test USDC",
@@ -41,10 +41,10 @@
       "direct transfer",
       "non-whitelisted target",
       "amount above cap",
-      "expired pact"
+      "expired policy"
     ],
     "expiresInMinutes": 30,
-    "pactId": "pact_001",
+    "policyId": "policy_001",
     "status": "active"
   },
   "providerPackage": {
@@ -99,7 +99,7 @@
       "result": "success",
       "message": "用户创建任务，预算 5 test USDC。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": null,
       "createdAt": "2026-06-10T07:42:43.464Z"
     },
@@ -111,43 +111,43 @@
       "result": "success",
       "message": "已选定候选 Provider：execution-research-expert、shallow-search-provider、general-web-summary。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": null,
       "createdAt": "2026-06-10T07:42:43.464Z"
     },
     {
       "id": "audit_003",
       "taskId": "task_001",
-      "source": "cobo",
-      "type": "pact_submitted",
+      "source": "policy-signer",
+      "type": "policy_submitted",
       "result": "success",
-      "message": "已提交 Pact pact_001。",
+      "message": "已提交受限签名策略 policy_001。",
       "txHash": null,
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": null,
       "createdAt": "2026-06-10T07:42:43.464Z"
     },
     {
       "id": "audit_004",
       "taskId": "task_001",
-      "source": "cobo",
-      "type": "pact_activated",
+      "source": "policy-signer",
+      "type": "policy_activated",
       "result": "success",
-      "message": "Pact pact_001 已激活。",
+      "message": "受限签名策略 policy_001 已激活。",
       "txHash": null,
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": null,
       "createdAt": "2026-06-10T07:42:43.464Z"
     },
     {
       "id": "audit_005",
       "taskId": "task_001",
-      "source": "cobo",
+      "source": "policy-signer",
       "type": "escrow_executed",
       "result": "success",
       "message": "托管订单已在演示链上注资。",
       "txHash": "0xproofmarket0000000000000000000000000000000000000000000000000001",
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.464Z"
     },
@@ -159,7 +159,7 @@
       "result": "success",
       "message": "Provider execution-research-expert 交付证据包 0x704c08fa7e50df3800b25323ef483788494d0362c0fc6f23ab5fa4de8cd59387。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.465Z"
     },
@@ -171,7 +171,7 @@
       "result": "success",
       "message": "证据在声明的执行加速覆盖范围内支持该 Provider 回答。 resultHash=0x3c9277fcb59fdf0c5b92b1555d9163c469c20a5fe23fd81b5dcfbdce3c4429cd",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.465Z"
     },
@@ -183,7 +183,7 @@
       "result": "success",
       "message": "已向 Provider 结算付款。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.465Z"
     }

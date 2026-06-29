@@ -39,50 +39,80 @@ export type LibraryId =
   | "westlaw"
   | "eur-lex"
   | "npc-flk"
-  // 链上数据
-  | "dune"
-  | "glassnode"
   // 兜底：未经授权库背书的公开网页
   | "open-web";
 
-export type LibraryKind = "学术论文库" | "行业研究库" | "金融数据库" | "法规数据库" | "链上数据" | "公开网页";
+import { normalizeLocale, type Locale } from "./locale";
+
+export type LibraryKind =
+  | "Academic literature database"
+  | "Industry research database"
+  | "Financial database"
+  | "Legal and regulatory database"
+  | "Public web";
 
 export type LibraryInfo = {
   /** Display name, the official product name. */
   name: string;
   kind: LibraryKind;
-  /** 订阅授权 = paid license; 开放获取 = anyone can fetch the original. */
-  access: "订阅授权" | "开放获取" | "官方公开";
+  /** Paid subscription = license-gated; open access/public = anyone can verify. */
+  access: "Paid subscription" | "Open access" | "Official public source";
 };
 
 export const LIBRARIES: Record<LibraryId, LibraryInfo> = {
-  "ieee-xplore": { name: "IEEE Xplore", kind: "学术论文库", access: "订阅授权" },
-  "acm-dl": { name: "ACM Digital Library", kind: "学术论文库", access: "订阅授权" },
-  sciencedirect: { name: "Elsevier ScienceDirect", kind: "学术论文库", access: "订阅授权" },
-  "springer-link": { name: "SpringerLink", kind: "学术论文库", access: "订阅授权" },
-  arxiv: { name: "arXiv", kind: "学术论文库", access: "开放获取" },
-  usenix: { name: "USENIX", kind: "学术论文库", access: "开放获取" },
-  cnki: { name: "中国知网 CNKI", kind: "学术论文库", access: "订阅授权" },
-  "messari-pro": { name: "Messari Pro", kind: "行业研究库", access: "订阅授权" },
-  "delphi-digital": { name: "Delphi Digital", kind: "行业研究库", access: "订阅授权" },
-  "galaxy-research": { name: "Galaxy Research", kind: "行业研究库", access: "开放获取" },
-  gartner: { name: "Gartner", kind: "行业研究库", access: "订阅授权" },
-  idc: { name: "IDC", kind: "行业研究库", access: "订阅授权" },
-  forrester: { name: "Forrester", kind: "行业研究库", access: "订阅授权" },
-  statista: { name: "Statista", kind: "行业研究库", access: "订阅授权" },
-  "cb-insights": { name: "CB Insights", kind: "行业研究库", access: "订阅授权" },
-  bloomberg: { name: "Bloomberg Terminal", kind: "金融数据库", access: "订阅授权" },
-  wind: { name: "Wind 万得", kind: "金融数据库", access: "订阅授权" },
-  spcapitaliq: { name: "S&P Capital IQ", kind: "金融数据库", access: "订阅授权" },
-  pkulaw: { name: "北大法宝", kind: "法规数据库", access: "订阅授权" },
-  "wolters-kluwer": { name: "威科先行（Wolters Kluwer）", kind: "法规数据库", access: "订阅授权" },
-  lexisnexis: { name: "LexisNexis", kind: "法规数据库", access: "订阅授权" },
-  westlaw: { name: "Westlaw", kind: "法规数据库", access: "订阅授权" },
-  "eur-lex": { name: "EUR-Lex", kind: "法规数据库", access: "官方公开" },
-  "npc-flk": { name: "国家法律法规数据库", kind: "法规数据库", access: "官方公开" },
-  dune: { name: "Dune Analytics", kind: "链上数据", access: "开放获取" },
-  glassnode: { name: "Glassnode", kind: "链上数据", access: "订阅授权" },
-  "open-web": { name: "公开网页", kind: "公开网页", access: "开放获取" }
+  "ieee-xplore": { name: "IEEE Xplore", kind: "Academic literature database", access: "Paid subscription" },
+  "acm-dl": { name: "ACM Digital Library", kind: "Academic literature database", access: "Paid subscription" },
+  sciencedirect: { name: "Elsevier ScienceDirect", kind: "Academic literature database", access: "Paid subscription" },
+  "springer-link": { name: "SpringerLink", kind: "Academic literature database", access: "Paid subscription" },
+  arxiv: { name: "arXiv", kind: "Academic literature database", access: "Open access" },
+  usenix: { name: "USENIX", kind: "Academic literature database", access: "Open access" },
+  cnki: { name: "CNKI", kind: "Academic literature database", access: "Paid subscription" },
+  "messari-pro": { name: "Messari Pro", kind: "Industry research database", access: "Paid subscription" },
+  "delphi-digital": { name: "Delphi Digital", kind: "Industry research database", access: "Paid subscription" },
+  "galaxy-research": { name: "Galaxy Research", kind: "Industry research database", access: "Open access" },
+  gartner: { name: "Gartner", kind: "Industry research database", access: "Paid subscription" },
+  idc: { name: "IDC", kind: "Industry research database", access: "Paid subscription" },
+  forrester: { name: "Forrester", kind: "Industry research database", access: "Paid subscription" },
+  statista: { name: "Statista", kind: "Industry research database", access: "Paid subscription" },
+  "cb-insights": { name: "CB Insights", kind: "Industry research database", access: "Paid subscription" },
+  bloomberg: { name: "Bloomberg Terminal", kind: "Financial database", access: "Paid subscription" },
+  wind: { name: "Wind", kind: "Financial database", access: "Paid subscription" },
+  spcapitaliq: { name: "S&P Capital IQ", kind: "Financial database", access: "Paid subscription" },
+  pkulaw: { name: "PKULaw", kind: "Legal and regulatory database", access: "Paid subscription" },
+  "wolters-kluwer": { name: "Wolters Kluwer", kind: "Legal and regulatory database", access: "Paid subscription" },
+  lexisnexis: { name: "LexisNexis", kind: "Legal and regulatory database", access: "Paid subscription" },
+  westlaw: { name: "Westlaw", kind: "Legal and regulatory database", access: "Paid subscription" },
+  "eur-lex": { name: "EUR-Lex", kind: "Legal and regulatory database", access: "Official public source" },
+  "npc-flk": { name: "National Laws and Regulations Database", kind: "Legal and regulatory database", access: "Official public source" },
+  "open-web": { name: "Open Web", kind: "Public web", access: "Open access" }
+};
+
+const ZH_LIBRARY_LABELS: Record<LibraryId, LibraryInfo> = {
+  "ieee-xplore": { name: "IEEE Xplore", kind: "Academic literature database", access: "Paid subscription" },
+  "acm-dl": { name: "ACM Digital Library", kind: "Academic literature database", access: "Paid subscription" },
+  sciencedirect: { name: "Elsevier ScienceDirect", kind: "Academic literature database", access: "Paid subscription" },
+  "springer-link": { name: "SpringerLink", kind: "Academic literature database", access: "Paid subscription" },
+  arxiv: { name: "arXiv", kind: "Academic literature database", access: "Open access" },
+  usenix: { name: "USENIX", kind: "Academic literature database", access: "Open access" },
+  cnki: { name: "中国知网 CNKI", kind: "Academic literature database", access: "Paid subscription" },
+  "messari-pro": { name: "Messari Pro", kind: "Industry research database", access: "Paid subscription" },
+  "delphi-digital": { name: "Delphi Digital", kind: "Industry research database", access: "Paid subscription" },
+  "galaxy-research": { name: "Galaxy Research", kind: "Industry research database", access: "Open access" },
+  gartner: { name: "Gartner", kind: "Industry research database", access: "Paid subscription" },
+  idc: { name: "IDC", kind: "Industry research database", access: "Paid subscription" },
+  forrester: { name: "Forrester", kind: "Industry research database", access: "Paid subscription" },
+  statista: { name: "Statista", kind: "Industry research database", access: "Paid subscription" },
+  "cb-insights": { name: "CB Insights", kind: "Industry research database", access: "Paid subscription" },
+  bloomberg: { name: "Bloomberg Terminal", kind: "Financial database", access: "Paid subscription" },
+  wind: { name: "Wind 万得", kind: "Financial database", access: "Paid subscription" },
+  spcapitaliq: { name: "S&P Capital IQ", kind: "Financial database", access: "Paid subscription" },
+  pkulaw: { name: "北大法宝", kind: "Legal and regulatory database", access: "Paid subscription" },
+  "wolters-kluwer": { name: "威科先行（Wolters Kluwer）", kind: "Legal and regulatory database", access: "Paid subscription" },
+  lexisnexis: { name: "LexisNexis", kind: "Legal and regulatory database", access: "Paid subscription" },
+  westlaw: { name: "Westlaw", kind: "Legal and regulatory database", access: "Paid subscription" },
+  "eur-lex": { name: "EUR-Lex", kind: "Legal and regulatory database", access: "Official public source" },
+  "npc-flk": { name: "国家法律法规数据库", kind: "Legal and regulatory database", access: "Official public source" },
+  "open-web": { name: "公开网页", kind: "Public web", access: "Open access" }
 };
 
 export function libraryName(id: LibraryId): string {
@@ -91,4 +121,12 @@ export function libraryName(id: LibraryId): string {
 
 export function libraryNames(ids: readonly LibraryId[]): string {
   return ids.map((id) => LIBRARIES[id].name).join(" · ");
+}
+
+export function libraryInfo(id: LibraryId, locale: Locale = "en"): LibraryInfo {
+  return normalizeLocale(locale) === "zh" ? ZH_LIBRARY_LABELS[id] : LIBRARIES[id];
+}
+
+export function libraryNamesForLocale(ids: readonly LibraryId[], locale: Locale = "en"): string {
+  return ids.map((id) => libraryInfo(id, locale).name).join(" · ");
 }

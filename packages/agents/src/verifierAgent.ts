@@ -1,4 +1,5 @@
 import { stableHash, type JsonValue } from "@proofmarket/shared/src/hash";
+import { normalizeLocale, type Locale } from "@proofmarket/shared/src/locale";
 import type { ProviderAnswerPackage } from "@proofmarket/shared/src/types";
 import {
   hashProviderAnswerPackage,
@@ -57,7 +58,8 @@ function assertProviderPackageHashMatches(
 }
 
 export function verifyPackage(
-  providerPackage: ProviderAnswerPackage
+  providerPackage: ProviderAnswerPackage,
+  locale: Locale = "en"
 ): VerifierVerdict {
   assertProviderPackageHashMatches(providerPackage);
 
@@ -71,7 +73,9 @@ export function verifyPackage(
     const verdict = "provider_fault";
     const challengeType = "CoverageMiss";
     const reason =
-      "Provider 声明覆盖 2021-2026 年区块链执行加速方向，却遗漏了 Block-STM——该声明范围内直接相关的来源。";
+      normalizeLocale(locale) === "zh"
+        ? "Provider 声明覆盖 2021-2026 年区块链执行加速方向，却遗漏了 Block-STM——该声明范围内直接相关的来源。"
+        : "The Provider claimed coverage of 2021-2026 blockchain execution-acceleration research but omitted Block-STM, a directly relevant in-scope source.";
 
     return {
       verdict,
@@ -88,7 +92,9 @@ export function verifyPackage(
 
   const verdict = "valid";
   const reason =
-    "简报内容在声明的执行加速覆盖范围内支持该专家结论。";
+    normalizeLocale(locale) === "zh"
+      ? "证据服务包内容在声明的执行加速覆盖范围内支持该 Provider 结论。"
+      : "The Evidence Service Package supports the Provider's conclusions within the declared execution-acceleration coverage.";
 
   return {
     verdict,

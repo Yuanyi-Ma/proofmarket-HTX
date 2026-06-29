@@ -46,7 +46,7 @@ const context = {
       price: "1 mUSDC"
     }
   ],
-  pactSummary: "Escrow + MockUSDC allowlist on Sepolia, max 7 txs, 90 min expiry."
+  policySummary: "Escrow + MockUSDC allowlist on Sepolia, max 7 txs, 90 min expiry."
 };
 
 const validPlan = JSON.stringify({
@@ -62,13 +62,13 @@ const validPlan = JSON.stringify({
 });
 
 describe("buildResearchPrompt", () => {
-  it("includes question, budget, catalog, allowed actions, pact summary, and schema", () => {
+  it("includes question, budget, catalog, allowed actions, policy summary, and schema", () => {
     const prompt = buildResearchPrompt(context);
     expect(prompt).toContain(context.question);
     expect(prompt).toContain('"maxPayment"');
     expect(prompt).toContain("execution-research-expert");
     expect(prompt).toContain("submitEvidenceHash");
-    expect(prompt).toContain(context.pactSummary);
+    expect(prompt).toContain(context.policySummary);
   });
 
   it("forbids addresses, calldata, and keys", () => {

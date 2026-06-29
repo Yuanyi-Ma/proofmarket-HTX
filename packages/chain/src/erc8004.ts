@@ -1,8 +1,10 @@
 /**
  * ERC-8004 client helpers: identity registration, reputation feedback, and
- * read-back helpers against the official Sepolia registries.
+ * read-back helpers. Defaults to the official Sepolia registries, but callers
+ * can pass a ProofMarket-supported chainId for demo registries such as
+ * Injective EVM testnet.
  *
- * Write clients sign with a local private key (no Cobo in this path — agent
+ * Write clients sign with a local private key (no PolicySigner in this path — agent
  * registration and seed reputation are operator actions, not demo-flow txs).
  */
 
@@ -16,8 +18,8 @@ import {
   type TransactionReceipt
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { sepolia } from "viem/chains";
 import { assertReceiptSuccess } from "./chainReader";
+import { getViemChainByChainId } from "./chains";
 import { identityRegistryAbi, reputationRegistryAbi } from "./erc8004Abi";
 
 type Hex = `0x${string}`;
@@ -54,16 +56,22 @@ export type IdentityClient = {
   register(agentURI: string): Promise<{ agentId: bigint; txHash: Hash }>;
 };
 
+export function getErc8004Chain(chainId?: number) {
+  return getViemChainByChainId(chainId);
+}
+
 export function createIdentityClient(opts: {
   rpcUrl: string;
   privateKey: Hex;
   identityAddress: Hex;
+  chainId?: number;
 }): IdentityClient {
   const account = privateKeyToAccount(opts.privateKey);
-  const publicClient = createPublicClient({ chain: sepolia, transport: http(opts.rpcUrl) });
+  const chain = getErc8004Chain(opts.chainId);
+  const publicClient = createPublicClient({ chain, transport: http(opts.rpcUrl) });
   const walletClient = createWalletClient({
     account,
-    chain: sepolia,
+    chain,
     transport: http(opts.rpcUrl)
   });
 
@@ -105,12 +113,14 @@ export function createReputationClient(opts: {
   rpcUrl: string;
   privateKey: Hex;
   reputationAddress: Hex;
+  chainId?: number;
 }): ReputationClient {
   const account = privateKeyToAccount(opts.privateKey);
-  const publicClient = createPublicClient({ chain: sepolia, transport: http(opts.rpcUrl) });
+  const chain = getErc8004Chain(opts.chainId);
+  const publicClient = createPublicClient({ chain, transport: http(opts.rpcUrl) });
   const walletClient = createWalletClient({
     account,
-    chain: sepolia,
+    chain,
     transport: http(opts.rpcUrl)
   });
 
@@ -159,9 +169,10 @@ export function reputationSummaryToScore1000(summary: {
 export async function readAgent(
   rpcUrl: string,
   identityAddress: Hex,
-  agentId: bigint
+  agentId: bigint,
+  chainId?: number
 ): Promise<{ owner: Hex; agentURI: string }> {
-  const client = createPublicClient({ chain: sepolia, transport: http(rpcUrl) });
+  const client = createPublicClient({ chain: getErc8004Chain(chainId), transport: http(rpcUrl) });
   const [owner, agentURI] = await Promise.all([
     client.readContract({
       address: identityAddress,
@@ -185,9 +196,10 @@ export async function readReputationSummary(
   agentId: bigint,
   tag1 = "",
   tag2 = "",
-  clientAddresses?: readonly Hex[]
+  clientAddresses?: readonly Hex[],
+  chainId?: number
 ): Promise<{ count: bigint; value: bigint; decimals: number }> {
-  const client = createPublicClient({ chain: sepolia, transport: http(rpcUrl) });
+  const client = createPublicClient({ chain: getErc8004Chain(chainId), transport: http(rpcUrl) });
   // The deployed Sepolia ReputationRegistry REJECTS an empty clientAddresses
   // array (reverts "clientAddresses required") — verified against the live
   // contract 2026-06-11. When the caller doesn't scope to specific raters,

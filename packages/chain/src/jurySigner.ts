@@ -1,8 +1,8 @@
 import { createWalletClient, http, publicActions } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { sepolia } from "viem/chains";
 import { challengeManagerAbi } from "./escrowAbi";
 import { assertReceiptSuccess } from "./chainReader";
+import { getViemChainByChainId } from "./chains";
 
 export type CastVoteOnChain = (input: {
   challengeId: bigint;
@@ -14,17 +14,18 @@ export type CastVoteOnChain = (input: {
 /**
  * One juror's castVote signer. Each juror operator holds its own key — the
  * vote MUST come from the registered juror address, so these are direct
- * signers (like the provider submitter), never routed through Cobo.
+ * signers (like the provider submitter), never routed through PolicySigner.
  */
 export function createJuryVoter(input: {
   rpcUrl: string;
   privateKey: `0x${string}`;
   challengeManagerAddress: `0x${string}`;
+  chainId?: number;
 }): CastVoteOnChain {
   const account = privateKeyToAccount(input.privateKey);
   const client = createWalletClient({
     account,
-    chain: sepolia,
+    chain: getViemChainByChainId(input.chainId),
     transport: http(input.rpcUrl)
   }).extend(publicActions);
 
@@ -53,9 +54,10 @@ export type DefenseWindowRemaining = (challengeId: bigint) => Promise<number>;
 export function createDefenseWindowChecker(input: {
   rpcUrl: string;
   challengeManagerAddress: `0x${string}`;
+  chainId?: number;
 }): DefenseWindowRemaining {
   const client = createWalletClient({
-    chain: sepolia,
+    chain: getViemChainByChainId(input.chainId),
     transport: http(input.rpcUrl)
   }).extend(publicActions);
 
@@ -93,11 +95,12 @@ export function createDefenseSubmitter(input: {
   rpcUrl: string;
   privateKey: `0x${string}`;
   challengeManagerAddress: `0x${string}`;
+  chainId?: number;
 }): SubmitDefenseOnChain {
   const account = privateKeyToAccount(input.privateKey);
   const client = createWalletClient({
     account,
-    chain: sepolia,
+    chain: getViemChainByChainId(input.chainId),
     transport: http(input.rpcUrl)
   }).extend(publicActions);
 

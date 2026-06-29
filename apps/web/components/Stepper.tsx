@@ -1,6 +1,9 @@
+"use client";
+
 import React from "react";
 import type { Task } from "@proofmarket/shared/src/types";
 import { STEPS, stepFor, stepStatus } from "../lib/steps";
+import { useI18n } from "./I18nProvider";
 
 type StepperProps = {
   task: Task | null;
@@ -24,12 +27,13 @@ export function Stepper({
   viewingStep = null,
   onSelectStep
 }: StepperProps) {
+  const { t } = useI18n();
   const current = currentStep ?? stepFor(task);
 
   return (
-    <nav className="stepper" aria-label="流程步骤">
+    <nav className="stepper" aria-label={t.steps.stepperAria}>
       <ol>
-        {STEPS.map((step) => {
+        {STEPS.map((step, index) => {
           const state =
             currentStep === null
               ? stepStatus(task, step.no)
@@ -37,6 +41,7 @@ export function Stepper({
           const viewing = viewingStep === step.no;
           const marker = state === "done" ? "✓" : String(step.no);
           const className = `stepper-item ${state}${viewing ? " viewing" : ""}`;
+          const title = t.steps.labels[index] ?? step.title;
 
           return (
             <li className={className} key={step.no}>
@@ -49,7 +54,7 @@ export function Stepper({
                   <span className="stepper-marker" aria-hidden="true">
                     {marker}
                   </span>
-                  <span>{step.title}</span>
+                  <span>{title}</span>
                 </button>
               ) : (
                 <span
@@ -59,7 +64,7 @@ export function Stepper({
                   <span className="stepper-marker" aria-hidden="true">
                     {marker}
                   </span>
-                  <span>{step.title}</span>
+                  <span>{title}</span>
                 </span>
               )}
             </li>

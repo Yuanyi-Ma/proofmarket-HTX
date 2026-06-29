@@ -8,10 +8,10 @@ function task(status: TaskStatus): Task {
     id: "task_001",
     userQuestion: "Question",
     status,
-    budgetLimit: "5 test USDC",
+    budgetLimit: "5 USDC",
     selectedProviderIds: [],
     plan: null,
-    pact: null,
+    policy: null,
     providerPackage: null,
     audit: [],
     jobId: null,
@@ -25,15 +25,15 @@ function task(status: TaskStatus): Task {
 }
 
 describe("STEPS", () => {
-  it("defines the six wizard steps in order with Chinese titles", () => {
+  it("defines the six wizard steps in order with English titles", () => {
     expect(STEPS.map((s) => s.no)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(STEPS.map((s) => s.title)).toEqual([
-      "提出问题",
-      "购买方案",
-      "支付授权",
-      "采购执行",
-      "验收简报",
-      "结算完成"
+      "Ask",
+      "Procurement Plan",
+      "Payment Authorization",
+      "Purchase Execution",
+      "Verify Evidence",
+      "Settlement"
     ]);
   });
 });
@@ -42,10 +42,10 @@ describe("stepFor", () => {
   const expected: Record<TaskStatus, number> = {
     Created: 1,
     Planned: 2,
-    PactSubmitted: 3,
-    PactActive: 3,
-    PactRejected: 3,
-    DeniedByCobo: 3,
+    PolicySubmitted: 3,
+    PolicyActive: 3,
+    PolicyRejected: 3,
+    DeniedByPolicy: 3,
     JobFunded: 4,
     Delivered: 5,
     Verified: 6,
@@ -67,8 +67,8 @@ describe("stepFor", () => {
     });
   }
 
-  it("keeps DeniedByCobo on step 3 (denial result, not progress)", () => {
-    expect(stepFor(task("DeniedByCobo"))).toBe(3);
+  it("keeps DeniedByPolicy on step 3 (denial result, not progress)", () => {
+    expect(stepFor(task("DeniedByPolicy"))).toBe(3);
   });
 });
 

@@ -8,8 +8,8 @@ async function main(): Promise<void> {
   const service = createTaskService(createInMemoryStore());
   const task = await service.createTask(DEFAULT_QUESTION, DEFAULT_BUDGET);
   await service.plan(task.id);
-  await service.submitPact(task.id);
-  await service.activatePact(task.id);
+  await service.submitPolicy(task.id);
+  await service.activatePolicy(task.id);
   await service.triggerDenial(task.id);
   console.log(JSON.stringify(await service.getTask(task.id), null, 2));
 }

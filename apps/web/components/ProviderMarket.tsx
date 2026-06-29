@@ -1,6 +1,7 @@
 import React from "react";
 import { providerProfiles } from "@proofmarket/shared/src/fixtures";
 import type { ProviderProfile, Task } from "@proofmarket/shared/src/types";
+import { displayAsset } from "../lib/assets";
 import { Section } from "./Section";
 import { StatusBadge } from "./StatusBadge";
 
@@ -13,14 +14,14 @@ type ProviderMarketProps = {
 
 function recommendationCopy(provider: ProviderProfile): string {
   if (provider.role === "recommended") {
-    return "Top pick on priors: IEEE + Elsevier coverage with a curated corpus, highest on-chain reputation, no upheld challenges.";
+    return "Recommended: IEEE + Elsevier coverage matches the local curated corpus, with the highest on-chain reputation and no upheld challenges.";
   }
 
   if (provider.role === "risky") {
-    return "Lower-probability pick: similar claimed sources but no curated corpus, lower reputation and prior upheld coverage challenges.";
+    return "Higher risk: similar claimed sources, but no curated domain corpus, lower reputation, and prior upheld challenges.";
   }
 
-  return "IEEE-only and self-reportedly partial on execution acceleration — useful as a supplement, not a full match.";
+  return "Comparison option: IEEE-only coverage with partial execution-layer fit; useful as a benchmark, not the main Provider for this job.";
 }
 
 function roleTone(provider: ProviderProfile) {
@@ -37,7 +38,7 @@ export function ProviderMarket({
 }: ProviderMarketProps) {
   const canRunProvider = !isBusy && task?.status === "JobFunded";
 
-  /** 查找某个 provider 在链上信誉列表里的得分（仅 real mode 有）。 */
+  /** Find a provider's on-chain reputation score (real mode only). */
   function onChainScore(providerId: ProviderProfile["id"]): number | null {
     const reps = task?.plan?.providerReputations;
     if (!reps) return null;
@@ -46,7 +47,7 @@ export function ProviderMarket({
   }
 
   return (
-    <Section title="Provider market" kicker="Registered agents">
+    <Section title="Provider Market" kicker="Registered Agents">
       <div className="provider-grid">
         {providerProfiles.map((provider) => (
           <article
@@ -60,7 +61,7 @@ export function ProviderMarket({
                   {provider.role === "recommended"
                     ? "Recommended"
                     : provider.role === "risky"
-                      ? "Risky"
+                      ? "High Risk"
                       : "Comparison"}
                 </StatusBadge>
                 <StatusBadge>Agent ID {provider.agentId}</StatusBadge>
@@ -69,17 +70,17 @@ export function ProviderMarket({
             </div>
 
             <div className="data-row">
-              <span className="data-label">Coverage</span>
+              <span className="data-label">Evidence capability</span>
               <div className="data-value small">{provider.coverage}</div>
             </div>
             <div className="two-col">
               <div className="data-row">
                 <span className="data-label">Price</span>
-                <div className="data-value">{provider.price}</div>
+                <div className="data-value">{displayAsset(provider.price)}</div>
               </div>
               <div className="data-row">
-                <span className="data-label">Stake</span>
-                <div className="data-value">{provider.stake}</div>
+                <span className="data-label">Performance bond</span>
+                <div className="data-value">{displayAsset(provider.stake)}</div>
               </div>
             </div>
             <div className="two-col">
@@ -92,7 +93,7 @@ export function ProviderMarket({
                       return (
                         <>
                           {chainScore}{" "}
-                          <span className="chain-rep-tag">链上信誉</span>
+                          <span className="chain-rep-tag">On-chain</span>
                         </>
                       );
                     }
@@ -101,15 +102,15 @@ export function ProviderMarket({
                 </div>
               </div>
               <div className="data-row">
-                <span className="data-label">History</span>
-                <div className="data-value small">{`被挑战 ${provider.challengeStats.challenged} 次 / 成立 ${provider.challengeStats.upheld} 次`}</div>
+                <span className="data-label">Challenge record</span>
+                <div className="data-value small">{`${provider.challengeStats.challenged} challenged / ${provider.challengeStats.upheld} upheld`}</div>
               </div>
             </div>
             <div className="info-strip small">{recommendationCopy(provider)}</div>
 
             {provider.id === "execution-research-expert" ? (
               <button onClick={onRunExpert} disabled={!canRunProvider}>
-                Run expert provider
+                Run Recommended Provider
               </button>
             ) : null}
             {provider.id === "shallow-search-provider" ? (
@@ -118,12 +119,12 @@ export function ProviderMarket({
                 onClick={onRunShallow}
                 disabled={!canRunProvider}
               >
-                Run shallow provider
+                Run Low-Reputation Provider
               </button>
             ) : null}
             {provider.id === "general-web-summary" ? (
               <p className="small muted tight">
-                No execution button in this demo path.
+                This comparison Provider is not executed in the current path.
               </p>
             ) : null}
           </article>

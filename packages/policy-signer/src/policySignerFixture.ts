@@ -1,13 +1,13 @@
 // Fixture-mode types — intentionally separate from the real CLI client types
 // so the fixture interface is stable regardless of CLI changes.
 
-export type FixturePactSubmission = {
-  pactId: string;
+export type FixturePolicySubmission = {
+  policyId: string;
   status: "submitted" | "active" | "denied" | "expired";
 };
 
-export type FixturePactStatus = {
-  pactId: string;
+export type FixturePolicyStatus = {
+  policyId: string;
   status: "submitted" | "active" | "denied" | "expired";
 };
 
@@ -26,34 +26,34 @@ export type FixtureDeniedTransferResult = {
 };
 
 
-export interface FixtureCoboClient {
-  submitPact(): Promise<FixturePactSubmission>;
-  getPactStatus(pactId: string): Promise<FixturePactStatus>;
+export interface FixturePolicySignerClient {
+  submitPolicy(): Promise<FixturePolicySubmission>;
+  getPolicyStatus(policyId: string): Promise<FixturePolicyStatus>;
   callContract(): Promise<FixtureContractCallResult>;
   triggerDeniedTransfer(): Promise<FixtureDeniedTransferResult>;
 }
 
-const FIXTURE_PACT_ID = "pact_fixture_001";
+const FIXTURE_POLICY_ID = "policy_fixture_001";
 
-export function createFixtureCoboClient(): FixtureCoboClient {
+export function createFixturePolicySignerClient(): FixturePolicySignerClient {
   return {
-    async submitPact(): Promise<FixturePactSubmission> {
+    async submitPolicy(): Promise<FixturePolicySubmission> {
       return {
-        pactId: FIXTURE_PACT_ID,
+        policyId: FIXTURE_POLICY_ID,
         status: "submitted"
       };
     },
 
-    async getPactStatus(pactId: string): Promise<FixturePactStatus> {
+    async getPolicyStatus(policyId: string): Promise<FixturePolicyStatus> {
       return {
-        pactId,
+        policyId,
         status: "active"
       };
     },
 
     async callContract(): Promise<FixtureContractCallResult> {
       return {
-        txHash: "0xcobo_fixture_tx_001",
+        txHash: "0x" + "f".repeat(64),
         status: "submitted"
       };
     },
@@ -62,7 +62,7 @@ export function createFixtureCoboClient(): FixtureCoboClient {
       return {
         denied: true,
         reason:
-          "Direct transfer rejected because target is not whitelisted and amount exceeds Pact cap.",
+          "Direct transfer rejected because target is not whitelisted and amount exceeds Policy cap.",
         attemptedTarget: "0xDeniedDirectTransfer",
         attemptedFunction: "transfer",
         attemptedAmount: "10 SETH",

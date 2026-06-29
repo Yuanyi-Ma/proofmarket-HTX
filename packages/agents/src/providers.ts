@@ -1,4 +1,5 @@
 import { buildPackageCommitment } from "@proofmarket/shared/src/merkle";
+import { normalizeLocale, type Locale } from "@proofmarket/shared/src/locale";
 import type { ProviderAnswerPackage, ProviderId } from "@proofmarket/shared/src/types";
 
 export type ProviderAnswerPackagePreimage = Omit<
@@ -6,37 +7,30 @@ export type ProviderAnswerPackagePreimage = Omit<
   "packageHash"
 >;
 
-/**
- * packageHash = Merkle ROOT over the briefing leaves (leaf 0 = overview +
- * coverage statement, leaf 1..n = one 资料-建议 each; see shared/merkle.ts).
- * The provider signs this root on-chain at submit, so a single leaf can later
- * be proven part of the briefing with (leaf plaintext, Merkle path) — neither
- * challenge nor defense needs to reveal the rest of the briefing.
- */
 export function hashProviderAnswerPackage(
   input: ProviderAnswerPackagePreimage
 ): string {
   return buildPackageCommitment(input).root;
 }
 
-// Briefing fixtures. Expert value = LICENSED libraries (IEEE Xplore / ACM DL /
-// ScienceDirect + Messari Pro / Delphi Digital) — open archives like arXiv are
-// things the user could query themselves. Block-STM is cited at its REAL ACM
-// venue (PPoPP '23, doi:10.1145/3572848.3577524) because it doubles as the
-// challenge counter-evidence and must stay verifiable; the other entries are
-// demo fixtures (plausible titles, not real publications).
-export function runProvider(
-  taskId: string,
-  providerId: ProviderId
-): ProviderAnswerPackage {
-  if (providerId === "execution-research-expert") {
-    const preimage: ProviderAnswerPackagePreimage = {
-      taskId,
-      providerAgentId: 1,
-      providerId,
+type LocalizedText = {
+  providerName: string;
+  coverageStatement: string;
+  answers: Array<{
+    providerAnswer: string;
+    sourceTitle: string;
+    sourceLocator: string;
+    sourceLibrary: ProviderAnswerPackage["answers"][number]["sourceLibrary"];
+    sourceMetadata: ProviderAnswerPackage["answers"][number]["sourceMetadata"];
+    excerptOrSummary: string;
+    relevanceExplanation: string;
+  }>;
+};
+
+function expertText(locale: Locale): LocalizedText {
+  if (normalizeLocale(locale) === "zh") {
+    return {
       providerName: "区块链系统专家 Agent",
-      // NOTE: the verifier's coverage check matches the literal "2021-2026"
-      // substring in this statement — keep it intact when editing copy.
       coverageStatement:
         "本简报基于 IEEE Xplore / ACM Digital Library / Elsevier ScienceDirect 订阅论文库与 Messari Pro / Delphi Digital 行业研报库，覆盖 2021-2026 年区块链交易执行加速方向：并行执行、投机执行、冲突检测、状态访问优化、Block-STM、EVM 并行化、Sei、Sui 与 Solana 运行时。",
       answers: [
@@ -141,81 +135,263 @@ export function runProvider(
         }
       ]
     };
+  }
+
+  return {
+    providerName: "Blockchain Systems Evidence Agent",
+    coverageStatement:
+      "This Evidence Service Package is based on IEEE Xplore, ACM Digital Library, Elsevier ScienceDirect, Messari Pro, and Delphi Digital. It covers 2021-2026 blockchain transaction execution acceleration: parallel execution, speculative execution, conflict detection, state-access optimization, Block-STM, EVM parallelization, Sei, Sui, and Solana runtimes.",
+    answers: [
+      {
+        providerAnswer:
+          "Recent blockchain execution-acceleration work centers on optimistic parallel execution, speculative execution, conflict detection, and state-access optimization, with Block-STM as the representative system.",
+        sourceTitle:
+          "Block-STM: Scaling Blockchain Execution by Turning Ordering Curse to a Performance Blessing",
+        sourceLocator: "doi:10.1145/3572848.3577524",
+        sourceLibrary: "acm-dl",
+        sourceMetadata: { year: 2023, type: "paper" },
+        excerptOrSummary:
+          "Block-STM exploits optimistic concurrency control with a collaborative scheduler to execute ordered blockchain transactions in parallel while guaranteeing deterministic results.",
+        relevanceExplanation:
+          "Supports speculative parallel execution as a primary direction, but does not prove linear speedups across all workloads."
+      },
+      {
+        providerAnswer: "Hot state and storage I/O are the main constraints on parallel-execution gains.",
+        sourceTitle:
+          "Hot-State Partitioning: Reducing Storage Contention in Parallel Blockchain Runtimes",
+        sourceLocator: "doi:10.1109/TPDS.2025.3412067",
+        sourceLibrary: "ieee-xplore",
+        sourceMetadata: { year: 2025, type: "paper" },
+        excerptOrSummary:
+          "Even when the scheduler admits full parallelism, contention on hot state keys and storage I/O can dominate end-to-end execution latency.",
+        relevanceExplanation:
+          "Limits overclaims about parallel execution and explains why workload structure matters."
+      },
+      {
+        providerAnswer: "Conflict prediction can keep optimistic re-execution overhead below 10%.",
+        sourceTitle:
+          "Adaptive Conflict Prediction for Optimistic Smart-Contract Execution",
+        sourceLocator: "doi:10.1145/3651890.3672034",
+        sourceLibrary: "acm-dl",
+        sourceMetadata: { year: 2024, type: "paper" },
+        excerptOrSummary:
+          "An adaptive predictor trained on recent dependency graphs reduces re-execution overhead to under 10% across the studied workloads.",
+        relevanceExplanation:
+          "Provides quantitative support that optimistic execution can stay operationally practical."
+      },
+      {
+        providerAnswer: "Dependency-graph measurements show that public-chain workloads have substantial natural parallelism.",
+        sourceTitle:
+          "A Measurement Study of Transaction Dependency Graphs on Public Blockchains",
+        sourceLocator: "doi:10.1145/3589334.3645612",
+        sourceLibrary: "acm-dl",
+        sourceMetadata: { year: 2024, type: "paper" },
+        excerptOrSummary:
+          "Across one year of mainnet traces, the median block exhibits a dependency width that admits 8-16 way parallel execution.",
+        relevanceExplanation:
+          "Supports the theoretical headroom for execution-layer parallelism."
+      },
+      {
+        providerAnswer: "Speculative state prefetching can hide storage latency and improve EVM pipeline throughput.",
+        sourceTitle:
+          "SpecVM: Speculative State Prefetching for High-Throughput EVM Pipelines",
+        sourceLocator: "doi:10.1109/ICDCS.2025.0214",
+        sourceLibrary: "ieee-xplore",
+        sourceMetadata: { year: 2025, type: "paper" },
+        excerptOrSummary:
+          "Speculative prefetching of state slots overlaps storage latency with execution and improves pipeline throughput by 2.3x on replayed mainnet blocks.",
+        relevanceExplanation:
+          "Extends the storage-bottleneck mitigation story from scheduling into runtime design."
+      },
+      {
+        providerAnswer: "Deterministic scheduling lets BFT execution layers remain replayable under parallel execution.",
+        sourceTitle:
+          "Deterministic Scheduling of Conflicting Transactions in BFT Execution Layers",
+        sourceLocator: "doi:10.1109/TC.2024.3398811",
+        sourceLibrary: "ieee-xplore",
+        sourceMetadata: { year: 2024, type: "paper" },
+        excerptOrSummary:
+          "A deterministic conflict-resolution order preserves replayability of parallel schedules across replicas in BFT settings.",
+        relevanceExplanation:
+          "Addresses the tension between parallel execution and consensus-layer determinism."
+      },
+      {
+        providerAnswer: "Pipelining block construction with execution is a common low-latency-chain technique.",
+        sourceTitle:
+          "Pipelined Block Construction and Execution in Low-Latency Blockchains",
+        sourceLocator: "doi:10.1145/3620678.3624790",
+        sourceLibrary: "acm-dl",
+        sourceMetadata: { year: 2023, type: "paper" },
+        excerptOrSummary:
+          "Overlapping block construction with execution of the previous block hides scheduling latency and raises sustained throughput.",
+        relevanceExplanation:
+          "Adds the system-level optimization path around execution acceleration."
+      },
+      {
+        providerAnswer: "Sei v2 and Monad show that parallel EVM designs can be engineered into production systems.",
+        sourceTitle: "Sei v2 and the Parallelized EVM Landscape",
+        sourceLocator: "messari:sei-v2-parallel-evm-2024",
+        sourceLibrary: "messari-pro",
+        sourceMetadata: { year: 2024, type: "report" },
+        excerptOrSummary:
+          "Paraphrase (subscription terms, no verbatim quote): Sei v2 overlaps transaction execution, state access and block commitment to keep hardware saturated, joining Monad in the optimistic-concurrency camp.",
+        relevanceExplanation:
+          "Provides concrete production-oriented evidence for EVM parallelization beyond research prototypes."
+      },
+      {
+        providerAnswer: "Industry research also identifies hot state as a first-order throughput ceiling.",
+        sourceTitle: "State Hotspots in High-Throughput Smart-Contract Execution",
+        sourceLocator: "delphi:state-hotspots-2025",
+        sourceLibrary: "delphi-digital",
+        sourceMetadata: { year: 2025, type: "report" },
+        excerptOrSummary:
+          "Paraphrase (subscription terms, no verbatim quote): once contention on hot accounts crosses a modest threshold, serialization fallbacks erase most of the parallel speedup.",
+        relevanceExplanation:
+          "Cross-checks the academic finding against industry research and strengthens confidence."
+      }
+    ]
+  };
+}
+
+function shallowText(locale: Locale): LocalizedText {
+  if (normalizeLocale(locale) === "zh") {
     return {
-      ...preimage,
-      packageHash: hashProviderAnswerPackage(preimage)
+      providerName: "文献速查 Agent",
+      coverageStatement:
+        "自报广泛覆盖 2021-2026 年区块链执行加速方向的学术论文（持有 IEEE Xplore / ACM Digital Library 订阅）。",
+      answers: [
+        {
+          providerAnswer: "区块链性能的提升主要来自更好的共识机制与硬件。",
+          sourceTitle: "A Survey of Blockchain Performance Optimization Techniques",
+          sourceLocator: "doi:10.1109/COMST.2023.3310992",
+          sourceLibrary: "ieee-xplore",
+          sourceMetadata: { year: 2023, type: "paper" },
+          excerptOrSummary:
+            "The survey concludes that consensus upgrades and hardware improvements are the dominant sources of recent blockchain performance gains.",
+          relevanceExplanation: "综述类来源，支撑共识与硬件主导的判断。"
+        },
+        {
+          providerAnswer: "吞吐基准测试主要由共识参数决定。",
+          sourceTitle: "Consensus Throughput Benchmarks Revisited",
+          sourceLocator: "doi:10.1109/INFOCOM.2024.1187",
+          sourceLibrary: "ieee-xplore",
+          sourceMetadata: { year: 2024, type: "paper" },
+          excerptOrSummary:
+            "Benchmark variance is explained primarily by consensus parameters such as block interval and committee size.",
+          relevanceExplanation: "支撑以共识为中心的性能叙事。"
+        },
+        {
+          providerAnswer: "硬件加速对节点吞吐有直接收益。",
+          sourceTitle: "Hardware Acceleration for Blockchain Transaction Processing",
+          sourceLocator: "doi:10.1145/3579371.3589098",
+          sourceLibrary: "acm-dl",
+          sourceMetadata: { year: 2023, type: "paper" },
+          excerptOrSummary:
+            "FPGA offloading of signature verification yields up to 4x node-level throughput improvement.",
+          relevanceExplanation: "硬件路线的代表性结果。"
+        },
+        {
+          providerAnswer: "网络层优化缩短区块传播时间。",
+          sourceTitle: "Network-Layer Optimizations for Block Propagation",
+          sourceLocator: "doi:10.1109/TNET.2024.3356702",
+          sourceLibrary: "ieee-xplore",
+          sourceMetadata: { year: 2024, type: "paper" },
+          excerptOrSummary:
+            "Compact relay protocols reduce median block propagation delay by 38% on measured topologies.",
+          relevanceExplanation: "网络层视角的性能改进。"
+        },
+        {
+          providerAnswer: "分片是水平扩展吞吐的主要路径。",
+          sourceTitle: "Sharding Approaches for Scalable Blockchain Systems: A Review",
+          sourceLocator: "doi:10.1145/3571155.3571203",
+          sourceLibrary: "acm-dl",
+          sourceMetadata: { year: 2022, type: "paper" },
+          excerptOrSummary:
+            "Sharding partitions state and validators to scale throughput horizontally, at the cost of cross-shard coordination.",
+          relevanceExplanation: "扩容路线综述，与执行层加速正交。"
+        }
+      ]
     };
   }
 
-  // Shallow provider: more volume than before but two real quality failures —
-  // (a) answers[0]'s excerpt CONTRADICTS the local archived copy of the same
-  // survey (查准 fail: the fabricated quote props up its consensus-and-hardware
-  // thesis), and (b) Block-STM is missing despite the broad coverage claim
-  // (查全 fail → CoverageMiss challenge).
-  const shallow: ProviderAnswerPackagePreimage = {
-    taskId,
-    providerAgentId: 2,
-    providerId,
-    providerName: "文献速查 Agent",
-    // NOTE: "2021-2026" must stay literal here too — the verifier uses it to
-    // detect a broad coverage claim, which (without Block-STM) yields CoverageMiss.
+  return {
+    providerName: "Fast Literature Search Agent",
     coverageStatement:
-      "自报广泛覆盖 2021-2026 年区块链执行加速方向的学术论文（持有 IEEE Xplore / ACM Digital Library 订阅）。",
+      "Claims broad coverage of 2021-2026 academic papers on blockchain execution acceleration, with IEEE Xplore and ACM Digital Library subscriptions.",
     answers: [
       {
-        providerAnswer: "区块链性能的提升主要来自更好的共识机制与硬件。",
+        providerAnswer: "Blockchain performance gains mainly come from better consensus mechanisms and hardware.",
         sourceTitle: "A Survey of Blockchain Performance Optimization Techniques",
         sourceLocator: "doi:10.1109/COMST.2023.3310992",
         sourceLibrary: "ieee-xplore",
         sourceMetadata: { year: 2023, type: "paper" },
         excerptOrSummary:
           "The survey concludes that consensus upgrades and hardware improvements are the dominant sources of recent blockchain performance gains.",
-        relevanceExplanation: "综述类来源，支撑共识与硬件主导的判断。"
+        relevanceExplanation:
+          "A survey source used to support a consensus-and-hardware-centered interpretation."
       },
       {
-        providerAnswer: "吞吐基准测试主要由共识参数决定。",
+        providerAnswer: "Throughput benchmarks are mostly determined by consensus parameters.",
         sourceTitle: "Consensus Throughput Benchmarks Revisited",
         sourceLocator: "doi:10.1109/INFOCOM.2024.1187",
         sourceLibrary: "ieee-xplore",
         sourceMetadata: { year: 2024, type: "paper" },
         excerptOrSummary:
           "Benchmark variance is explained primarily by consensus parameters such as block interval and committee size.",
-        relevanceExplanation: "支撑以共识为中心的性能叙事。"
+        relevanceExplanation: "Supports the consensus-centered performance narrative."
       },
       {
-        providerAnswer: "硬件加速对节点吞吐有直接收益。",
+        providerAnswer: "Hardware acceleration directly improves node throughput.",
         sourceTitle: "Hardware Acceleration for Blockchain Transaction Processing",
         sourceLocator: "doi:10.1145/3579371.3589098",
         sourceLibrary: "acm-dl",
         sourceMetadata: { year: 2023, type: "paper" },
         excerptOrSummary:
           "FPGA offloading of signature verification yields up to 4x node-level throughput improvement.",
-        relevanceExplanation: "硬件路线的代表性结果。"
+        relevanceExplanation: "Represents a hardware-focused performance route."
       },
       {
-        providerAnswer: "网络层优化缩短区块传播时间。",
+        providerAnswer: "Network-layer optimization reduces block propagation time.",
         sourceTitle: "Network-Layer Optimizations for Block Propagation",
         sourceLocator: "doi:10.1109/TNET.2024.3356702",
         sourceLibrary: "ieee-xplore",
         sourceMetadata: { year: 2024, type: "paper" },
         excerptOrSummary:
           "Compact relay protocols reduce median block propagation delay by 38% on measured topologies.",
-        relevanceExplanation: "网络层视角的性能改进。"
+        relevanceExplanation: "Covers a network-layer view of performance improvement."
       },
       {
-        providerAnswer: "分片是水平扩展吞吐的主要路径。",
+        providerAnswer: "Sharding is the main horizontal throughput-scaling path.",
         sourceTitle: "Sharding Approaches for Scalable Blockchain Systems: A Review",
         sourceLocator: "doi:10.1145/3571155.3571203",
         sourceLibrary: "acm-dl",
         sourceMetadata: { year: 2022, type: "paper" },
         excerptOrSummary:
           "Sharding partitions state and validators to scale throughput horizontally, at the cost of cross-shard coordination.",
-        relevanceExplanation: "扩容路线综述，与执行层加速正交。"
+        relevanceExplanation:
+          "A scaling survey source that is orthogonal to execution-layer acceleration."
       }
     ]
   };
+}
+
+export function runProvider(
+  taskId: string,
+  providerId: ProviderId,
+  locale: Locale = "en"
+): ProviderAnswerPackage {
+  const text = providerId === "execution-research-expert" ? expertText(locale) : shallowText(locale);
+  const providerAgentId = providerId === "execution-research-expert" ? 1 : 2;
+  const preimage: ProviderAnswerPackagePreimage = {
+    taskId,
+    providerAgentId,
+    providerId,
+    providerName: text.providerName,
+    coverageStatement: text.coverageStatement,
+    answers: text.answers
+  };
   return {
-    ...shallow,
-    packageHash: hashProviderAnswerPackage(shallow)
+    ...preimage,
+    packageHash: hashProviderAnswerPackage(preimage)
   };
 }

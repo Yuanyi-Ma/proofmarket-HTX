@@ -3,7 +3,7 @@
   "network": "sepolia",
   "deployer": "0xFd36efb2d9A02eD2F2b0fD9d664F24B590602892",
   "blockNumber": 11045792,
-  "coboWallet": "0xe84772e20744cdc22318825e00cf5fdf6000cc24",
+  "policySignerAddress": "0xe84772e20744cdc22318825e00cf5fdf6000cc24",
   "contracts": {
     "MockUSDC": "0xe94054bc75524B197255e605CE02f41F086F0Cc5",
     "ProofMarketEscrow": "0x068943597b0B784b2Ecd2629872eC040D1B45592",

@@ -10,16 +10,16 @@ type EvidencePanelProps = {
 };
 
 function verificationStatus(task: Task | null): string {
-  if (!task?.providerPackage) return "Waiting for provider package";
+  if (!task?.providerPackage) return "Waiting for Provider delivery";
   if (task.status === "Verified" || task.status === "Settled") return "Verified";
   if (
     task.status === "Challenged" ||
     task.status === "ChallengeWon" ||
     task.status === "RefundedOrSlashed"
   ) {
-    return "Challenged: CoverageMiss";
+    return "Challenged: in-scope coverage miss";
   }
-  return "Pending verifier result";
+  return "Waiting for verification result";
 }
 
 export function EvidencePanel({
@@ -32,34 +32,32 @@ export function EvidencePanel({
 
   return (
     <Section
-      title="Evidence package"
-      kicker="Verifiable deliverable"
+      title="Evidence Service Package"
+      kicker="Verifiable Deliverable"
       action={
         <button onClick={onVerify} disabled={!canVerify}>
-          Verify evidence
+          Verify Evidence
         </button>
       }
     >
       <div className="info-strip">
-        ProofMarket is not selling full documents. Providers return locators,
-        excerpts or summaries, relevance explanations, coverage statements, and
-        a package hash for audit.
+        ProofMarket buys an Evidence Service Package. The Provider returns source locators, bounded excerpts or summaries, relevance explanations, coverage commitment, and an auditable package hash.
       </div>
 
       <div className="data-grid">
         <DataRow
           label="Provider"
-          value={providerPackage?.providerName ?? "Waiting for provider run"}
+          value={providerPackage?.providerName ?? "Waiting for Provider execution"}
         />
         <DataRow
-          label="Provider answer package"
-          value={providerPackage ? providerPackage.providerId : "Not delivered"}
+          label="Evidence Service Package"
+          value={providerPackage ? providerPackage.providerId : "Not delivered yet"}
         />
         <DataRow
-          label="Coverage statement"
+          label="Coverage commitment"
           value={
             providerPackage?.coverageStatement ??
-            "A delivered package must declare what scope it covered."
+            "Delivery must declare the coverage scope."
           }
         />
         <DataRow
@@ -84,13 +82,13 @@ export function EvidencePanel({
             providerPackage ? (
               <span className="hash">{providerPackage.packageHash}</span>
             ) : (
-              "Pending"
+              "Waiting for delivery"
             )
           }
         />
         <DataRow
-          label="Return type"
-          value="Provider answer package, not source full text."
+          label="Deliverable type"
+          value="Evidence Service Package; no full source text."
         />
       </div>
 
@@ -115,11 +113,11 @@ export function EvidencePanel({
                   value={answer.relevanceExplanation}
                 />
                 <DataRow
-                  label="Coverage statement"
+                  label="Coverage commitment"
                   value={providerPackage.coverageStatement}
                 />
                 <DataRow
-                  label="Per-item verification status"
+                  label="Item verification status"
                   value={
                     <StatusBadge
                       tone={
@@ -135,7 +133,7 @@ export function EvidencePanel({
                   }
                 />
                 <DataRow
-                  label="Per-item package hash"
+                  label="Item package hash"
                   value={
                     <span className="hash">{providerPackage.packageHash}</span>
                   }
@@ -145,8 +143,7 @@ export function EvidencePanel({
           ))
         ) : (
           <div className="info-strip">
-            Run the expert or shallow provider after escrow funding to populate
-            source locator, summary, relevance, coverage, and hash fields.
+            Run the Provider after escrow funding to generate source locators, summaries, relevance, coverage commitment, and hash fields.
           </div>
         )}
       </div>

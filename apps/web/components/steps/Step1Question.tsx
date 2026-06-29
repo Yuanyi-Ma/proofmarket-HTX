@@ -1,11 +1,14 @@
 import React, { useState } from "react";
-import { defaultQuestion } from "@proofmarket/shared/src/fixtures";
+import { getDefaultQuestion } from "@proofmarket/shared/src/fixtures";
 import type { Task } from "@proofmarket/shared/src/types";
+import type { Locale } from "@proofmarket/shared/src/locale";
+import { displayAsset } from "../../lib/assets";
 import { StepShell } from "../StepShell";
+import { useI18n } from "../I18nProvider";
 
 type Step1QuestionProps = {
   task: Task | null;
-  onCreate: (question: string, budget: string) => void;
+  onCreate: (question: string, budget: string, locale: Locale) => void;
   isBusy?: boolean;
   /** True when reviewing this step after it is done: inputs frozen, no action. */
   readOnly?: boolean;
@@ -17,24 +20,25 @@ export function Step1Question({
   isBusy = false,
   readOnly = false
 }: Step1QuestionProps) {
-  const [question, setQuestion] = useState(defaultQuestion);
-  const [budget, setBudget] = useState("5 mUSDC");
+  const { locale, t } = useI18n();
+  const [question, setQuestion] = useState(getDefaultQuestion(locale));
+  const [budget, setBudget] = useState("5 USDC");
 
   // When reviewing a done step, show what was actually submitted.
   const shownQuestion = readOnly && task ? task.userQuestion : question;
-  const shownBudget = readOnly && task ? task.budgetLimit : budget;
+  const shownBudget = readOnly && task ? displayAsset(task.budgetLimit) : budget;
 
   return (
     <StepShell
       stepNo={1}
-      title="提出你的研究问题"
-      subtitle="描述你需要专家支持的问题，并设定预算上限。Agent 会在预算内委托领域专家，产出可核验的研究简报。"
+      title={t.step1.title}
+      subtitle={t.step1.subtitle}
       primary={
         readOnly
           ? undefined
           : {
-              label: "生成购买方案",
-              onClick: () => onCreate(question, budget),
+              label: t.step1.primary,
+              onClick: () => onCreate(question, budget, locale),
               disabled: isBusy || question.trim() === "",
               busy: isBusy
             }
@@ -42,7 +46,7 @@ export function Step1Question({
     >
       <div className="form-grid">
         <label className="field">
-          <span>研究问题</span>
+          <span>{t.step1.question}</span>
           <textarea
             value={shownQuestion}
             disabled={readOnly || isBusy}
@@ -50,22 +54,22 @@ export function Step1Question({
           />
         </label>
         <label className="field">
-          <span>预算上限</span>
+          <span>{t.step1.budget}</span>
           <input
             className="mono"
             value={shownBudget}
             disabled={readOnly || isBusy}
             onChange={(event) => setBudget(event.target.value)}
           />
-          <span className="small muted">mUSDC = 测试网 USDC（MockUSDC）</span>
+          <span className="small muted">{t.step1.assetHint}</span>
         </label>
       </div>
 
       {readOnly ? (
-        <div className="info-strip">该问题已提交，此处为只读回看。</div>
+        <div className="info-strip">{t.step1.readonly}</div>
       ) : (
         <div className="info-strip">
-          提交后，Agent 会先给出购买方案：推荐哪位专家、预计交付什么、预算怎么用。资金移动前你会先确认。
+          {t.step1.hint}
         </div>
       )}
     </StepShell>

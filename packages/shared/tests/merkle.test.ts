@@ -59,7 +59,7 @@ describe("package commitment", () => {
     taskId: "task_test",
     providerAgentId: 1,
     providerId: "execution-research-expert",
-    providerName: "区块链系统专家 Agent",
+    providerName: "区块链系统 Provider Agent",
     coverageStatement: "覆盖 2021-2026 年执行加速方向论文与研报。",
     answers: [
       {

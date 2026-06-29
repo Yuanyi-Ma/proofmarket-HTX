@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { defaultQuestion, providerProfiles } from "../src/fixtures";
+import { defaultQuestion, getDefaultQuestion, getProviderProfiles, providerProfiles } from "../src/fixtures";
 
 describe("provider fixtures", () => {
   it("defines the demo question and three provider profiles", () => {
-    expect(defaultQuestion).toContain("区块链交易执行加速");
+    expect(defaultQuestion).toContain("blockchain transaction execution acceleration");
+    expect(getDefaultQuestion("zh")).toContain("区块链交易执行加速");
     expect(providerProfiles).toHaveLength(3);
+    expect(getProviderProfiles("zh")[0].name).toContain("区块链系统专家");
     expect(providerProfiles.map((provider) => provider.id)).toEqual([
       "execution-research-expert",
       "shallow-search-provider",

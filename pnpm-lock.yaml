@@ -32,9 +32,9 @@ importers:
       '@proofmarket/chain':
         specifier: workspace:*
         version: link:../../packages/chain
-      '@proofmarket/cobo':
+      '@proofmarket/policy-signer':
         specifier: workspace:*
-        version: link:../../packages/cobo
+        version: link:../../packages/policy-signer
       '@proofmarket/shared':
         specifier: workspace:*
         version: link:../../packages/shared
@@ -97,9 +97,9 @@ importers:
       '@proofmarket/chain':
         specifier: workspace:*
         version: link:../chain
-      '@proofmarket/cobo':
+      '@proofmarket/policy-signer':
         specifier: workspace:*
-        version: link:../cobo
+        version: link:../policy-signer
       '@proofmarket/shared':
         specifier: workspace:*
         version: link:../shared
@@ -127,16 +127,11 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.19.20)(jsdom@29.1.1(@noble/hashes@1.8.0))
 
-  packages/cobo:
-    devDependencies:
-      typescript:
-        specifier: ^5.7.2
-        version: 5.9.3
-      vitest:
-        specifier: ^2.1.8
-        version: 2.1.9(@types/node@22.19.20)(jsdom@29.1.1(@noble/hashes@1.8.0))
-
   packages/contracts:
+    dependencies:
+      '@proofmarket/shared':
+        specifier: workspace:*
+        version: link:../shared
     devDependencies:
       '@nomicfoundation/hardhat-toolbox':
         specifier: ^5.0.0
@@ -147,6 +142,22 @@ importers:
       typescript:
         specifier: ^5.7.2
         version: 5.9.3
+
+  packages/policy-signer:
+    dependencies:
+      '@proofmarket/shared':
+        specifier: workspace:*
+        version: link:../shared
+      viem:
+        specifier: ^2.21.0
+        version: 2.52.2(typescript@5.9.3)
+    devDependencies:
+      typescript:
+        specifier: ^5.7.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.19.20)(jsdom@29.1.1(@noble/hashes@1.8.0))
 
   packages/services:
     dependencies:

@@ -10,7 +10,7 @@ const goodArtifact = {
   network: "sepolia",
   deployer: "0x" + "1".repeat(40),
   blockNumber: 123,
-  coboWallet: "0x" + "2".repeat(40),
+  policySignerAddress: "0x" + "2".repeat(40),
   contracts: {
     MockUSDC: "0x" + "3".repeat(40),
     ProofMarketEscrow: "0x" + "4".repeat(40)
@@ -77,6 +77,17 @@ describe("parseDeploymentArtifact", () => {
     );
   });
 
+  it("accepts an Injective EVM testnet artifact", () => {
+    const result = parseDeploymentArtifact({
+      ...goodArtifact,
+      chainId: 1439,
+      network: "injective-testnet"
+    });
+
+    expect(result.chainId).toBe(1439);
+    expect(result.network).toBe("injective-testnet");
+  });
+
   it("rejects malformed addresses", () => {
     expect(() =>
       parseDeploymentArtifact({
@@ -96,6 +107,58 @@ describe("parseDeploymentArtifact", () => {
     expect(result.resolver).toBe(goodArtifactWithCM.resolver);
     expect(result.providers?.["execution-research-expert"]?.stakePending).toBe(false);
     expect(result.providers?.["shallow-search-provider"]?.stakePending).toBe(true);
+  });
+
+  it("accepts an artifact with registered jury operators", () => {
+    const result = parseDeploymentArtifact({
+      ...goodArtifactWithCM,
+      jurors: [
+        {
+          jurorId: "juror-anthropic",
+          address: "0x" + "1".repeat(40),
+          modelFamily: "Anthropic Claude 系",
+          modelTag: "claude-sonnet-4-6",
+          promptTag: "proofmarket-jury-prompt-v1"
+        },
+        {
+          jurorId: "juror-openai",
+          address: "0x" + "2".repeat(40),
+          modelFamily: "OpenAI GPT 系",
+          modelTag: "gpt-5",
+          promptTag: "proofmarket-jury-prompt-v1"
+        },
+        {
+          jurorId: "juror-google",
+          address: "0x" + "3".repeat(40),
+          modelFamily: "Google Gemini 系",
+          modelTag: "gemini-2.5-pro",
+          promptTag: "proofmarket-jury-prompt-v1"
+        }
+      ]
+    });
+
+    expect(result.jurors?.map((juror) => juror.jurorId)).toEqual([
+      "juror-anthropic",
+      "juror-openai",
+      "juror-google"
+    ]);
+  });
+
+  it("rejects malformed jury operator addresses", () => {
+    expect(() =>
+      parseDeploymentArtifact({
+        ...goodArtifactWithCM,
+        jurors: [
+          {
+            jurorId: "juror-bad",
+            address: "not-an-address",
+            modelFamily: "Bad",
+            modelTag: "bad-model",
+            promptTag: "bad-prompt"
+          }
+        ]
+      })
+    ).toThrow(/jurors\[0\]\.address/);
   });
 
   it("accepts a pre-P0-2 artifact without ChallengeManager (backwards compat)", () => {

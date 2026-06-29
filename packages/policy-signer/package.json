@@ -1,5 +1,5 @@
 {
-  "name": "@proofmarket/cobo",
+  "name": "@proofmarket/policy-signer",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,10 @@
   "scripts": {
     "build": "tsc --noEmit",
     "test": "vitest run tests"
+  },
+  "dependencies": {
+    "@proofmarket/shared": "workspace:*",
+    "viem": "^2.21.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2",

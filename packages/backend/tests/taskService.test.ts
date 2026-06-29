@@ -4,6 +4,7 @@ import { createTaskService } from "../src/taskService";
 
 const researchQuestion =
   "请调研近几年区块链交易执行加速的最新研究进展。";
+const repeatedHexHash = /^0x([0-9a-f])\1{63}$/i;
 
 describe("task service orchestration", () => {
   it("runs the happy path through settlement", async () => {
@@ -11,16 +12,16 @@ describe("task service orchestration", () => {
     const task = await service.createTask(researchQuestion, "5 test USDC");
 
     await service.plan(task.id);
-    await service.submitPact(task.id);
-    await service.activatePact(task.id);
-    await service.executeEscrow(task.id);
+    await service.submitPolicy(task.id);
+    await service.activatePolicy(task.id);
+    await service.executeEscrow(task.id, "execution-research-expert");
     await service.runProvider(task.id, "execution-research-expert");
     await service.verify(task.id);
     await service.settle(task.id);
 
     const finalTask = await service.getTask(task.id);
     expect(finalTask.status).toBe("Settled");
-    expect(finalTask.pact).toMatchObject({
+    expect(finalTask.policy).toMatchObject({
       allowedTargets: [
         "ProofMarketEscrow",
         "MockUSDC",
@@ -38,12 +39,12 @@ describe("task service orchestration", () => {
         "direct transfer",
         "non-whitelisted target",
         "amount above cap",
-        "expired pact"
+        "expired policy"
       ]
     });
     expect(
       finalTask.audit.some(
-        (event) => event.source === "cobo" && event.result === "success"
+        (event) => event.source === "policy-signer" && event.result === "success"
       )
     ).toBe(true);
     expect(
@@ -53,40 +54,67 @@ describe("task service orchestration", () => {
     ).toBe(true);
   });
 
-  it("records a Cobo denial without creating a job or tx hash", async () => {
+  it("records a Policy Signer denial without creating a job or tx hash", async () => {
     const service = createTaskService(createInMemoryStore());
     const task = await service.createTask(researchQuestion, "5 test USDC");
 
     await service.plan(task.id);
-    await service.submitPact(task.id);
-    await service.activatePact(task.id);
+    await service.submitPolicy(task.id);
+    await service.activatePolicy(task.id);
     await service.triggerDenial(task.id);
 
     const denied = await service.getTask(task.id);
-    expect(denied.status).toBe("DeniedByCobo");
+    expect(denied.status).toBe("DeniedByPolicy");
     expect(denied.jobId).toBeNull();
     expect(denied.audit.at(-1)?.result).toBe("denied");
     expect(denied.audit.at(-1)?.txHash).toBeNull();
     expect(denied.audit.at(-1)?.message).toContain(
-      "直接转账被拒绝：目标地址不在白名单内"
+      "direct transfer rejected because the target is outside the allowlist"
     );
     expect(denied.audit.at(-1)?.message).toContain(
-      "尝试目标=0xDeniedDirectTransfer"
+      "attemptedTarget=0xDeniedDirectTransfer"
     );
-    expect(denied.audit.at(-1)?.message).toContain("金额=10 SETH");
-    expect(denied.audit.at(-1)?.message).toContain("已转移资金=0 test USDC");
-    expect(denied.audit.at(-1)?.message).toContain("未创建任何托管订单");
+    expect(denied.audit.at(-1)?.message).toContain("amount=10 SETH");
+    expect(denied.audit.at(-1)?.message).toContain("fundsMoved=0 test USDC");
+    expect(denied.audit.at(-1)?.message).toContain("no escrow order was created");
   });
 
-  it("recovers from Cobo denial by executing escrow later", async () => {
+  it("fixtures escrow execution with four confirmed procurement tx records", async () => {
     const service = createTaskService(createInMemoryStore());
     const task = await service.createTask(researchQuestion, "5 test USDC");
 
     await service.plan(task.id);
-    await service.submitPact(task.id);
-    await service.activatePact(task.id);
+    await service.submitPolicy(task.id);
+    await service.activatePolicy(task.id);
+    const funded = await service.executeEscrow(task.id);
+
+    expect(funded.status).toBe("JobFunded");
+    expect(funded.txRecords.map((record) => record.label)).toEqual([
+      "approve",
+      "createJob",
+      "setBudget",
+      "fund"
+    ]);
+    expect(funded.txRecords.every((record) => record.status === "confirmed")).toBe(true);
+    expect(funded.txRecords.every((record) => /^0x[0-9a-f]{64}$/.test(record.txHash))).toBe(true);
+    expect(funded.txRecords.some((record) => repeatedHexHash.test(record.txHash))).toBe(false);
+    expect(funded.txRecords.map((record) => record.policySignerRequestId)).toEqual([
+      `fixture-${task.id}-approve`,
+      `fixture-${task.id}-createJob`,
+      `fixture-${task.id}-setBudget`,
+      `fixture-${task.id}-fund`
+    ]);
+  });
+
+  it("recovers from Policy Signer denial by executing escrow later", async () => {
+    const service = createTaskService(createInMemoryStore());
+    const task = await service.createTask(researchQuestion, "5 test USDC");
+
+    await service.plan(task.id);
+    await service.submitPolicy(task.id);
+    await service.activatePolicy(task.id);
     await service.triggerDenial(task.id);
-    await service.executeEscrow(task.id);
+    await service.executeEscrow(task.id, "shallow-search-provider");
 
     expect((await service.getTask(task.id)).status).toBe("JobFunded");
   });
@@ -96,9 +124,9 @@ describe("task service orchestration", () => {
     const task = await service.createTask(researchQuestion, "5 test USDC");
 
     await service.plan(task.id);
-    await service.submitPact(task.id);
-    await service.activatePact(task.id);
-    await service.executeEscrow(task.id);
+    await service.submitPolicy(task.id);
+    await service.activatePolicy(task.id);
+    await service.executeEscrow(task.id, "shallow-search-provider");
     await service.runProvider(task.id, "shallow-search-provider");
     await service.verify(task.id);
 
@@ -119,9 +147,9 @@ describe("task service orchestration", () => {
     const task = await service.createTask(researchQuestion, "5 test USDC");
 
     await service.plan(task.id);
-    await service.submitPact(task.id);
-    await service.activatePact(task.id);
-    await service.executeEscrow(task.id);
+    await service.submitPolicy(task.id);
+    await service.activatePolicy(task.id);
+    await service.executeEscrow(task.id, "shallow-search-provider");
     await service.runProvider(task.id, "shallow-search-provider");
 
     // 发起：Delivered → Challenged, preset CoverageMiss challenge recorded
@@ -131,7 +159,7 @@ describe("task service orchestration", () => {
     expect(challenged.challenge?.counterEvidenceHash).toMatch(/^0x[0-9a-f]{64}$/);
     const openEvent = challenged.audit.find((event) => event.type === "challenge_opened");
     expect(openEvent?.source).toBe("user");
-    expect(openEvent?.message).toContain("用户发起挑战");
+    expect(openEvent?.message).toContain("User opened a CoverageMiss challenge");
     expect(openEvent?.message).toContain("CoverageMiss");
 
     // 应辩：preset defense recorded alongside the challenge
@@ -158,9 +186,9 @@ describe("task service orchestration", () => {
     const refunded = await service.refundOrSlash(task.id);
     expect(refunded.status).toBe("RefundedOrSlashed");
     const fundEvent = refunded.audit.find((event) => event.type === "refund_or_slash");
-    expect(fundEvent?.message).toContain("扣除专家质押");
-    expect(fundEvent?.message).toContain("退款买方");
-    expect(fundEvent?.message).toContain("陪审费");
+    expect(fundEvent?.message).toContain("Provider bond was slashed");
+    expect(fundEvent?.message).toContain("escrowed funds return to the buyer");
+    expect(fundEvent?.message).toContain("jury fee");
   });
 
   it("rejects openChallenge before evidence delivery", async () => {

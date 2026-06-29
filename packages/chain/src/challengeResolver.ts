@@ -1,8 +1,8 @@
 import { createWalletClient, http, publicActions } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { sepolia } from "viem/chains";
 import { challengeManagerAbi } from "./escrowAbi";
 import { assertReceiptSuccess } from "./chainReader";
+import { getViemChainByChainId } from "./chains";
 
 export type ResolveChallengeOnChain = (input: {
   challengeId: bigint;
@@ -12,17 +12,18 @@ export type ResolveChallengeOnChain = (input: {
  * ChallengeManager.resolve(challengeId) is permissionless in v2 — the outcome
  * is the on-chain juror-vote majority, so execution carries no discretion.
  * It is still signed directly with the backend's resolver key (NOT routed
- * through Cobo) because the Cobo wallet is the job client, and any key works.
+ * through PolicySigner) because the PolicySigner wallet is the job client, and any key works.
  */
 export function createChallengeResolver(input: {
   rpcUrl: string;
   privateKey: `0x${string}`;
   challengeManagerAddress: `0x${string}`;
+  chainId?: number;
 }): ResolveChallengeOnChain {
   const account = privateKeyToAccount(input.privateKey);
   const client = createWalletClient({
     account,
-    chain: sepolia,
+    chain: getViemChainByChainId(input.chainId),
     transport: http(input.rpcUrl)
   }).extend(publicActions);
 

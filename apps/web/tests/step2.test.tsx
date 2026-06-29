@@ -7,14 +7,14 @@ import type { ProcurementPlan, Task } from "@proofmarket/shared/src/types";
 
 const noop = vi.fn();
 
-/** 最小完整 ProcurementPlan（不含 providerReputations —— 对应 fixture 模式）。 */
+/** Minimal complete ProcurementPlan without providerReputations, matching fixture mode. */
 function basePlan(overrides: Partial<ProcurementPlan> = {}): ProcurementPlan {
   return {
     taskId: "task_001",
-    userQuestion: "请调研区块链交易执行加速研究进展。",
-    evidenceNeed: "需要 2021-2026 执行加速一手论文证据。",
-    totalBudget: "5 test USDC",
-    perJobCap: "1 test USDC",
+    userQuestion: "Research blockchain transaction execution acceleration.",
+    evidenceNeed: "Needs primary 2021-2026 execution acceleration literature evidence.",
+    totalBudget: "5 USDC",
+    perJobCap: "1 USDC",
     recommendedProviderId: "execution-research-expert",
     providerCount: 3,
     coverage: "Block-STM, parallel execution, conflict detection.",
@@ -27,12 +27,12 @@ function basePlan(overrides: Partial<ProcurementPlan> = {}): ProcurementPlan {
 function task(overrides: Partial<Task> = {}): Task {
   return {
     id: "task_001",
-    userQuestion: "请调研区块链交易执行加速研究进展。",
+    userQuestion: "Research blockchain transaction execution acceleration.",
     status: "Planned",
-    budgetLimit: "5 test USDC",
+    budgetLimit: "5 USDC",
     selectedProviderIds: [],
     plan: null,
-    pact: null,
+    policy: null,
     providerPackage: null,
     audit: [],
     jobId: null,
@@ -46,8 +46,8 @@ function task(overrides: Partial<Task> = {}): Task {
   };
 }
 
-describe("Step2Plan — provider reputation 来源展示", () => {
-  it("real 模式：plan.providerReputations 有 erc8004 条目时，显示链上分数与「链上信誉」标签", () => {
+describe("Step2Plan — provider reputation source display", () => {
+  it("real mode: plan.providerReputations with erc8004 entries shows on-chain scores and tag", () => {
     const realPlan = basePlan({
       providerReputations: [
         { providerId: "execution-research-expert", score: 980, source: "erc8004" },
@@ -63,22 +63,18 @@ describe("Step2Plan — provider reputation 来源展示", () => {
       />
     );
 
-    // 三个 provider 行均应含「链上信誉」标签（按 badge 样式类计数，
-    // 避免与页面说明文案里出现的「链上信誉」字样混淆）
     const badgeCount = (html.match(/chain-rep-tag/g) ?? []).length;
     expect(badgeCount).toBe(3);
 
-    // 链上分数要出现在 HTML 中（非 fixture 原始值）
     expect(html).toContain("980");
     expect(html).toContain("720");
     expect(html).toContain("830");
 
-    // 标签使用 chain-rep-tag 样式类
     expect(html).toContain('class="chain-rep-tag"');
   });
 
-  it("fixture 模式：plan 不含 providerReputations 时，回退到 providerProfiles 本地分数，无「链上信誉」标签", () => {
-    const fixturePlan = basePlan(); // 不含 providerReputations
+  it("fixture mode: plan without providerReputations falls back to local providerProfiles scores without on-chain tag", () => {
+    const fixturePlan = basePlan();
 
     const html = renderToStaticMarkup(
       <Step2Plan
@@ -87,16 +83,14 @@ describe("Step2Plan — provider reputation 来源展示", () => {
       />
     );
 
-    // 不应出现链上信誉 badge（说明文案里的「链上信誉」字样不算，按样式类判定）
     expect(html).not.toContain("chain-rep-tag");
 
-    // 应显示 fixture 原始信誉分（970 / 620 / 800）
     expect(html).toContain("970");
     expect(html).toContain("620");
     expect(html).toContain("800");
   });
 
-  it("providerReputations 存在但 source 不是 erc8004 时，不显示「链上信誉」标签", () => {
+  it("does not show the on-chain tag when providerReputations source is not erc8004", () => {
     const mixedPlan = basePlan({
       providerReputations: [
         { providerId: "execution-research-expert", score: 970, source: "fixture" }
@@ -114,14 +108,14 @@ describe("Step2Plan — provider reputation 来源展示", () => {
   });
 });
 
-describe("Step2Plan — 结构化挑战计数", () => {
-  it("候选卡展示「被挑战 N 次 / 成立 M 次」结构化计数（0 挑战显示无记录）", () => {
+describe("Step2Plan — structured challenge counts", () => {
+  it("candidate cards show structured challenge counts with no-record state", () => {
     const markup = renderToStaticMarkup(
       <Step2Plan task={task({ plan: basePlan() })} onConfirm={noop} />
     );
-    expect(markup).toContain("无挑战记录");
-    expect(markup).toContain("被挑战 5 次 / 成立 3 次");
-    expect(markup).toContain("被挑战 1 次 / 成立 0 次");
+    expect(markup).toContain("No challenge record");
+    expect(markup).toContain("5 challenges / 3 upheld");
+    expect(markup).toContain("1 challenges / 0 upheld");
   });
 });
 
@@ -131,10 +125,10 @@ describe("Step2Plan — product-first purchase summary", () => {
       <Step2Plan task={task({ plan: basePlan() })} onConfirm={noop} />
     );
 
-    expect(markup).toContain("购买决策");
-    expect(markup).toContain("预计买到");
-    expect(markup).toContain("为什么推荐");
-    expect(markup).toContain("本单预计支付");
-    expect(markup).not.toContain("需求分析");
+    expect(markup).toContain("Purchase decision");
+    expect(markup).toContain("Expected deliverable");
+    expect(markup).toContain("Why recommended");
+    expect(markup).toContain("expected payment");
+    expect(markup).not.toContain("Requirements analysis");
   });
 });

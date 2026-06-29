@@ -20,7 +20,7 @@
     "returnType": "provider-answer-package",
     "verificationMethod": "验证者核对来源定位、摘录与摘要的一致性、相关性说明以及覆盖声明。"
   },
-  "pact": {
+  "policy": {
     "intent": "Fund one provider research job for task task_001.",
     "totalBudget": "5 test USDC",
     "perJobCap": "1 test USDC",
@@ -41,10 +41,10 @@
       "direct transfer",
       "non-whitelisted target",
       "amount above cap",
-      "expired pact"
+      "expired policy"
     ],
     "expiresInMinutes": 30,
-    "pactId": "pact_001",
+    "policyId": "policy_001",
     "status": "active"
   },
   "providerPackage": {
@@ -77,7 +77,7 @@
       "result": "success",
       "message": "用户创建任务，预算 5 test USDC。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": null,
       "createdAt": "2026-06-10T07:42:43.742Z"
     },
@@ -89,43 +89,43 @@
       "result": "success",
       "message": "已选定候选 Provider：execution-research-expert、shallow-search-provider、general-web-summary。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": null,
       "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_003",
       "taskId": "task_001",
-      "source": "cobo",
-      "type": "pact_submitted",
+      "source": "policy-signer",
+      "type": "policy_submitted",
       "result": "success",
-      "message": "已提交 Pact pact_001。",
+      "message": "已提交受限签名策略 policy_001。",
       "txHash": null,
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": null,
       "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_004",
       "taskId": "task_001",
-      "source": "cobo",
-      "type": "pact_activated",
+      "source": "policy-signer",
+      "type": "policy_activated",
       "result": "success",
-      "message": "Pact pact_001 已激活。",
+      "message": "受限签名策略 policy_001 已激活。",
       "txHash": null,
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": null,
       "createdAt": "2026-06-10T07:42:43.742Z"
     },
     {
       "id": "audit_005",
       "taskId": "task_001",
-      "source": "cobo",
+      "source": "policy-signer",
       "type": "escrow_executed",
       "result": "success",
       "message": "托管订单已在演示链上注资。",
       "txHash": "0xproofmarket0000000000000000000000000000000000000000000000000001",
-      "pactId": "pact_001",
+      "policyId": "policy_001",
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.742Z"
     },
@@ -137,7 +137,7 @@
       "result": "success",
       "message": "Provider shallow-search-provider 交付证据包 0xb10fe126d3c4f33ae7f65c66581574630a133fd225d7c1fa7fa3386dfed5940e。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.742Z"
     },
@@ -149,7 +149,7 @@
       "result": "failed",
       "message": "Provider 声明覆盖 2021-2026 年区块链执行加速方向，却遗漏了 Block-STM——该声明范围内直接相关的来源。 resultHash=0xc5e1e521f485b238264bba57589bd9db7373aa73b32d823c3bf7a414a9661796",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.742Z"
     },
@@ -161,7 +161,7 @@
       "result": "success",
       "message": "审判团 2:1 判定 ProviderFault（覆盖声明漏检），挑战成立。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.742Z"
     },
@@ -173,7 +173,7 @@
       "result": "success",
       "message": "已执行裁决：扣罚 Provider 质押、退款买方、退回挑战押金与审判费并支付审判团。",
       "txHash": null,
-      "pactId": null,
+      "policyId": null,
       "jobId": 1,
       "createdAt": "2026-06-10T07:42:43.742Z"
     }

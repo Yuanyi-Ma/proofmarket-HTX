@@ -1,6 +1,7 @@
 import React from "react";
 import { defaultQuestion } from "@proofmarket/shared/src/fixtures";
 import type { Task } from "@proofmarket/shared/src/types";
+import { displayAsset } from "../lib/assets";
 import { DataRow, Section } from "./Section";
 import { TaskStatusBadge } from "./StatusBadge";
 
@@ -17,7 +18,7 @@ type TaskEntryProps = {
 export function TaskEntry({
   task,
   question = defaultQuestion,
-  budget = "5 test USDC",
+  budget = "5 USDC",
   onQuestionChange,
   onBudgetChange,
   onCreate,
@@ -25,11 +26,11 @@ export function TaskEntry({
 }: TaskEntryProps) {
   return (
     <Section
-      title="Task entry"
-      kicker="Research question"
+      title="Task Entry"
+      kicker="Research Question"
       action={
         <button onClick={onCreate} disabled={isBusy}>
-          {task ? "Create fresh task" : "Create task"}
+          {task ? "Create New Task" : "Create Task"}
         </button>
       }
     >
@@ -51,15 +52,13 @@ export function TaskEntry({
       </div>
 
       <div className="info-strip">
-        Ask one research question that needs evidence. ProofMarket will propose
-        a bounded procurement plan before any funds move. Next action after
-        task creation: Generate procurement plan.
+        Submit a research question that needs evidence support. ProofMarket generates a bounded procurement plan before any funds move.
       </div>
 
       <div className="data-grid">
         <DataRow
           label="Current task"
-          value={task ? `${task.id} created` : "No task created yet"}
+          value={task ? `${task.id} created` : "No task yet"}
         />
         <DataRow
           label="Status"
@@ -67,11 +66,11 @@ export function TaskEntry({
         />
         <DataRow
           label="Payment context"
-          value="Execution requires a Cobo Pact before escrow funding."
+          value="A Policy Signer policy must be active before escrow funding."
         />
         <DataRow
-          label="Demo asset"
-          value={budget || "5 test USDC"}
+          label="Payment asset"
+          value={displayAsset(budget || "5 USDC")}
         />
       </div>
     </Section>

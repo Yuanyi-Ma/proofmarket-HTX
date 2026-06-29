@@ -12,13 +12,34 @@
  * Exits 1 on any non-ok HTTP response — no retries, no fabrication.
  */
 
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Task } from "@proofmarket/shared/src/types";
 
 const WEB_URL = (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/$/, "");
-const ETHERSCAN_BASE = "https://sepolia.etherscan.io/tx";
 
 const DEFAULT_QUESTION = "请调研近几年区块链交易执行加速的最新研究进展。";
 const DEFAULT_BUDGET = "5 test USDC";
+
+function explorerTxBase(): string {
+  const explicit = process.env.PROOFMARKET_DEPLOYMENT_PATH;
+  const candidates = explicit
+    ? [explicit]
+    : [
+        join(process.cwd(), "deployments", "injective.json"),
+        join(process.cwd(), "deployments", "sepolia.json")
+      ];
+  for (const path of candidates) {
+    if (!existsSync(path)) continue;
+    const artifact = JSON.parse(readFileSync(path, "utf8")) as { chainId?: number };
+    return artifact.chainId === 1439
+      ? "https://testnet.blockscout.injective.network/tx"
+      : "https://sepolia.etherscan.io/tx";
+  }
+  return "https://testnet.blockscout.injective.network/tx";
+}
+
+const EXPLORER_TX_BASE = explorerTxBase();
 
 // Mirrors the readTaskResponse helper in apps/web/app/page.tsx exactly.
 async function readTaskResponse(response: Response): Promise<Task> {
@@ -55,38 +76,38 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function etherscanLink(txHash: string): string {
-  return `${ETHERSCAN_BASE}/${txHash}`;
+function explorerLink(txHash: string): string {
+  return `${EXPLORER_TX_BASE}/${txHash}`;
 }
 
-// Poll pact-status until PactActive (max 30 tries × 10s = 5 min).
-// Shared by the success and denial paths — both need an active pact.
-async function waitForPactActive(task: Task): Promise<Task> {
-  const MAX_PACT_TRIES = 30;
-  let pactActive = task.status === "PactActive";
+// Poll policy-status until PolicyActive (max 30 tries × 10s = 5 min).
+// Shared by the success and denial paths — both need an active policy.
+async function waitForPolicyActive(task: Task): Promise<Task> {
+  const MAX_POLICY_TRIES = 30;
+  let policyActive = task.status === "PolicyActive";
 
-  for (let attempt = 1; attempt <= MAX_PACT_TRIES && !pactActive; attempt++) {
+  for (let attempt = 1; attempt <= MAX_POLICY_TRIES && !policyActive; attempt++) {
     if (attempt > 1) {
       console.log(
-        `      [attempt ${attempt}/${MAX_PACT_TRIES}] waiting for Cobo approval — approve in the Cobo app if paired`
+        `      [attempt ${attempt}/${MAX_POLICY_TRIES}] waiting for restricted signing policy activation`
       );
       await sleep(10_000);
     } else {
-      console.log(`      [attempt ${attempt}/${MAX_PACT_TRIES}] checking pact status...`);
+      console.log(`      [attempt ${attempt}/${MAX_POLICY_TRIES}] checking policy status...`);
     }
-    task = await postAction(`/api/tasks/${task.id}/pact-status`);
-    console.log(`      pact.status=${task.pact?.status} task.status=${task.status}`);
-    pactActive = task.status === "PactActive";
+    task = await postAction(`/api/tasks/${task.id}/policy-status`);
+    console.log(`      policy.status=${task.policy?.status} task.status=${task.status}`);
+    policyActive = task.status === "PolicyActive";
   }
 
-  if (!pactActive) {
+  if (!policyActive) {
     console.error(
-      `\nERROR: Pact did not become active after ${MAX_PACT_TRIES} attempts. ` +
-        `Last task.status=${task.status}. If wallet is paired, approve the pact in the Cobo app.`
+      `\nERROR: Policy did not become active after ${MAX_POLICY_TRIES} attempts. ` +
+        `Last task.status=${task.status}. Check signer configuration and server logs.`
     );
     process.exit(1);
   }
-  console.log(`      Pact is active.`);
+  console.log(`      Policy is active.`);
   return task;
 }
 
@@ -113,26 +134,28 @@ async function runSuccessPath(): Promise<{ task: Task; providerId: string }> {
   }
   console.log(`      status = ${task.status}`);
 
-  // 3. Submit Pact
-  console.log("\n[3/7] Submitting Cobo Pact...");
-  task = await postAction(`/api/tasks/${task.id}/pact`);
-  const pactId = task.pact?.pactId ?? "(unknown)";
-  console.log(`      pactId = ${pactId}`);
-  console.log(`      pact.status = ${task.pact?.status ?? "(unknown)"}`);
+  // 3. Submit Policy
+  console.log("\n[3/7] Submitting restricted signing policy...");
+  task = await postAction(`/api/tasks/${task.id}/policy`);
+  const policyId = task.policy?.policyId ?? "(unknown)";
+  console.log(`      policyId = ${policyId}`);
+  console.log(`      policy.status = ${task.policy?.status ?? "(unknown)"}`);
   console.log(`      task.status = ${task.status}`);
 
-  // 4. Poll pact-status until PactActive
-  console.log("\n[4/7] Waiting for Pact to become active...");
-  task = await waitForPactActive(task);
+  // 4. Poll policy-status until PolicyActive
+  console.log("\n[4/7] Waiting for Policy to become active...");
+  task = await waitForPolicyActive(task);
 
   // 5. Execute escrow (fund)
   console.log("\n[5/7] Executing escrow (funding job)...");
-  task = await postAction(`/api/tasks/${task.id}/execute`);
+  task = await postAction(`/api/tasks/${task.id}/execute`, {
+    providerId: recommendedProviderId
+  });
   console.log(`      txRecords (${task.txRecords.length}):`);
   for (const tx of task.txRecords) {
     console.log(`        ${tx.label}: ${tx.txHash} [${tx.status}]`);
     if (tx.txHash && tx.txHash !== "0x0000000000000000000000000000000000000000000000000000000000000000") {
-      console.log(`          etherscan: ${etherscanLink(tx.txHash)}`);
+      console.log(`          explorer: ${explorerLink(tx.txHash)}`);
     }
   }
   console.log(`      task.status = ${task.status}`);
@@ -149,7 +172,7 @@ async function runSuccessPath(): Promise<{ task: Task; providerId: string }> {
   if (submitTx) {
     console.log(`      submit txHash = ${submitTx.txHash}`);
     if (submitTx.txHash) {
-      console.log(`        etherscan: ${etherscanLink(submitTx.txHash)}`);
+      console.log(`        explorer: ${explorerLink(submitTx.txHash)}`);
     }
   }
   console.log(`      task.status = ${task.status}`);
@@ -170,7 +193,7 @@ async function runSuccessPath(): Promise<{ task: Task; providerId: string }> {
   if (completeTx) {
     console.log(`      complete txHash = ${completeTx.txHash}`);
     if (completeTx.txHash) {
-      console.log(`        etherscan: ${etherscanLink(completeTx.txHash)}`);
+      console.log(`        explorer: ${explorerLink(completeTx.txHash)}`);
     }
   }
   console.log(`      task.status = ${task.status}`);
@@ -194,15 +217,15 @@ async function runDenialPath(): Promise<void> {
   task = await postAction(`/api/tasks/${task.id}/plan`);
   console.log(`      status = ${task.status}`);
 
-  // Pact
-  console.log("\n[3/4] Submitting pact...");
-  task = await postAction(`/api/tasks/${task.id}/pact`);
-  console.log(`      pactId = ${task.pact?.pactId ?? "(unknown)"}`);
+  // Policy
+  console.log("\n[3/4] Submitting policy...");
+  task = await postAction(`/api/tasks/${task.id}/policy`);
+  console.log(`      policyId = ${task.policy?.policyId ?? "(unknown)"}`);
   console.log(`      status = ${task.status}`);
 
-  // Poll pact-status until active — triggerDenial requires PactActive
-  console.log("\n[pact-status] Waiting for Pact to become active...");
-  task = await waitForPactActive(task);
+  // Poll policy-status until active — triggerDenial requires PolicyActive
+  console.log("\n[policy-status] Waiting for Policy to become active...");
+  task = await waitForPolicyActive(task);
 
   // Denial demo
   console.log("\n[4/4] Triggering denial demo...");
@@ -224,7 +247,7 @@ function printSummary(task: Task): void {
   console.log("\n=== SUMMARY ===\n");
   console.log(`Task ID:     ${task.id}`);
   console.log(`Final status: ${task.status}`);
-  console.log(`Pact ID:     ${task.pact?.pactId ?? "(none)"}`);
+  console.log(`Policy ID:     ${task.policy?.policyId ?? "(none)"}`);
   console.log(`Package hash: ${task.providerPackage?.packageHash ?? "(none)"}`);
   console.log(`Audit file:  data/demo-state/audit-${task.id}.jsonl`);
 
@@ -234,7 +257,7 @@ function printSummary(task: Task): void {
       const link =
         tx.txHash &&
         tx.txHash !== "0x0000000000000000000000000000000000000000000000000000000000000000"
-          ? `  → ${etherscanLink(tx.txHash)}`
+          ? `  → ${explorerLink(tx.txHash)}`
           : "";
       console.log(`  ${tx.label.padEnd(12)} ${tx.txHash ?? "(pending)"}  [${tx.status}]${link}`);
     }
